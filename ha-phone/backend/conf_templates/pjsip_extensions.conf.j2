@@ -17,7 +17,7 @@ direct_media      = no
 max_video_streams = 0
 {% endif %}
 auth              = {{ ext.number }}-auth
-aors              = {{ ext.number }}-aors
+aors              = {{ ext.number }}
 callerid          = {{ ext.display_name }} <{{ ext.number }}>
 
 [{{ ext.number }}-auth]
@@ -26,7 +26,10 @@ auth_type         = userpass
 username          = {{ ext.number }}
 password          = {{ ext.sip_password }}
 
-[{{ ext.number }}-aors]
+; AOR name MUST equal the SIP username: the inbound registrar (res_pjsip_registrar.c
+; find_registrar_aor) looks up the AOR by the REGISTER's To-user against endpoint->aors,
+; so an AOR named "<number>-aors" never matches user "<number>" → "AOR '' not found".
+[{{ ext.number }}]
 type              = aor
 {% if ext.video_capable %}
 max_contacts      = 1

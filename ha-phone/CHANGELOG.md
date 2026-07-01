@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.14
+
+**Fix (kritisch — der echte AOR-Fix)**
+- PJSIP-Registrierung: Der Fix aus 0.7.13 (`disable_multi_domain`) war wirkungslos — `res_pjsip_registrar.c` referenziert diese Option gar nicht. Die tatsächliche Ursache: der Registrar sucht die AOR über den **Benutzernamen aus dem REGISTER** (`find_aor_name(username, host, endpoint->aors)`). Unsere AOR hieß `<nummer>-aors` und konnte nie zum User `<nummer>` passen. Template korrigiert: AOR heißt jetzt exakt `<nummer>` und `aors = <nummer>` (kanonisches Asterisk-Muster: Endpoint/Auth/AOR teilen den Namen). `disable_multi_domain` wieder entfernt. Softphones registrieren sich jetzt wirklich.
+
 ## 0.7.13
 
 **Fixes (kritisch)**
