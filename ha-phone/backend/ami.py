@@ -70,11 +70,22 @@ async def _get_manager() -> Manager:
 _AMI_TIMEOUT = 8
 
 
+async def _ami_cli(command: str) -> None:
+    """Run an Asterisk CLI command via the AMI 'Command' action.
+
+    panoramisk's Manager has NO send_command() method — only send_action().
+    The previous code called send_command(), which raised AttributeError on
+    every reload, got swallowed, and meant Asterisk NEVER reloaded live: new
+    extensions/trunk edits only took effect on a full add-on restart.
+    """
+    manager = await _get_manager()
+    await manager.send_action({"Action": "Command", "Command": command}, as_list=True)
+
+
 async def ami_reload_pjsip() -> None:
     try:
         async with asyncio.timeout(_AMI_TIMEOUT):
-            manager = await _get_manager()
-            await manager.send_command("module reload res_pjsip.so")
+            await _ami_cli("module reload res_pjsip.so")
     except Exception as exc:
         _log.warning("AMI pjsip reload skipped: %s", exc)
 
@@ -82,8 +93,7 @@ async def ami_reload_pjsip() -> None:
 async def ami_reload_dialplan() -> None:
     try:
         async with asyncio.timeout(_AMI_TIMEOUT):
-            manager = await _get_manager()
-            await manager.send_command("dialplan reload")
+            await _ami_cli("dialplan reload")
     except Exception as exc:
         _log.warning("AMI dialplan reload skipped: %s", exc)
 
@@ -91,8 +101,7 @@ async def ami_reload_dialplan() -> None:
 async def ami_reload_voicemail() -> None:
     try:
         async with asyncio.timeout(_AMI_TIMEOUT):
-            manager = await _get_manager()
-            await manager.send_command("module reload app_voicemail.so")
+            await _ami_cli("module reload app_voicemail.so")
     except Exception as exc:
         _log.warning("AMI voicemail reload skipped: %s", exc)
 

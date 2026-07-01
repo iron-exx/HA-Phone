@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.12
+
+**Fix (kritisch)**
+- AMI-Reload: `manager.send_command()` existiert in panoramisk nicht — jeder Reload (PJSIP, Dialplan, Voicemail) warf `AttributeError`, wurde geschluckt und Asterisk lud neue Extensions/Trunk-Änderungen NIE live. Umgestellt auf die korrekte `send_action({"Action":"Command", ...})`-API. Neue Extensions registrieren sich jetzt sofort ohne Add-on-Neustart.
+
 ## 0.7.11
 
 **Feature**
