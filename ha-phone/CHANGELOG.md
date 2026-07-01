@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.9
+
+**Fixes**
+- Login + ChangePassword: Logo direkt angezeigt (kein Farbquadrat mehr), 80px mit blauem Glow.
+- ChangePassword: komplettes Glassmorphism-Redesign, Passwort-Stärke-Anzeige, deutsche Texte.
+
 ## 0.7.8
 
 **Fixes & Verbesserungen**
