@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.10
+
+**Fix**
+- Trunk: Label "SIP Account" → "Anmeldename (SIP-Benutzername laut Anbieter-Portal)" — allgemein für alle Provider.
+
 ## 0.7.9
 
 **Fixes**

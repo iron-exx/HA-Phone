@@ -317,9 +317,9 @@ export default function TrunkPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                      SIP Account{" "}
+                      Anmeldename{" "}
                       <span className="ml-1 normal-case font-normal text-muted-foreground">
-                        (DG-Accountnummer, nicht Rufnummer)
+                        (SIP-Benutzername laut Anbieter-Portal)
                       </span>
                     </FormLabel>
                     <FormControl>
