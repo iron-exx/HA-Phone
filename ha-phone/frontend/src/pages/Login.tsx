@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export default function Login() {
   const [password, setPassword] = useState("");
@@ -22,11 +20,11 @@ export default function Login() {
         body: JSON.stringify({ password }),
       });
       if (resp.status === 401) {
-        setError("Invalid password");
+        setError("Falsches Passwort");
         return;
       }
       if (!resp.ok) {
-        setError("Login failed — please try again");
+        setError("Anmeldung fehlgeschlagen — bitte erneut versuchen");
         return;
       }
       const data = await resp.json();
@@ -41,34 +39,104 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center">
-          <img src="/haphone-logo.svg" alt="HA-Phone" className="size-16 mb-2" />
-          <CardTitle>HA-Phone</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoFocus
-                required
-              />
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden"
+      style={{ background: "hsl(222, 84%, 4%)" }}
+    >
+      {/* Ambient orbs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div
+          className="absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(76,29,149,0.4) 0%, transparent 70%)" }}
+        />
+        <div
+          className="absolute -bottom-20 left-1/4 h-64 w-64 rounded-full blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(6,78,59,0.25) 0%, transparent 70%)" }}
+        />
+        <div
+          className="absolute top-1/3 right-1/4 h-48 w-48 rounded-full blur-3xl"
+          style={{ background: "radial-gradient(circle, rgba(30,58,138,0.2) 0%, transparent 70%)" }}
+        />
+      </div>
+
+      {/* Login card */}
+      <div
+        className="relative z-10 w-full max-w-sm rounded-2xl p-8"
+        style={{
+          background: "rgba(255, 255, 255, 0.03)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          boxShadow: "0 25px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.08)",
+        }}
+      >
+        {/* Logo + title */}
+        <div className="mb-8 flex flex-col items-center gap-4">
+          <div
+            className="flex h-16 w-16 items-center justify-center rounded-2xl"
+            style={{
+              background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
+              boxShadow: "0 0 32px rgba(124,58,237,0.5), 0 0 64px rgba(124,58,237,0.2)",
+            }}
+          >
+            <img src="/haphone-logo.svg" alt="HA-Phone" className="h-8 w-8 brightness-0 invert" />
+          </div>
+
+          <div className="text-center">
+            <h1 className="text-gradient text-2xl font-semibold tracking-tight">HA-Phone</h1>
+            <p className="mt-1 text-xs text-muted-foreground">PBX Admin</p>
+          </div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="password"
+              className="block text-xs font-medium uppercase tracking-widest text-muted-foreground"
+            >
+              Passwort
+            </label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+              required
+              className="h-11 font-mono text-base"
+              placeholder="••••••••"
+            />
+          </div>
+
+          {error && (
+            <div
+              className="rounded-lg px-3 py-2 text-sm"
+              style={{
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.2)",
+                color: "#FCA5A5",
+              }}
+            >
+              {error}
             </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign In"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          )}
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="mt-2 h-11 w-full cursor-pointer text-sm font-semibold"
+            style={{
+              background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
+              boxShadow: loading ? "none" : "0 0 20px rgba(124,58,237,0.4)",
+              border: "none",
+              transition: "box-shadow 0.15s",
+            }}
+          >
+            {loading ? "Anmelden…" : "Anmelden"}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
