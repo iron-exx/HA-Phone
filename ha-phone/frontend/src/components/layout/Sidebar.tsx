@@ -6,6 +6,7 @@ import {
   GitBranch,
   Voicemail,
   Settings,
+  Activity,
   LogOut,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ const navItems = [
   { to: "/routing", label: "Routing", icon: GitBranch, end: false },
   { to: "/voicemail", label: "Voicemail", icon: Voicemail, end: false },
   { to: "/settings/public-ip", label: "Settings", icon: Settings, end: false },
+  { to: "/diagnostics", label: "Diagnose", icon: Activity, end: false },
 ];
 
 export default function Sidebar() {

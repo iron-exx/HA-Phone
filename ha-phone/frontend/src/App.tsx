@@ -8,6 +8,7 @@ import Trunk from "./pages/Trunk";
 import Routing from "./pages/Routing";
 import Voicemail from "./pages/Voicemail";
 import PublicIP from "./pages/PublicIP";
+import Diagnostics from "./pages/Diagnostics";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
 
@@ -106,6 +107,7 @@ export default function App() {
                   <Route path="/routing" element={<Routing />} />
                   <Route path="/voicemail" element={<Voicemail />} />
                   <Route path="/settings/public-ip" element={<PublicIP />} />
+                  <Route path="/diagnostics" element={<Diagnostics />} />
                 </Routes>
               </Shell>
             </AuthGuard>
