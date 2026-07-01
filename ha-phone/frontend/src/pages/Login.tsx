@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Logo from "@/components/Logo";
 
 export default function Login() {
   const [password, setPassword] = useState("");
@@ -55,9 +56,7 @@ export default function Login() {
       >
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-4">
-          <img
-            src="/haphone-logo.svg"
-            alt="HA-Phone"
+          <Logo
             className="h-20 w-20"
             style={{ filter: "drop-shadow(0 0 16px rgba(56,189,248,0.6))" }}
           />

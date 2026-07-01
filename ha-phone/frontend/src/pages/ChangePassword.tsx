@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShieldCheck } from "lucide-react";
+import Logo from "@/components/Logo";
 
 export default function ChangePassword() {
   const [pw, setPw] = useState("");
@@ -61,9 +62,7 @@ export default function ChangePassword() {
         {/* Logo + header */}
         <div className="mb-8 flex flex-col items-center gap-4">
           <div className="relative">
-            <img
-              src="/haphone-logo.svg"
-              alt="HA-Phone"
+            <Logo
               className="h-16 w-16"
               style={{ filter: "drop-shadow(0 0 12px rgba(56,189,248,0.5))" }}
             />

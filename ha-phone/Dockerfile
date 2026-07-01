@@ -164,6 +164,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     sngrep \
     sox \
+    tcpdump \
     uuid-runtime \
   && rm -rf /var/lib/apt/lists/*
 

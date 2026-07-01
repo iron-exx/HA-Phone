@@ -9,6 +9,7 @@ import Routing from "./pages/Routing";
 import Voicemail from "./pages/Voicemail";
 import PublicIP from "./pages/PublicIP";
 import Diagnostics from "./pages/Diagnostics";
+import Logo from "./components/Logo";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
 
@@ -52,7 +53,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="flex flex-col items-center gap-3" role="status" aria-live="polite">
-          <img src="/haphone-logo.svg" alt="HA-Phone" className="size-12" />
+          <Logo className="size-12" />
           <div
             className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary"
             aria-hidden="true"

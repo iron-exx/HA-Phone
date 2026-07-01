@@ -1,9 +1,16 @@
 # Changelog
 
+## 0.7.13
+
+**Fixes (kritisch)**
+- PJSIP: Extensions konnten sich nicht registrieren — `AOR '' not found for endpoint 'X'`. Ursache: Asterisk läuft im Multi-Domain-Default und sucht die AOR nach dem REGISTER-Benutzernamen (z.B. `11`), nicht nach der `aors=`-Referenz des Endpoints (`11-aors`). `[global] disable_multi_domain = yes` ergänzt → Registrar nutzt jetzt die `aors=`-Liste direkt. Softphones registrieren sich jetzt.
+- Logo: wurde in Sidebar/Login/ChangePassword/Ladeansicht nicht angezeigt. `<img src="/haphone-logo.svg">` ist root-absolut und zeigt unter dem HA-Ingress-Präfix auf die HA-Wurzel statt aufs Add-on (404). Logo als Inline-SVG-Komponente (`Logo.tsx`) — keine Pfadauflösung mehr nötig.
+
 ## 0.7.12
 
-**Fix (kritisch)**
+**Fixes (kritisch)**
 - AMI-Reload: `manager.send_command()` existiert in panoramisk nicht — jeder Reload (PJSIP, Dialplan, Voicemail) warf `AttributeError`, wurde geschluckt und Asterisk lud neue Extensions/Trunk-Änderungen NIE live. Umgestellt auf die korrekte `send_action({"Action":"Command", ...})`-API. Neue Extensions registrieren sich jetzt sofort ohne Add-on-Neustart.
+- Dockerfile: `tcpdump` ergänzt — die Diagnose-Seite (Netzwerk-Trace) schlug mit "tcpdump verfügbar?" fehl, weil das Paket im Image fehlte.
 
 ## 0.7.11
 

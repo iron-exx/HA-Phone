@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import Logo from "@/components/Logo";
 import {
   LayoutDashboard,
   Phone,
@@ -38,9 +39,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-5 py-5">
         <div className="flex items-center gap-3">
-          <img
-            src="/haphone-logo.svg"
-            alt="HA-Phone"
+          <Logo
             className="h-10 w-10 shrink-0 drop-shadow-lg"
             style={{ filter: "drop-shadow(0 0 8px rgba(56,189,248,0.5))" }}
           />
