@@ -34,17 +34,14 @@ export default function Sidebar() {
     <div className="flex h-full flex-col">
 
       {/* Logo */}
-      <div className="px-5 py-6">
+      <div className="px-5 py-5">
         <div className="flex items-center gap-3">
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-            style={{
-              background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
-              boxShadow: "0 0 14px rgba(124,58,237,0.45)",
-            }}
-          >
-            <img src="/haphone-logo.svg" alt="" className="h-4 w-4 brightness-0 invert" />
-          </div>
+          <img
+            src="/haphone-logo.svg"
+            alt="HA-Phone"
+            className="h-10 w-10 shrink-0 drop-shadow-lg"
+            style={{ filter: "drop-shadow(0 0 8px rgba(56,189,248,0.5))" }}
+          />
           <div className="flex flex-col gap-0">
             <span className="text-gradient text-[15px] font-semibold leading-tight tracking-wide">
               HA-Phone
