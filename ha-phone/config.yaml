@@ -1,0 +1,27 @@
+name: "HA-Phone"
+version: "0.7.7"
+slug: "ha-phone"
+description: "Telefonanlage fuer Home Assistant — Deutsche Glasfaser SIP trunk, IP phones, Akuvox doorbell"
+url: "https://github.com/iron-exx/HA-Phone"
+
+arch:
+  - amd64
+  - aarch64
+
+startup: services
+init: false
+
+host_network: true
+
+ingress: true
+ingress_port: 8099
+ingress_entry: "/"
+
+map:
+  - data:rw
+
+options:
+  admin_password: "changeme"
+
+schema:
+  admin_password: "str"

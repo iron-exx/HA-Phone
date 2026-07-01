@@ -1,0 +1,11 @@
+#!/usr/bin/with-contenv bashio
+# Called by s6 when Asterisk exits.
+# $1 = exit code, $2 = signal number
+# Exit code 256 = service received SIGTERM (normal stop from HA Supervisor).
+# Any other non-zero = crash -> halt the container so HA marks add-on as stopped.
+e="${1}"
+if [[ "${e}" != "0" ]] && [[ "${e}" != "256" ]]; then
+    bashio::log.warning "Asterisk exited with code ${e} — halting add-on."
+    /run/s6/basedir/bin/halt
+fi
+bashio::log.info "Asterisk stopped cleanly (exit ${e})."

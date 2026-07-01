@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Deep OLED */
+    --background: 222 84% 4%;
+    --foreground: 214 32% 94%;
+
+    /* Glass cards */
+    --card: 220 60% 6%;
+    --card-foreground: 214 32% 94%;
+
+    /* Purple primary */
+    --primary: 262 83% 68%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Muted */
+    --muted: 220 40% 10%;
+    --muted-foreground: 215 20% 50%;
+
+    /* Borders */
+    --border: 220 30% 13%;
+    --input: 220 40% 10%;
+    --ring: 262 83% 68%;
+
+    /* Semantic */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+
+    --radius: 0.75rem;
+  }
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.45); }
+
+/* ── Glassmorphism card ────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Status glow rings ─────────────────────────────────────── */
+.glow-green {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), 0 0 20px rgba(34, 197, 94, 0.2);
+}
+.glow-yellow {
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.15), 0 0 20px rgba(234, 179, 8, 0.2);
+}
+.glow-red {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), 0 0 20px rgba(239, 68, 68, 0.2);
+}
+
+/* ── Gradient text ─────────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, #A78BFA 0%, #34D399 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Pulsing dot animation ─────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.dot-pulse { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* ── Monospace for IDs / numbers ───────────────────────────── */
+.font-mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+/* ── Input dark glass overrides ────────────────────────────── */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(139, 92, 246, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.12) !important;
+  outline: none;
+}

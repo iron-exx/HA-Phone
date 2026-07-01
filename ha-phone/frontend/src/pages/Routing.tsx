@@ -1,0 +1,848 @@
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+
+import { type Route, type TimeCondition } from "@/types/api";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+// ---- Zod schemas ----
+const routeSchema = z.object({
+  did: z.string().min(1, "Required").max(32, "Max 32 chars"),
+  destination_type: z.enum(["extension", "ring_group"]).default("extension"),
+  destination_id: z.coerce.number().int().min(0, "Required"),
+});
+
+type RouteFormValues = z.infer<typeof routeSchema>;
+
+const timeConditionSchema = z.object({
+  name: z.string().min(1, "Required").max(64, "Max 64 chars"),
+  did: z.string().min(1, "Required").max(32, "Max 32 chars"),
+  open_hours_start: z.string().regex(/^\d{2}:\d{2}$/, "Format: HH:MM"),
+  open_hours_end: z.string().regex(/^\d{2}:\d{2}$/, "Format: HH:MM"),
+  open_days: z.string().min(1, "Required"),
+  open_destination: z.coerce.number().int().min(10, "Min 10").max(99, "Max 99"),
+  closed_destination: z.coerce.number().int().min(10, "Min 10").max(99, "Max 99"),
+});
+
+type TimeConditionFormValues = z.infer<typeof timeConditionSchema>;
+
+// ---- Add Route dialog ----
+function AddRouteDialog({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (route: Route) => void;
+}) {
+  const form = useForm<RouteFormValues>({
+    resolver: zodResolver(routeSchema),
+    defaultValues: {
+      did: "",
+      destination_type: "extension",
+      destination_id: undefined as unknown as number,
+    },
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function onSubmit(values: RouteFormValues) {
+    setSaving(true);
+    try {
+      const resp = await fetch("/api/routes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const created: Route = await resp.json();
+      onCreated(created);
+      toast.success("Saved.");
+      onClose();
+    } catch {
+      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Route</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="did"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>DID (Phone Number)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. +4922222222" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="destination_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Destination Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="extension">Extension</SelectItem>
+                      <SelectItem value="ring_group">Ring Group</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="destination_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Destination ID</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="e.g. 10" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Save Route"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Edit Route dialog ----
+function EditRouteDialog({
+  route,
+  onClose,
+  onUpdated,
+}: {
+  route: Route;
+  onClose: () => void;
+  onUpdated: (route: Route) => void;
+}) {
+  const form = useForm<RouteFormValues>({
+    resolver: zodResolver(routeSchema),
+    defaultValues: {
+      did: route.did,
+      destination_type: route.destination_type,
+      destination_id: route.destination_id,
+    },
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function onSubmit(values: RouteFormValues) {
+    setSaving(true);
+    try {
+      const resp = await fetch(`/api/routes/${route.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const updated: Route = await resp.json();
+      onUpdated(updated);
+      toast.success("Saved.");
+      onClose();
+    } catch {
+      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Route</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField control={form.control} name="did" render={({ field }) => (
+              <FormItem>
+                <FormLabel>DID (Phone Number)</FormLabel>
+                <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="destination_type" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Destination Type</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="extension">Extension</SelectItem>
+                    <SelectItem value="ring_group">Ring Group</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="destination_id" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Destination ID</FormLabel>
+                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+              <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Route"}</Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Delete Route confirmation dialog ----
+function DeleteRouteDialog({
+  route,
+  onClose,
+  onDeleted,
+}: {
+  route: Route;
+  onClose: () => void;
+  onDeleted: (id: number) => void;
+}) {
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  async function handleDelete() {
+    setDeleteLoading(true);
+    try {
+      const resp = await fetch(`/api/routes/${route.id}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error(await resp.text());
+      onDeleted(route.id);
+      toast.success("Route deleted.");
+      onClose();
+    } catch {
+      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+      setDeleteLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o && !deleteLoading) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete this route?</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Delete this route? Inbound calls matching this DID will no longer be routed.
+        </p>
+        <DialogFooter>
+          {!deleteLoading && (
+            <Button variant="outline" onClick={onClose}>
+              Keep Route
+            </Button>
+          )}
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Add Time Condition Dialog ----
+function AddTimeConditionDialog({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (tc: TimeCondition) => void;
+}) {
+  const form = useForm<TimeConditionFormValues>({
+    resolver: zodResolver(timeConditionSchema),
+    defaultValues: {
+      name: "",
+      did: "",
+      open_hours_start: "07:00",
+      open_hours_end: "22:00",
+      open_days: "mon-sun",
+      open_destination: undefined as unknown as number,
+      closed_destination: undefined as unknown as number,
+    },
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function onSubmit(values: TimeConditionFormValues) {
+    setSaving(true);
+    try {
+      const resp = await fetch("/api/time-conditions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const created: TimeCondition = await resp.json();
+      onCreated(created);
+      toast.success("Saved.");
+      onClose();
+    } catch {
+      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Add Time Condition</DialogTitle></DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl><Input placeholder="e.g. Business Hours" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="did" render={({ field }) => (
+              <FormItem>
+                <FormLabel>DID (Phone Number)</FormLabel>
+                <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="open_hours_start" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Open From</FormLabel>
+                  <FormControl><Input placeholder="07:00" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="open_hours_end" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Open Until</FormLabel>
+                  <FormControl><Input placeholder="22:00" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="open_days" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Open Days</FormLabel>
+                <FormControl><Input placeholder="mon-sun" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="open_destination" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Open Destination (Extension)</FormLabel>
+                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="closed_destination" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Closed Destination (Extension → Voicemail)</FormLabel>
+                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+              <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Time Condition"}</Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Edit Time Condition Dialog ----
+function EditTimeConditionDialog({
+  condition,
+  onClose,
+  onUpdated,
+}: {
+  condition: TimeCondition;
+  onClose: () => void;
+  onUpdated: (tc: TimeCondition) => void;
+}) {
+  const form = useForm<TimeConditionFormValues>({
+    resolver: zodResolver(timeConditionSchema),
+    defaultValues: {
+      name: condition.name,
+      did: condition.did,
+      open_hours_start: condition.open_hours_start,
+      open_hours_end: condition.open_hours_end,
+      open_days: condition.open_days,
+      open_destination: condition.open_destination,
+      closed_destination: condition.closed_destination,
+    },
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function onSubmit(values: TimeConditionFormValues) {
+    setSaving(true);
+    try {
+      const resp = await fetch(`/api/time-conditions/${condition.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const updated: TimeCondition = await resp.json();
+      onUpdated(updated);
+      toast.success("Saved.");
+      onClose();
+    } catch {
+      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Edit Time Condition</DialogTitle></DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl><Input placeholder="e.g. Business Hours" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="did" render={({ field }) => (
+              <FormItem>
+                <FormLabel>DID (Phone Number)</FormLabel>
+                <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="open_hours_start" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Open From</FormLabel>
+                  <FormControl><Input placeholder="07:00" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="open_hours_end" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Open Until</FormLabel>
+                  <FormControl><Input placeholder="22:00" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="open_days" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Open Days</FormLabel>
+                <FormControl><Input placeholder="mon-sun" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="open_destination" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Open Destination (Extension)</FormLabel>
+                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="closed_destination" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Closed Destination (Extension → Voicemail)</FormLabel>
+                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+              <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Time Condition"}</Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Delete Time Condition Dialog ----
+function DeleteTimeConditionDialog({
+  condition,
+  onClose,
+  onDeleted,
+}: {
+  condition: TimeCondition;
+  onClose: () => void;
+  onDeleted: (id: number) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      const resp = await fetch(`/api/time-conditions/${condition.id}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error(await resp.text());
+      onDeleted(condition.id);
+      toast.success("Time condition deleted.");
+      onClose();
+    } catch {
+      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o && !deleting) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete this time condition?</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Inbound calls matching {condition.did} will use the fallback catch-all routing.
+        </p>
+        <DialogFooter>
+          {!deleting && (
+            <Button variant="outline" onClick={onClose}>Keep</Button>
+          )}
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+            {deleting ? "Deleting..." : "Delete Condition"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Main page ----
+export default function Routing() {
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Route | null>(null);
+  const [editRouteTarget, setEditRouteTarget] = useState<Route | null>(null);
+
+  const [timeConditions, setTimeConditions] = useState<TimeCondition[]>([]);
+  const [tcLoading, setTcLoading] = useState(true);
+  const [tcDialogOpen, setTcDialogOpen] = useState(false);
+  const [tcEditTarget, setTcEditTarget] = useState<TimeCondition | null>(null);
+  const [tcDeleteTarget, setTcDeleteTarget] = useState<TimeCondition | null>(null);
+
+  useEffect(() => {
+    fetch("/api/routes")
+      .then((r) => r.json())
+      .then((data: Route[]) => setRoutes(data))
+      .catch(() => toast.error("Failed to load routes."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/time-conditions")
+      .then((r) => r.json())
+      .then((data: TimeCondition[]) => setTimeConditions(data))
+      .catch(() => toast.error("Failed to load time conditions. Check that the PBX is running and try again."))
+      .finally(() => setTcLoading(false));
+  }, []);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-xl font-semibold">Routing</h1>
+        <Button onClick={() => setDialogOpen(true)}>Add Route</Button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : routes.length === 0 ? (
+        <div className="text-center py-16">
+          <h2 className="text-xl font-semibold mb-2">No routes configured</h2>
+          <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+            Inbound routes control how incoming calls are distributed. Add a route to get started.
+          </p>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>DID</TableHead>
+              <TableHead>Destination Type</TableHead>
+              <TableHead>Destination ID</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {routes.map((route) => (
+              <TableRow key={route.id}>
+                <TableCell className="font-medium">{route.did}</TableCell>
+                <TableCell>{route.destination_type}</TableCell>
+                <TableCell>{route.destination_id}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Actions for Route {route.did}</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Actions</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        aria-label={`Edit Route ${route.did}`}
+                        onClick={() => setEditRouteTarget(route)}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        aria-label={`Delete Route ${route.did}`}
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleteTarget(route)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {/* ─── Time Conditions section ───────────────────────────────────── */}
+      <Separator className="my-8" />
+
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold">Time Conditions</h2>
+        <Button onClick={() => setTcDialogOpen(true)}>Add Time Condition</Button>
+      </div>
+
+      {tcLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : timeConditions.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-sm font-semibold text-muted-foreground">No time conditions</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+            Add a time condition to route inbound calls by schedule. Without one, all calls ring all extensions.
+          </p>
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>DID</TableHead>
+              <TableHead>Open Hours</TableHead>
+              <TableHead>Days</TableHead>
+              <TableHead>Open Destination</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {timeConditions.map((tc) => (
+              <TableRow key={tc.id}>
+                <TableCell className="font-medium">{tc.did}</TableCell>
+                <TableCell>{tc.open_hours_start} – {tc.open_hours_end}</TableCell>
+                <TableCell>{tc.open_days}</TableCell>
+                <TableCell>ext {tc.open_destination}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Actions for {tc.did}</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Actions</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        aria-label={`Edit Time Condition ${tc.did}`}
+                        onClick={() => setTcEditTarget(tc)}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        aria-label={`Delete Time Condition ${tc.did}`}
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setTcDeleteTarget(tc)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {/* Add Route Dialog */}
+      {dialogOpen && (
+        <AddRouteDialog
+          open
+          onClose={() => setDialogOpen(false)}
+          onCreated={(route) => setRoutes((prev) => [...prev, route])}
+        />
+      )}
+
+      {/* Delete Route Confirmation Dialog */}
+      {deleteTarget && (
+        <DeleteRouteDialog
+          route={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={(id) => {
+            setRoutes((prev) => prev.filter((r) => r.id !== id));
+            setDeleteTarget(null);
+          }}
+        />
+      )}
+
+      {/* Edit Route Dialog */}
+      {editRouteTarget && (
+        <EditRouteDialog
+          route={editRouteTarget}
+          onClose={() => setEditRouteTarget(null)}
+          onUpdated={(updated) => {
+            setRoutes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+            setEditRouteTarget(null);
+          }}
+        />
+      )}
+
+      {/* Add Time Condition Dialog */}
+      {tcDialogOpen && (
+        <AddTimeConditionDialog
+          open
+          onClose={() => setTcDialogOpen(false)}
+          onCreated={(tc) => setTimeConditions((prev) => [...prev, tc])}
+        />
+      )}
+
+      {/* Edit Time Condition Dialog */}
+      {tcEditTarget && (
+        <EditTimeConditionDialog
+          condition={tcEditTarget}
+          onClose={() => setTcEditTarget(null)}
+          onUpdated={(updated) => {
+            setTimeConditions((prev) => prev.map((tc) => (tc.id === updated.id ? updated : tc)));
+            setTcEditTarget(null);
+          }}
+        />
+      )}
+
+      {/* Delete Time Condition Dialog */}
+      {tcDeleteTarget && (
+        <DeleteTimeConditionDialog
+          condition={tcDeleteTarget}
+          onClose={() => setTcDeleteTarget(null)}
+          onDeleted={(id) => {
+            setTimeConditions((prev) => prev.filter((tc) => tc.id !== id));
+            setTcDeleteTarget(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}

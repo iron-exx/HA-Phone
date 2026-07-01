@@ -1,0 +1,7 @@
+#!/usr/bin/with-contenv bashio
+# Start Asterisk under s6 supervision
+# -T: timestamped CLI output
+# -f: foreground (required for s6 PID tracking — do NOT remove -f)
+# exec: replaces shell so s6 tracks the actual Asterisk PID
+bashio::log.info "Starting Asterisk..."
+exec asterisk -T -f

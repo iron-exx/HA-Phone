@@ -1,0 +1,11 @@
+# Runtime data — never commit credentials or generated state
+/data/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/
+*.swp

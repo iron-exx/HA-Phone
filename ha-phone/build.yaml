@@ -1,0 +1,9 @@
+build_from:
+  amd64: "ghcr.io/hassio-addons/debian-base:7.3.0"
+  aarch64: "ghcr.io/hassio-addons/debian-base:7.3.0"
+squash: false
+labels:
+  org.opencontainers.image.title: "ha-phone"
+  org.opencontainers.image.description: "Asterisk PBX HA add-on"
+  org.opencontainers.image.source: "https://github.com/iron-exx/HA-Phone"
+  org.opencontainers.image.licenses: "MIT"
