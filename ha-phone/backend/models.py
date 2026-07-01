@@ -25,7 +25,7 @@ class ExtensionUpdate(SQLModel):
 
 class Trunk(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    registrar_host: str = "sip.dg-w.de"
+    registrar_host: str = ""
     port: int = 5060
     transport: str = "udp"  # udp | tcp | tls
     domain: str = ""  # SIP domain — empty = same as registrar_host

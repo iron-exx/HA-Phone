@@ -32,7 +32,7 @@ def test_trunk_save(client, tmp_data_dir):
     resp = client.post(
         "/api/trunk",
         json={
-            "registrar_host": "sip.dg-w.de",
+            "registrar_host": "sip.example.com",
             "port": 5060,
             "auth_username": "123456789",
             "password": "mysecretpassword",
@@ -80,7 +80,7 @@ def test_trunk_ami_reload(client, mock_ami):
     client.post(
         "/api/trunk",
         json={
-            "registrar_host": "sip.dg-w.de",
+            "registrar_host": "sip.example.com",
             "port": 5060,
             "auth_username": "987654321",
             "password": "anothersecret",
