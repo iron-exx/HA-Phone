@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.18
+
+**Fix (kritisch — schließt den SRV-Fix ab)**
+- `res_resolver_unbound` im `menuselect`-Build aktiviert. 0.7.17 trug das Modul in die Ladeliste ein, aber es war nie kompiliert (`--disable-all` + fehlender `--enable`) → `cannot open shared object file` beim Start, kein SRV, weiter 404. `--with-unbound` liefert nur die Bibliothek; das Modul muss zusätzlich in menuselect aktiviert werden. Jetzt gebaut → SRV-Auflösung aktiv.
+
 ## 0.7.17
 
 **Fix (kritisch — der eigentliche SRV-Fix)**

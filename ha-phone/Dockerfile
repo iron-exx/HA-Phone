@@ -79,6 +79,7 @@ RUN make menuselect.makeopts && \
     menuselect/menuselect \
       --disable-all \
       --enable res_pjproject \
+      --enable res_resolver_unbound \
       --enable res_sorcery_config \
       --enable res_sorcery_memory \
       --enable res_sorcery_astdb \
