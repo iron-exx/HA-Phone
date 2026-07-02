@@ -164,6 +164,11 @@ external_signaling_address = ${EXTERNAL_IP}
 external_media_address     = ${EXTERNAL_IP}
 local_net                  = 192.168.0.0/16
 local_net                  = 10.0.0.0/8
+local_net                  = 172.16.0.0/12
+; Tailscale/WireGuard VPN — treat remote softphones on the VPN as local so RTP
+; goes straight over the tunnel (no external_media rewrite → clean audio).
+local_net                  = 100.64.0.0/10
+local_net                  = fd7a:115c:a1e0::/48
 HEREDOC
     bashio::log.info "ha-phone: wrote pjsip_local.conf with external IP."
 else

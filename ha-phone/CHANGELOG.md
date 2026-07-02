@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.36
+
+**Feature — Remote-Softphone via VPN (Tailscale/WireGuard)**
+- `local_net` um die VPN-Bereiche erweitert (`100.64.0.0/10` Tailscale-IPv4, `fd7a:115c:a1e0::/48` Tailscale-IPv6, `172.16.0.0/12`). Damit behandelt Asterisk Softphones, die über ein VPN verbunden sind, als „lokal" → RTP/Audio läuft sauber über den Tunnel statt über die externe IP. Grundlage für Linphone von unterwegs über Tailscale (SIP-Server = Tailscale-IP der PBX). Der DG-Trunk (Medien zu 185.x, öffentlich) bleibt unberührt.
+
 ## 0.7.35
 
 **Fix + Feature — Rufgruppen**
