@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.19
+
+**Fix**
+- Diagnose-Timer: sprang beim Tab-Wechsel zurück auf 0, obwohl die Aufzeichnung weiterlief. Die Zeit wird jetzt aus einem Start-Zeitstempel vom Backend (`started_at` im Status) abgeleitet statt lokal hochgezählt — korrekt über Tab-Wechsel und Seiten-Reload hinweg.
+
 ## 0.7.18
 
 **Fix (kritisch — schließt den SRV-Fix ab)**

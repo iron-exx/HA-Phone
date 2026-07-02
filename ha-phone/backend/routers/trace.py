@@ -1,5 +1,6 @@
 import asyncio
 import signal
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -10,13 +11,17 @@ router = APIRouter()
 CAPTURE_FILE = Path("/tmp/haphone-capture.pcap")
 
 _proc: asyncio.subprocess.Process | None = None
+# Epoch seconds when the current capture started. Returned in status so the UI can
+# derive elapsed time from a fixed anchor — a client-side counter resets to 0 on every
+# tab switch / remount even though the capture keeps running.
+_started_at: float | None = None
 
 
 @router.post("/trace/start")
 async def start_trace():
-    global _proc
+    global _proc, _started_at
     if _proc is not None and _proc.returncode is None:
-        return {"running": True, "message": "already_running"}
+        return {"running": True, "message": "already_running", "started_at": _started_at}
 
     # Capture SIP signalling + RTP audio
     _proc = await asyncio.create_subprocess_exec(
@@ -25,12 +30,13 @@ async def start_trace():
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.DEVNULL,
     )
-    return {"running": True}
+    _started_at = time.time()
+    return {"running": True, "started_at": _started_at}
 
 
 @router.post("/trace/stop")
 async def stop_trace():
-    global _proc
+    global _proc, _started_at
     if _proc is not None and _proc.returncode is None:
         try:
             _proc.send_signal(signal.SIGINT)
@@ -42,12 +48,14 @@ async def stop_trace():
             except ProcessLookupError:
                 pass
 
+    _started_at = None
     file_exists = CAPTURE_FILE.exists()
     size = CAPTURE_FILE.stat().st_size if file_exists else 0
     return {
         "running": False,
         "file_ready": file_exists and size > 0,
         "size_bytes": size,
+        "started_at": None,
     }
 
 
@@ -60,6 +68,7 @@ async def trace_status():
         "running": running,
         "file_ready": not running and file_exists and size > 0,
         "size_bytes": size,
+        "started_at": _started_at if running else None,
     }
 
 

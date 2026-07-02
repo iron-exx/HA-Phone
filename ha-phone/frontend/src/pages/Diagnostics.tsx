@@ -7,6 +7,7 @@ interface TraceStatus {
   running: boolean;
   file_ready: boolean;
   size_bytes: number;
+  started_at: number | null;
 }
 
 function formatBytes(bytes: number): string {
@@ -22,7 +23,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function Diagnostics() {
-  const [status, setStatus] = useState<TraceStatus>({ running: false, file_ready: false, size_bytes: 0 });
+  const [status, setStatus] = useState<TraceStatus>({ running: false, file_ready: false, size_bytes: 0, started_at: null });
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -47,15 +48,21 @@ export default function Diagnostics() {
     };
   }, []);
 
+  // Derive elapsed time from the backend-provided start timestamp, not a local counter.
+  // A counter resets on every remount (tab switch) even though the capture keeps running;
+  // anchoring to started_at keeps the displayed time correct across tab switches + reloads.
   useEffect(() => {
-    if (status.running) {
-      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+    if (status.running && status.started_at) {
+      const startMs = status.started_at * 1000;
+      const tick = () => setElapsed(Math.max(0, Math.round((Date.now() - startMs) / 1000)));
+      tick();
+      timerRef.current = setInterval(tick, 1000);
     } else {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      if (!status.running) setElapsed(0);
+      setElapsed(0);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [status.running]);
+  }, [status.running, status.started_at]);
 
   async function handleStart() {
     setLoading(true);
