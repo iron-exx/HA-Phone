@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.22
+
+**Fix (kritisch — der eigentliche 404-Grund, per Trace + Provider-Doku belegt)**
+- Trunk-REGISTER bekam nach erfolgreicher Auth ein `404 Not Found` (Server: AareSwitch/aarenet, die Plattform hinter Deutsche Glasfaser/outbox). Ursache: Auf dieser Plattform sind **Auth-Username und Registrierungs-Identität (AOR) verschieden**. Wir haben die AOR = Auth-Account registriert; der Registrar erwartet aber die **Rufnummer** als AOR. Template getrennt: `[trunk-auth]` nutzt weiter den Anmeldenamen (SIP-Account), aber `client_uri`/`from_user`/`contact_user` nutzen jetzt die **Rufnummer** (Feld „Rufnummer/CallerID"). Für DG die Rufnummer mit führender 0 eintragen (z.B. `063483260104`, wie im Portal).
+
 ## 0.7.21
 
 **Fix (kritisch — der finale SRV-Fix, per Trace belegt)**
