@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.16
+
+**Fix (kritisch — Trunk-Registrierung, DG/SRV)**
+- Trunk-REGISTER schlug mit `404 Fatal` fehl. Ursache per DNS belegt: Deutsche Glasfaser (und viele andere Provider) veröffentlichen SRV-Records — `_sip._udp.dg.voip.dg-w.de` → `sip10/sip20.voip.dg-w.de`. Der eigentliche Registrar-A-Record (`185.22.44.186`) bedient die Registrierung NICHT. Unser Template hängte `:5060` an den `server_uri`, was die SRV-Auflösung abschaltet → Asterisk landete auf dem falschen Server → 404. Ein einfaches SIP-Gerät (DECT) lässt den Port weg → SRV → funktioniert.
+  - `server_uri`/`contact` lassen den Port jetzt weg (SRV-Auflösung), außer bei einem echten Custom-Port (≠ 0/5060). Fehlen SRV-Records, fällt PJSIP automatisch auf A-Record + 5060 zurück — universell sicher.
+  - `outbound_proxy` und `contact_user` entfernt: erzwangen ebenfalls den A-Record + Route-Header, die ein Standard-Gerät nicht sendet.
+
 ## 0.7.15
 
 **Fixes (kritisch — machen den AOR-Fix aus 0.7.14 wirksam)**
