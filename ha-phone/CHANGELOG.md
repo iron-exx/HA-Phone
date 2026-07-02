@@ -5,6 +5,9 @@
 **Fix (kritisch — der eigentliche SRV-Fix)**
 - `res_resolver_unbound.so` zur `modules.conf`-Ladeliste ergänzt. 0.7.16 entfernte zwar den Port aus dem `server_uri`, aber PJSIP macht SRV-Auflösung NUR mit geladenem unbound-Resolver — sonst nutzt es den OS-Resolver (nur A-Records) und landet weiter auf `185.22.44.186` → weiterhin 404. Das Modul war via `--with-unbound` gebaut, aber wegen `autoload = no` nie geladen. Jetzt explizit geladen (vor `res_pjsip.so`) → SRV zu `sip10/sip20.voip.dg-w.de` funktioniert, Registrierung geht durch.
 
+**Fix**
+- Diagnose: PCAP-Download gab 404. `window.location.href` umging den fetch-Wrapper, der das HA-Ingress-Präfix setzt → root-absoluter Pfad traf die HA-Wurzel. Präfix wird jetzt manuell vorangestellt.
+
 ## 0.7.16
 
 **Fix (kritisch — Trunk-Registrierung, DG/SRV)**

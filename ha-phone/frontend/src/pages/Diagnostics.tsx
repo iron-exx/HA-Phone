@@ -97,7 +97,11 @@ export default function Diagnostics() {
   }
 
   function handleDownload() {
-    window.location.href = "/api/trace/download";
+    // Must include the HA ingress prefix manually: window.location.href bypasses the
+    // fetch() wrapper in main.tsx that normally prepends it, so a root-absolute path
+    // would hit the HA host root (404) instead of the add-on.
+    const ingress = (window as unknown as { __INGRESS_PATH__?: string }).__INGRESS_PATH__ ?? "";
+    window.location.href = `${ingress}/api/trace/download`;
   }
 
   return (
