@@ -597,6 +597,142 @@ function DeleteTimeConditionDialog({
   );
 }
 
+// ---- Outbound dial rules ----
+interface OutboundRule {
+  id: number;
+  pattern: string;
+  strip: number;
+  prepend: string;
+  priority: number;
+}
+
+function OutboundRulesSection() {
+  const [rules, setRules] = useState<OutboundRule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pattern, setPattern] = useState("");
+  const [strip, setStrip] = useState("0");
+  const [prepend, setPrepend] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function load() {
+    fetch("/api/outbound-rules")
+      .then((r) => r.json())
+      .then((data: OutboundRule[]) => setRules(data))
+      .catch(() => toast.error("Ausgehende Regeln konnten nicht geladen werden."))
+      .finally(() => setLoading(false));
+  }
+  useEffect(load, []);
+
+  async function addRule() {
+    if (!pattern.trim()) {
+      toast.error("Muster ist erforderlich (z.B. 0.).");
+      return;
+    }
+    setSaving(true);
+    try {
+      const nextPriority = rules.length ? Math.max(...rules.map((r) => r.priority)) + 10 : 10;
+      const resp = await fetch("/api/outbound-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pattern: pattern.trim(),
+          strip: Number(strip) || 0,
+          prepend: prepend.trim(),
+          priority: nextPriority,
+        }),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      setPattern(""); setStrip("0"); setPrepend("");
+      load();
+      toast.success("Regel hinzugefügt.");
+    } catch {
+      toast.error("Fehler beim Speichern. Läuft die PBX?");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteRule(id: number) {
+    try {
+      const resp = await fetch(`/api/outbound-rules/${id}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error();
+      setRules((rs) => rs.filter((r) => r.id !== id));
+      toast.success("Regel gelöscht.");
+    } catch {
+      toast.error("Fehler beim Löschen.");
+    }
+  }
+
+  return (
+    <>
+      <Separator className="my-8" />
+      <div className="mb-2">
+        <h2 className="text-xl font-semibold">Ausgehende Regeln</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Gewählte Nummern werden vor dem Trunk umgeschrieben: <span className="font-mono">Muster</span> matcht,
+          <span className="font-mono"> Entfernen</span> streicht führende Ziffern, <span className="font-mono">Voranstellen</span> ergänzt.
+          Beispiel: <span className="font-mono">0.</span> · Entfernen <span className="font-mono">1</span> · Voranstellen <span className="font-mono">+49</span>.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Muster</TableHead>
+              <TableHead>Entfernen</TableHead>
+              <TableHead>Voranstellen</TableHead>
+              <TableHead className="text-right">Aktionen</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rules.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell className="font-mono">{r.pattern}</TableCell>
+                <TableCell className="font-mono">{r.strip}</TableCell>
+                <TableCell className="font-mono">{r.prepend || "—"}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    aria-label={`Regel ${r.pattern} löschen`}
+                    onClick={() => deleteRule(r.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {/* Inline add row */}
+            <TableRow>
+              <TableCell>
+                <Input value={pattern} onChange={(e) => setPattern(e.target.value)}
+                  placeholder="z.B. 0." className="h-9 font-mono" />
+              </TableCell>
+              <TableCell>
+                <Input value={strip} onChange={(e) => setStrip(e.target.value)}
+                  type="number" min={0} className="h-9 w-20 font-mono" />
+              </TableCell>
+              <TableCell>
+                <Input value={prepend} onChange={(e) => setPrepend(e.target.value)}
+                  placeholder="z.B. +49" className="h-9 font-mono" />
+              </TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" onClick={addRule} disabled={saving}>
+                  {saving ? "…" : "Hinzufügen"}
+                </Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      )}
+    </>
+  );
+}
+
 // ---- Main page ----
 export default function Routing() {
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -700,6 +836,9 @@ export default function Routing() {
           </TableBody>
         </Table>
       )}
+
+      {/* ─── Outbound dial rules section ─────────────────────────────────── */}
+      <OutboundRulesSection />
 
       {/* ─── Time Conditions section ───────────────────────────────────── */}
       <Separator className="my-8" />

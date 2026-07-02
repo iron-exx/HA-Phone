@@ -42,6 +42,21 @@ class Route(SQLModel, table=True):
     destination_id: int = 0
 
 
+class OutboundRule(SQLModel, table=True):
+    """Editable outbound dial-pattern rule (like the Yeastar 'Ausgehende Leitung').
+
+    A dialed number matching `pattern` (an Asterisk extension pattern WITHOUT the
+    leading underscore, e.g. "0." or "00." or "+.") has `strip` leading digits
+    removed and `prepend` prepended, then is routed to the SIP trunk. Lower
+    `priority` is evaluated/shown first.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    pattern: str = Field(default="", max_length=32)
+    strip: int = 0
+    prepend: str = Field(default="", max_length=16)
+    priority: int = 0
+
+
 class RingGroup(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=64)

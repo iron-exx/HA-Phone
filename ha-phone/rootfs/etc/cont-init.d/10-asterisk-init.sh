@@ -97,8 +97,10 @@ from backend.models import Trunk
 from backend.routers.extensions import _regenerate_extensions_conf, _regenerate_voicemail_conf
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend.routers.trunk import _regenerate_trunk_conf
+from backend.routers.outbound_rules import seed_default_outbound_rules
 engine = init_db()
 with Session(engine) as s:
+    seed_default_outbound_rules(s)
     _regenerate_extensions_conf(s)
     _regenerate_voicemail_conf(s)
     _regenerate_routing_conf(s)

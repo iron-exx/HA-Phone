@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.25
+
+**Feature — Routing**
+- **Ausgehende Regeln** (neu, editierbar): UI unter Routing wie bei Yeastar — Muster / Entfernen / Voranstellen. Vorbefüllt mit funktionierenden Defaults (`0.`→+49, `00.`→+, `+.`→durch), frei erweiter-/löschbar. Generiert den `[from-internal]`-Dialplan und lädt live neu.
+- **Eingehende Routen** greifen jetzt wirklich: `routes` werden in den `[from-trunk]`-Dialplan geschrieben (vorher komplett ignoriert), und `create/update/delete` lösen Regenerierung + Reload aus. DID-Matching ist **format-tolerant** — matcht `+49…`, `0049…`, `49…`, `0…` und national ohne 0, egal wie der Provider die Nummer sendet.
+- Bugfix: Inbound dialte `PJSIP/ext11` statt `PJSIP/11` (Endpoint-Name) → eingehende Anrufe erreichten die Nebenstelle nie.
+- Backend: neues `OutboundRule`-Modell + `/api/outbound-rules`-CRUD; Defaults werden bei Erststart und beim Boot geseedet.
+
 ## 0.7.24
 
 **Fix**

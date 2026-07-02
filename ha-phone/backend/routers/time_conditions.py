@@ -1,11 +1,12 @@
 import os
+import re
 from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import TimeCondition, RingGroup
+from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension
 from backend.conf_generator import render_conf
 from backend import ami
 
@@ -22,11 +23,41 @@ def _build_dial_string(ring_group: RingGroup) -> str:
     return "&".join(f"PJSIP/{n}" for n in numbers)
 
 
+def _did_variants(did: str) -> list[str]:
+    """Expand a stored DID into the formats a carrier might send in an inbound
+    INVITE, so an inbound route matches regardless of whether the trunk delivers
+    +49…, 0049…, 49…, national 0… or the national number without leading 0.
+    German (+49) numbers are expanded to their national forms too."""
+    raw = (did or "").strip()
+    digits = re.sub(r"[^0-9]", "", raw)
+    variants: set[str] = set()
+    if raw:
+        variants.add(raw)
+    if digits:
+        variants.add(digits)
+        variants.add("+" + digits)
+        variants.add("00" + digits)
+        if digits.startswith("49") and len(digits) > 2:
+            nat = digits[2:]
+            variants.add("0" + nat)
+            variants.add(nat)
+    return sorted(variants)
+
+
 def _regenerate_routing_conf(session: Session) -> None:
-    """Render extensions_routing.conf.j2 from all TimeCondition and RingGroup rows."""
+    """Render extensions_routing.conf.j2 from time conditions, ring groups,
+    inbound routes and outbound dial rules (all editable via the web UI)."""
     time_conditions = session.exec(select(TimeCondition)).all()
     ring_groups_list = session.exec(select(RingGroup)).all()
     ring_group_dials = {rg.id: _build_dial_string(rg) for rg in ring_groups_list}
+    routes = session.exec(select(Route)).all()
+    outbound_rules = session.exec(
+        select(OutboundRule).order_by(OutboundRule.priority)
+    ).all()
+    extensions = session.exec(select(Extension)).all()
+    route_dids = {r.id: _did_variants(r.did) for r in routes}
+    # dial-all-extensions string for the no-route inbound fallback
+    all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions)
     output_path = _data_dir() / "asterisk" / "extensions_routing.conf"
     render_conf(
         "extensions_routing.conf.j2",
@@ -34,6 +65,11 @@ def _regenerate_routing_conf(session: Session) -> None:
             "time_conditions": time_conditions,
             "ring_groups": ring_groups_list,
             "ring_group_dials": ring_group_dials,
+            "routes": routes,
+            "route_dids": route_dids,
+            "outbound_rules": outbound_rules,
+            "extensions": extensions,
+            "all_ext_dial": all_ext_dial,
         },
         output_path,
     )

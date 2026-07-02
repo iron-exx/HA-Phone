@@ -9,14 +9,23 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.database import init_db
 from backend.auth import get_current_user, SESSION_SECRET
-from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, update, trace
+from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, update, trace, outbound_rules
 from backend.routers import auth as auth_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize engine (picks up BPX_DATA_DIR env var) and create all SQLModel tables
-    init_db()
+    engine = init_db()
+    # Seed default outbound dial rules on first run so external calls work out of
+    # the box (idempotent — only when the table is empty).
+    try:
+        from sqlmodel import Session
+        from backend.routers.outbound_rules import seed_default_outbound_rules
+        with Session(engine) as s:
+            seed_default_outbound_rules(s)
+    except Exception:
+        pass
     yield
 
 
@@ -58,6 +67,7 @@ app.include_router(time_conditions.router, prefix="/api", dependencies=[Depends(
 app.include_router(ring_groups.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(update.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(trace.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(outbound_rules.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
 # SPA shell — serve the BUILT dist/index.html so hashed asset + CSS names always
 # match the actual Vite output. A hand-maintained template drifts every build and
