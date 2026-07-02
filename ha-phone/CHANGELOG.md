@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.34
+
+**Build / Aufräumen (Code-Review)**
+- CI-Workflow repariert: zeigte noch auf den alten Ordner `hassio-bpx` → baute nie ein Image. Jetzt `ha-phone`, beide Architekturen, versioniert getaggt, mit Build-Cache. Grundlage für vorgebaute Images (GHCR) → künftige Updates werden **geladen statt kompiliert** (Sekunden statt Minuten).
+- Dockerfile: toten Node.js-Install aus dem Asterisk-Build-Stage entfernt (Frontend wird in separater Stage gebaut) — schlankerer Build.
+
 ## 0.7.33
 
 **Feature — Postausgang (SMTP) für Voicemail-per-E-Mail**
