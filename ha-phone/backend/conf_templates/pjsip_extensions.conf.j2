@@ -5,7 +5,7 @@
 ; --- Extension {{ ext.number }} ({{ ext.display_name }}) ---
 [{{ ext.number }}]
 type              = endpoint
-context           = {% if ext.video_capable %}doorbell-out{% else %}internal{% endif %}
+context           = {% if ext.video_capable %}doorbell-out{% else %}from-internal{% endif %}
 
 disallow          = all
 allow             = alaw,ulaw,g722

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.24
+
+**Fix**
+- Dialplan-Context: Extensions liefen im Context `internal`, die Wählregeln (E.164-Normalisierung + Trunk-Routing) lagen aber in `from-internal` → ausgehende Anrufe wurden nie normalisiert/geroutet. Extensions nutzen jetzt `from-internal`.
+
 ## 0.7.23
 
 **Fix**
