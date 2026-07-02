@@ -66,7 +66,7 @@ export default function PublicIP() {
       const resp = await fetch("/api/settings/smtp/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: testTo.trim() }),
+        body: JSON.stringify({ ...smtp, to: testTo.trim() }),
       });
       if (!resp.ok) {
         const d = await resp.json().catch(() => ({}));

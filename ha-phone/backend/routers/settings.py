@@ -107,6 +107,16 @@ class SmtpConfig(BaseModel):
 
 class SmtpTestRequest(BaseModel):
     to: str
+    # Live overrides — the UI sends the current form values so you can test exactly
+    # what you typed, without saving first. Any blank field falls back to the saved
+    # settings (e.g. a blank password reuses the stored one).
+    host: str = ""
+    port: int = 0
+    encryption: str = ""
+    username: str = ""
+    password: str = ""
+    from_addr: str = ""
+    from_name: str = ""
 
 
 @router.get("/settings/smtp", response_model=SmtpConfig)
@@ -130,7 +140,7 @@ async def save_smtp(body: SmtpConfig, session: Session = Depends(get_session)):
     s.encryption = body.encryption
     s.username = body.username.strip()
     if body.password:               # blank = keep existing
-        s.password = body.password
+        s.password = body.password.strip()   # copy-paste often adds trailing whitespace
     s.from_addr = body.from_addr.strip()
     s.from_name = body.from_name.strip() or "HA-Phone"
     s.enabled = body.enabled
@@ -147,23 +157,32 @@ def test_smtp(body: SmtpTestRequest, session: Session = Depends(get_session)):
     import ssl
     from email.message import EmailMessage
 
-    s = session.exec(select(SmtpSettings)).first()
-    if not s or not s.host:
-        raise HTTPException(status_code=400, detail="SMTP ist noch nicht konfiguriert.")
+    saved = session.exec(select(SmtpSettings)).first()
+    # Prefer live form values; fall back to saved settings per field.
+    host = (body.host or (saved.host if saved else "")).strip()
+    port = body.port or (saved.port if saved else 587)
+    encryption = (body.encryption or (saved.encryption if saved else "starttls")).strip()
+    username = (body.username or (saved.username if saved else "")).strip()
+    password = (body.password.strip() if body.password else (saved.password if saved else ""))
+    from_addr = (body.from_addr or (saved.from_addr if saved else "")).strip()
+    from_name = (body.from_name or (saved.from_name if saved else "HA-Phone")).strip() or "HA-Phone"
+    if not host:
+        raise HTTPException(status_code=400, detail="SMTP-Server fehlt.")
+
     msg = EmailMessage()
     msg["Subject"] = "HA-Phone — SMTP-Test"
-    msg["From"] = f"{s.from_name} <{s.from_addr}>"
+    msg["From"] = f"{from_name} <{from_addr}>"
     msg["To"] = body.to
     msg.set_content("Dies ist eine Test-E-Mail von HA-Phone. Wenn du sie erhältst, funktioniert der Postausgang.")
     try:
-        if s.encryption == "ssl":
-            server = smtplib.SMTP_SSL(s.host, s.port, timeout=12)
+        if encryption == "ssl":
+            server = smtplib.SMTP_SSL(host, port, timeout=12)
         else:
-            server = smtplib.SMTP(s.host, s.port, timeout=12)
-            if s.encryption == "starttls":
+            server = smtplib.SMTP(host, port, timeout=12)
+            if encryption == "starttls":
                 server.starttls(context=ssl.create_default_context())
-        if s.username:
-            server.login(s.username, s.password)
+        if username:
+            server.login(username, password)
         server.send_message(msg)
         server.quit()
         return {"ok": True}

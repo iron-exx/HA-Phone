@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.37
+
+**Fix — SMTP-Test**
+- Der SMTP-Test nutzt jetzt die **aktuell eingegebenen Formulardaten** (nicht den gespeicherten Wert) → du testest genau das, was du siehst, ohne vorher speichern zu müssen. Leere Felder fallen auf die gespeicherten Werte zurück (leeres Passwort = gespeichertes wird genutzt).
+- Passwort wird beim Speichern/Testen von umgebenden Leerzeichen befreit (häufige Copy-Paste-Ursache für „535 wrong user/password").
+
 ## 0.7.36
 
 **Feature — Remote-Softphone via VPN (Tailscale/WireGuard)**
