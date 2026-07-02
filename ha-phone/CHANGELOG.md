@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.29
+
+**Feature — Auto-Provisioning (neu)**
+- Neue Seite **Provisioning**: Endgeräte per MAC verwalten (Tischtelefone, DECT-Basen, Türstationen) und automatisch mit den SIP-Daten einer Nebenstelle konfigurieren — wie bei 3CX/Yeastar.
+- **Editierbare Templates** (wie Yeastar Custom-Templates): Start-Vorlagen für Yealink, Grandstream, Fanvil und Gigaset N670/N870 DECT mitgeliefert, frei anpass-/erweiterbar. Platzhalter: `{{mac}} {{extension}} {{display_name}} {{sip_username}} {{sip_password}} {{sip_server}} {{sip_port}} {{label}}`.
+- Öffentlicher Provisioning-Endpunkt `GET /api/autoprovision/<mac>.<ext>` liefert dem Gerät seine Config (per MAC, ohne Login). Pro Gerät wird die fertige Provisioning-URL angezeigt (im Gerät oder per DHCP-Option 66 eintragen; Gigaset: `…/[MAC].xml`).
+- Backend: Modelle `ProvisioningTemplate` + `ProvisionedDevice`, CRUD, Start-Templates werden geseedet. Sidebar-Eintrag „Provisioning".
+
 ## 0.7.28
 
 **Feature**

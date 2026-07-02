@@ -8,12 +8,14 @@ import {
   Voicemail,
   Settings,
   Activity,
+  Router,
   LogOut,
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/extensions", label: "Extensions", icon: Phone, end: false },
+  { to: "/provisioning", label: "Provisioning", icon: Router, end: false },
   { to: "/trunk", label: "Trunk", icon: Network, end: false },
   { to: "/routing", label: "Routing", icon: GitBranch, end: false },
   { to: "/voicemail", label: "Voicemail", icon: Voicemail, end: false },

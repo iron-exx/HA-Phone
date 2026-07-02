@@ -25,6 +25,34 @@ class ExtensionUpdate(SQLModel):
     internal_only: Optional[bool] = None
 
 
+class ProvisioningTemplate(SQLModel, table=True):
+    """User-editable auto-provisioning template (like Yeastar/3CX custom templates).
+
+    `content` is the raw device config with placeholders that are substituted when a
+    device fetches its config: {{mac}} {{extension}} {{display_name}} {{sip_username}}
+    {{sip_password}} {{sip_server}} {{sip_port}} {{label}}.
+    `file_pattern` is how the device requests its file, e.g. "{mac}.cfg" or "{mac}.xml".
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=96)
+    vendor: str = Field(default="", max_length=48)
+    file_pattern: str = Field(default="{mac}.cfg", max_length=64)
+    content: str = ""
+    builtin: bool = False
+
+
+class ProvisionedDevice(SQLModel, table=True):
+    """A physical endpoint (desk phone, DECT base, door station) that fetches its
+    config from HA-Phone by MAC and registers the assigned extension."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(default="", max_length=96)
+    manufacturer: str = Field(default="", max_length=48)
+    model: str = Field(default="", max_length=64)
+    mac: str = Field(default="", max_length=32)   # normalized: lowercase, no separators
+    extension_id: int = 0                          # Extension.number assigned
+    template_id: int = 0
+
+
 class Trunk(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     registrar_host: str = ""

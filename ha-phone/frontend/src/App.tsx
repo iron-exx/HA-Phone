@@ -9,6 +9,7 @@ import Routing from "./pages/Routing";
 import Voicemail from "./pages/Voicemail";
 import PublicIP from "./pages/PublicIP";
 import Diagnostics from "./pages/Diagnostics";
+import Provisioning from "./pages/Provisioning";
 import Logo from "./components/Logo";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
@@ -109,6 +110,7 @@ export default function App() {
                   <Route path="/voicemail" element={<Voicemail />} />
                   <Route path="/settings/public-ip" element={<PublicIP />} />
                   <Route path="/diagnostics" element={<Diagnostics />} />
+                  <Route path="/provisioning" element={<Provisioning />} />
                 </Routes>
               </Shell>
             </AuthGuard>
