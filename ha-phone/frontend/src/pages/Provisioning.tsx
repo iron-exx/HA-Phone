@@ -183,14 +183,14 @@ export default function Provisioning() {
                   <td className="py-2 pr-3"><Input value={dMac} onChange={(e) => setDMac(e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" className={inputCls} /></td>
                   <td className="py-2 pr-3">
                     <select value={dExt} onChange={(e) => setDExt(e.target.value ? Number(e.target.value) : "")}
-                      className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm">
+                      className="h-9 w-full rounded-md border border-input bg-[#0b0e1a] px-2 text-sm text-slate-200 [color-scheme:dark]">
                       <option value="">—</option>
                       {extensions.map((x) => <option key={x.id} value={x.number}>{x.number} ({x.display_name})</option>)}
                     </select>
                   </td>
                   <td className="py-2 pr-3">
                     <select value={dTpl} onChange={(e) => setDTpl(e.target.value ? Number(e.target.value) : "")}
-                      className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm">
+                      className="h-9 w-full rounded-md border border-input bg-[#0b0e1a] px-2 text-sm text-slate-200 [color-scheme:dark]">
                       <option value="">Template…</option>
                       {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>

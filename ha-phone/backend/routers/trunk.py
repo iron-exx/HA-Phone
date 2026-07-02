@@ -43,6 +43,7 @@ class TrunkPublic(BaseModel):
     auth_username: str
     phone_number: str
     reg_refresh: int
+    codecs: str = "ulaw,alaw"
 
 
 def _data_dir() -> Path:
@@ -73,6 +74,7 @@ def get_trunk(session: Session = Depends(get_session)):
         auth_username=trunk.auth_username,
         phone_number=trunk.phone_number,
         reg_refresh=trunk.reg_refresh,
+        codecs=trunk.codecs or "ulaw,alaw",
     )
 
 
@@ -89,6 +91,14 @@ async def save_trunk(trunk_data: Trunk, session: Session = Depends(get_session))
     session.commit()
     session.refresh(trunk_data)
     _regenerate_trunk_conf(trunk_data)
+    # Also refresh the dialplan so the outbound caller ID (CLIP) picks up the new
+    # number. Deferred import avoids a circular import with time_conditions.
+    try:
+        from backend.routers.time_conditions import _regenerate_routing_conf
+        _regenerate_routing_conf(session)
+        await ami.ami_reload_dialplan()
+    except Exception:
+        pass
     await ami.ami_reload_pjsip()
     return TrunkPublic(
         id=trunk_data.id,
@@ -99,6 +109,7 @@ async def save_trunk(trunk_data: Trunk, session: Session = Depends(get_session))
         auth_username=trunk_data.auth_username,
         phone_number=trunk_data.phone_number,
         reg_refresh=trunk_data.reg_refresh,
+        codecs=trunk_data.codecs or "ulaw,alaw",
     )
 
 

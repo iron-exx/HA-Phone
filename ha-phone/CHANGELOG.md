@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.31
+
+**Fixes & Feature**
+- **Voicemail-Modul**: `app_voicemail` wird jetzt gebaut und geladen. Vorher fehlte es → „No application 'Voicemail'" beim eingehenden Anruf (Rückfall auf Voicemail scheiterte).
+- **CLIP (ausgehende Rufnummer)**: Der Dialplan setzt die Caller-ID beim ausgehenden Anruf jetzt explizit auf die Trunk-Rufnummer in E.164 (`Set(CALLERID(all)=+49…)`), unabhängig von der Caller-ID der anrufenden Nebenstelle. Vorher wurde die Nummer nicht/als „Anonymous" gesendet.
+- **Codec-Auswahl im Trunk** (wie bei den großen Herstellern, abgespeckt): u-law / a-law / G.722 / GSM / G.726 wählbar, Reihenfolge = Priorität. Default `ulaw,alaw` (DG/outbox-Standard, ohne G.722). Editierbar auf der Trunk-Seite.
+- Provisioning: Dropdown-Text war auf dunklem Grund unlesbar (`color-scheme:dark` + dunkler Hintergrund gesetzt).
+
 ## 0.7.30
 
 **Feature — Dashboard-Ausbau**

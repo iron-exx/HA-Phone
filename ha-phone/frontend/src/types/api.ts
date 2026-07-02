@@ -22,6 +22,7 @@ export interface Trunk {
   // password: never returned in GET responses
   phone_number: string;
   reg_refresh: number;
+  codecs?: string;
 }
 
 export interface TrunkStatus {

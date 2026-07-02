@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension
+from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, Trunk
 from backend.conf_generator import render_conf
+from backend.routers.trunk import _to_e164
 from backend import ami
 
 router = APIRouter()
@@ -58,6 +59,10 @@ def _regenerate_routing_conf(session: Session) -> None:
     route_dids = {r.id: _did_variants(r.did) for r in routes}
     # dial-all-extensions string for the no-route inbound fallback
     all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions)
+    # Outbound caller ID (E.164) — set on outbound calls so the callee sees the
+    # trunk's number (CLIP), independent of the calling extension's caller ID.
+    trunk = session.exec(select(Trunk)).first()
+    trunk_callerid = _to_e164(trunk.phone_number) if trunk else ""
     output_path = _data_dir() / "asterisk" / "extensions_routing.conf"
     render_conf(
         "extensions_routing.conf.j2",
@@ -70,6 +75,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "outbound_rules": outbound_rules,
             "extensions": extensions,
             "all_ext_dial": all_ext_dial,
+            "trunk_callerid": trunk_callerid,
         },
         output_path,
     )

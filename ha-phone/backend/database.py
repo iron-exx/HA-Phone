@@ -44,6 +44,13 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN internal_only INTEGER NOT NULL DEFAULT 0")
                 )
                 conn.commit()
+        if "trunk" in tables:
+            cols = [c["name"] for c in inspector.get_columns("trunk")]
+            if "codecs" not in cols:
+                conn.execute(
+                    text("ALTER TABLE trunk ADD COLUMN codecs TEXT NOT NULL DEFAULT 'ulaw,alaw'")
+                )
+                conn.commit()
         if "adminuser" in tables:
             cols = [c["name"] for c in inspector.get_columns("adminuser")]
             if "must_change_password" not in cols:

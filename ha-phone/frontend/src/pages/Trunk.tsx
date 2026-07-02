@@ -29,9 +29,19 @@ const trunkSchema = z.object({
   password: z.string().min(1, "Required"),
   phone_number: z.string().min(1, "Required"),
   reg_refresh: z.coerce.number().int().min(30, "Min 30").max(3600, "Max 3600"),
+  codecs: z.string().default("ulaw,alaw"),
 });
 
 type TrunkFormValues = z.infer<typeof trunkSchema>;
+
+// Codecs offered in the free Asterisk build (G.729 needs a licensed module).
+const CODEC_OPTIONS: { id: string; label: string }[] = [
+  { id: "ulaw", label: "u-law (G.711µ)" },
+  { id: "alaw", label: "a-law (G.711a)" },
+  { id: "g722", label: "G.722 (HD)" },
+  { id: "gsm", label: "GSM" },
+  { id: "g726", label: "G.726" },
+];
 
 const DEFAULT_VALUES: TrunkFormValues = {
   registrar_host: "",
@@ -42,6 +52,7 @@ const DEFAULT_VALUES: TrunkFormValues = {
   password: "",
   phone_number: "",
   reg_refresh: 60,
+  codecs: "ulaw,alaw",
 };
 
 // ---- Status chip ----
@@ -112,6 +123,7 @@ export default function TrunkPage() {
           password: "",
           phone_number: data.phone_number || "",
           reg_refresh: data.reg_refresh || 60,
+          codecs: data.codecs || "ulaw,alaw",
         });
       })
       .catch(() => {});
@@ -376,6 +388,52 @@ export default function TrunkPage() {
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+
+              {/* Codecs */}
+              <FormField
+                control={form.control}
+                name="codecs"
+                render={({ field }) => {
+                  const selected = field.value ? field.value.split(",").filter(Boolean) : [];
+                  const toggle = (id: string) => {
+                    const next = selected.includes(id)
+                      ? selected.filter((c) => c !== id)
+                      : [...selected, id];
+                    field.onChange(next.join(","));
+                  };
+                  return (
+                    <FormItem>
+                      <FormLabel className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                        Codecs{" "}
+                        <span className="ml-1 normal-case font-normal text-muted-foreground">
+                          (Reihenfolge = Priorität; DG/outbox-Standard: u-law, a-law)
+                        </span>
+                      </FormLabel>
+                      <div className="flex flex-wrap gap-2">
+                        {CODEC_OPTIONS.map((c) => {
+                          const on = selected.includes(c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => toggle(c.id)}
+                              className="cursor-pointer rounded-md px-3 py-1.5 font-mono text-xs transition-colors"
+                              style={{
+                                background: on ? "rgba(139,92,246,0.18)" : "rgba(255,255,255,0.04)",
+                                border: `1px solid ${on ? "rgba(139,92,246,0.5)" : "rgba(255,255,255,0.1)"}`,
+                                color: on ? "#C4B5FD" : "#94A3B8",
+                              }}
+                            >
+                              {on ? "✓ " : ""}{c.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               {/* Actions */}

@@ -111,6 +111,7 @@ RUN make menuselect.makeopts && \
       --enable app_dial \
       --enable app_echo \
       --enable app_playback \
+      --enable app_voicemail \
       --enable codec_alaw \
       --enable codec_ulaw \
       --enable codec_g722 \

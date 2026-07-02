@@ -63,6 +63,7 @@ class Trunk(SQLModel, table=True):
     password: str  # stored in SQLite only; never written to conf in plaintext header
     phone_number: str  # CallerID / Rufnummer / DID
     reg_refresh: int = 60
+    codecs: str = "ulaw,alaw"  # comma-separated Asterisk codec names, in priority order
 
 
 class Route(SQLModel, table=True):

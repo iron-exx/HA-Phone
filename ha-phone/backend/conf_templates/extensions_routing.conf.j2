@@ -48,7 +48,8 @@ exten => t,1,Hangup()
 ; ── Outbound PSTN via SIP trunk ──────────────────────────────────────────────
 [outbound-pstn]
 exten => _.,1,NoOp(Outbound via SIP trunk: ${EXTEN})
- same => n,Dial(PJSIP/${EXTEN}@trunk-endpoint,60)
+{% if trunk_callerid %} same => n,Set(CALLERID(all)={{ trunk_callerid }} <{{ trunk_callerid }}>)
+{% endif %} same => n,Dial(PJSIP/${EXTEN}@trunk-endpoint,60)
  same => n,Congestion()
  same => n,Hangup()
 
