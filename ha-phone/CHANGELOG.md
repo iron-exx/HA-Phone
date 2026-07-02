@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.21
+
+**Fix (kritisch — der finale SRV-Fix, per Trace belegt)**
+- Ein Trace zeigte: das REGISTER ging an den A-Record `185.22.44.186` (401 → REGISTER → 404), NICHT an die SRV-Ziele `sip10/sip20`. unbound war zwar geladen, aber der HA-Supervisor-DNS (`172.30.32.3`) liefert keine SRV-Records (auch `getent` kam leer/Timeout) → unbound bekam nur den A-Record → Registrierung auf dem falschen DG-Server → 404. `res_resolver_unbound.conf` ergänzt: unbound nutzt jetzt öffentliche Resolver (1.1.1.1/8.8.8.8/9.9.9.9), die SRV korrekt liefern → REGISTER geht an sip10/sip20.
+
 ## 0.7.20
 
 **Verbesserung**
