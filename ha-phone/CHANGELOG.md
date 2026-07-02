@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.28
+
+**Feature**
+- Extension-Option **„Nur intern"**: Beschränkt eine Nebenstelle (z.B. Türsprechstelle) auf interne Anrufe — kein Telefonieren nach außen. Solche Endpoints landen im Dialplan-Context `from-internal-restricted` (nur interne Ziele, Ausgang blockiert). Toggle im Add- und Edit-Formular.
+
 ## 0.7.27
 
 **Fix — ausgehende Rufnummer-Anzeige (CLIP)**

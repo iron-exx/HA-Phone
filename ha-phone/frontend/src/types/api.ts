@@ -3,6 +3,7 @@ export interface Extension {
   number: number;
   display_name: string;
   enabled: boolean;
+  internal_only?: boolean;
   // sip_password is never returned by the API
 }
 

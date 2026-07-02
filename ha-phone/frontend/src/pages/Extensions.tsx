@@ -51,6 +51,7 @@ const extensionSchema = z.object({
   display_name: z.string().min(1, "Required").max(64, "Max 64 chars"),
   sip_password: z.string().min(8, "Min 8 characters"),
   enabled: z.boolean(),
+  internal_only: z.boolean().default(false),
 });
 
 type ExtensionFormValues = z.infer<typeof extensionSchema>;
@@ -93,7 +94,7 @@ function AddExtensionDialog({
 }) {
   const form = useForm<ExtensionFormValues>({
     resolver: zodResolver(extensionSchema),
-    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true },
+    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, internal_only: false },
   });
   const [saving, setSaving] = useState(false);
 
@@ -188,6 +189,24 @@ function AddExtensionDialog({
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="internal_only"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div>
+                    <FormLabel>Nur intern</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle).
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}
                 className="cursor-pointer">
@@ -223,15 +242,17 @@ function EditExtensionDialog({
       display_name: extension.display_name,
       sip_password: "",
       enabled: extension.enabled,
+      internal_only: extension.internal_only ?? false,
     },
   });
   const [saving, setSaving] = useState(false);
 
   async function onSubmit(values: EditFormValues) {
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; internal_only: boolean }> = {
       display_name: values.display_name,
       enabled: values.enabled,
+      internal_only: values.internal_only,
     };
     if (values.sip_password && values.sip_password.length > 0) {
       body.sip_password = values.sip_password;
@@ -298,6 +319,24 @@ function EditExtensionDialog({
                     <Input type="password" placeholder="Leer lassen = behalten" className="font-mono" {...field} />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="internal_only"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div>
+                    <FormLabel>Nur intern</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle).
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
                 </FormItem>
               )}
             />

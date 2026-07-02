@@ -12,6 +12,7 @@ class Extension(SQLModel, table=True):
     sip_password: str = Field(default="", min_length=0)  # min enforced in router; default="" triggers auto-gen
     enabled: bool = True
     video_capable: bool = False
+    internal_only: bool = False  # restrict to internal calls (e.g. door intercom) — no outbound
 
 
 class ExtensionUpdate(SQLModel):
@@ -21,6 +22,7 @@ class ExtensionUpdate(SQLModel):
     sip_password: Optional[str] = Field(default=None, min_length=0)
     enabled: Optional[bool] = None
     video_capable: Optional[bool] = None
+    internal_only: Optional[bool] = None
 
 
 class Trunk(SQLModel, table=True):

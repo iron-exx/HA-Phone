@@ -30,6 +30,21 @@ exten => i,1,NoOp(Invalid number: ${EXTEN})
 exten => t,1,NoOp(Timeout: ${EXTEN})
  same => n,Hangup()
 
+; ── Internal-only endpoints (e.g. door intercom) — NO outbound to the trunk ──
+[from-internal-restricted]
+exten => _1X,1,NoOp(Internal-only call to ${EXTEN})
+ same => n,Dial(PJSIP/${EXTEN},30)
+ same => n,Voicemail(${EXTEN}@default,u)
+ same => n,Hangup()
+exten => _X.,1,NoOp(Blocked external dial from internal-only endpoint: ${EXTEN})
+ same => n,Playback(ss-noservice)
+ same => n,Hangup()
+exten => _+X.,1,NoOp(Blocked external dial from internal-only endpoint: ${EXTEN})
+ same => n,Playback(ss-noservice)
+ same => n,Hangup()
+exten => i,1,Hangup()
+exten => t,1,Hangup()
+
 ; ── Outbound PSTN via SIP trunk ──────────────────────────────────────────────
 [outbound-pstn]
 exten => _.,1,NoOp(Outbound via SIP trunk: ${EXTEN})
