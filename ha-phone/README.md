@@ -28,3 +28,14 @@ See [DOCS.md](DOCS.md) for network setup, SIP trunk configuration, and softphone
 ## Support
 
 [github.com/iron-exx/HA-Phone/issues](https://github.com/iron-exx/HA-Phone/issues)
+
+## License
+
+HA-Phone's own code (backend, frontend, add-on config, templates) is released
+under the [MIT License](LICENSE).
+
+The container image bundles **Asterisk** (GPLv2, © Sangoma Technologies), built
+from the official source at downloads.asterisk.org. Asterisk runs as a separate
+process — HA-Phone talks to it only via AMI and generated config files (mere
+aggregation). Other bundled components (FastAPI, React, …) keep their own
+licenses. See [LICENSE](LICENSE) for details.
