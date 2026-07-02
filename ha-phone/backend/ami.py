@@ -153,9 +153,16 @@ async def get_extension_statuses() -> list[dict]:
         result = []
         for r in responses:
             if r.get("Event") == "EndpointList":
+                name = r.get("ObjectName", "")
+                # Exclude the SIP trunk endpoint ("trunk-endpoint") — it is a PJSIP
+                # endpoint too, so once the trunk registers it would otherwise be
+                # counted as an "online extension" (Dashboard showed 2 for 1 ext).
+                # Real extensions are always numeric.
+                if not name.isdigit():
+                    continue
                 result.append(
                     {
-                        "number": r.get("ObjectName", ""),
+                        "number": name,
                         "status": (
                             "Online"
                             if r.get("DeviceState", "") == "Not in use"

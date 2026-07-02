@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.23
+
+**Fix**
+- Dashboard/Extensions: „Extensions Online" zählte den Trunk mit (zeigte 2 bei 1 Nebenstelle). Der Trunk ist ebenfalls ein PJSIP-Endpoint (`trunk-endpoint`) und tauchte nach der Registrierung in der Statusliste auf. Die Statusabfrage filtert jetzt auf numerische Extension-Namen — der Trunk wird nicht mehr mitgezählt.
+
 ## 0.7.22
 
 **Fix (kritisch — der eigentliche 404-Grund, per Trace + Provider-Doku belegt)**
