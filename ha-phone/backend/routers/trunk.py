@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +12,25 @@ from backend.conf_generator import render_conf
 from backend import ami
 
 router = APIRouter()
+
+
+def _to_e164(number: str) -> str:
+    """Normalize a German phone number to E.164 (+49…) for outbound CallerID/PAI.
+    Registrars like aarenet/Deutsche Glasfaser only present a caller ID (CLIP) when
+    it is signalled in E.164; a national '0…' number is not displayed to the callee."""
+    raw = (number or "").strip()
+    if raw.startswith("+"):
+        return "+" + re.sub(r"[^0-9]", "", raw)
+    digits = re.sub(r"[^0-9]", "", raw)
+    if not digits:
+        return ""
+    if digits.startswith("00"):
+        return "+" + digits[2:]
+    if digits.startswith("0"):
+        return "+49" + digits[1:]
+    if digits.startswith("49"):
+        return "+" + digits
+    return "+" + digits
 
 
 class TrunkPublic(BaseModel):
@@ -32,7 +52,11 @@ def _data_dir() -> Path:
 
 def _regenerate_trunk_conf(trunk: Trunk) -> None:
     output_path = _data_dir() / "asterisk" / "pjsip_trunk.conf"
-    render_conf("pjsip_trunk.conf.j2", {"trunk": trunk}, output_path)
+    render_conf(
+        "pjsip_trunk.conf.j2",
+        {"trunk": trunk, "caller_e164": _to_e164(trunk.phone_number)},
+        output_path,
+    )
 
 
 @router.get("/trunk", response_model=Optional[TrunkPublic])

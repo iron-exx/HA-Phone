@@ -54,7 +54,9 @@ outbound_auth = trunk-auth
 aors = trunk-aor
 from_user = {{ reg_user }}
 from_domain = {{ sip_domain }}
-callerid = {{ trunk.phone_number }} <{{ trunk.phone_number }}>
+; CallerID in E.164 → drives the P-Asserted-Identity so the callee actually sees
+; the number (CLIP). The From-URI user stays the registered (national) identity.
+callerid = {{ caller_e164 }} <{{ caller_e164 }}>
 ; P-Asserted-Identity / P-Preferred-Identity für CLIP No Screening
 send_pai = yes
 send_rpid = yes

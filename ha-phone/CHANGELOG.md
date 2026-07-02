@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.27
+
+**Fix — ausgehende Rufnummer-Anzeige (CLIP)**
+- Bei ausgehenden Anrufen wurde die eigene Rufnummer nicht angezeigt. Ursache: die CallerID ging als nationale `0…`-Nummer raus; aarenet/DG präsentiert nur E.164. Die CallerID (→ P-Asserted-Identity) wird jetzt automatisch nach E.164 normalisiert (`063483260104` → `+4963483260104`). Der From-URI-User bleibt die registrierte (nationale) Identität, damit die Anrufannahme nicht beeinträchtigt wird.
+
 ## 0.7.26
 
 **Fix (kritisch — Gespräch bricht beim Annehmen ab)**
