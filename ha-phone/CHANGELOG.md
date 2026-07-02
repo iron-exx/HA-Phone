@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.32
+
+**Fix (kritisch — der eigentliche Grund für den Gesprächsabbruch, per Log belegt)**
+- **Bridging-Module fehlten** (`bridge_simple`, `bridge_softmix`, `bridge_native_rtp`, `bridge_holding`). Ohne Bridge-Technologie kann Asterisk zwei Gesprächsbeine nicht zusammenschalten → jeder Anruf brach **beim Annehmen** ab, rein wie raus (`Could not create class basic. No technology to support it.`). Jetzt gebaut + geladen → Gespräche bleiben stehen.
+- **`func_callerid` fehlte** → `Set(CALLERID(...))` scheiterte (`Function CALLERID not registered`) → keine ausgehende Rufnummer (CLIP). Ergänzt (+ `func_channel/strings/logic`, `res_musiconhold`). Ausgehende Rufnummer wird jetzt übermittelt.
+- Ursache war die `autoload = no`-Ladeliste ohne Bridging-/Function-Module.
+
 ## 0.7.31
 
 **Fixes & Feature**

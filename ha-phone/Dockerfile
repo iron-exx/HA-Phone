@@ -112,6 +112,15 @@ RUN make menuselect.makeopts && \
       --enable app_echo \
       --enable app_playback \
       --enable app_voicemail \
+      --enable bridge_simple \
+      --enable bridge_softmix \
+      --enable bridge_native_rtp \
+      --enable bridge_holding \
+      --enable func_callerid \
+      --enable func_channel \
+      --enable func_strings \
+      --enable func_logic \
+      --enable res_musiconhold \
       --enable codec_alaw \
       --enable codec_ulaw \
       --enable codec_g722 \
