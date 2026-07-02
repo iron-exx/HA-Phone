@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.15
+
+**Fixes (kritisch — machen den AOR-Fix aus 0.7.14 wirksam)**
+- Boot: Alle Asterisk-Configs werden jetzt bei **jedem Start** aus der Datenbank neu generiert (in `cont-init`, bevor Asterisk startet). Vorher wurde eine Config-Datei nur beim Anlegen/Bearbeiten via Web-UI geschrieben — ein Add-on-Update mit korrigiertem Template erreichte bestehende Installationen also NIE (die alte `pjsip_extensions.conf` mit `11-aors` blieb liegen). Deshalb blieb der AOR-Fehler trotz 0.7.14. Jetzt selbstheilend.
+- AMI-Reload: `Command`-Action ohne `as_list=True` — mit Liste blockierte panoramisk bis zum Timeout (`AMI reload skipped:` mit leerer Meldung = `asyncio.TimeoutError`). Live-Reload nach UI-Änderungen funktioniert jetzt ohne Neustart.
+
 ## 0.7.14
 
 **Fix (kritisch — der echte AOR-Fix)**

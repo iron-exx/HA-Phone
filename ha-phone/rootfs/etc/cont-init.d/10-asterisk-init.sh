@@ -80,6 +80,34 @@ with Session(engine) as s:
         print('AdminUser already exists — skipping seed')
 " "$ADMIN_PASSWORD"
 
+# Regenerate ALL Asterisk configs from the DB on EVERY boot — BEFORE Asterisk starts.
+# Without this, a config file on /data is only rewritten when its object is created/
+# edited via the web UI. So an add-on UPDATE that fixes a conf template never reaches
+# existing installs (the old file lingers), and the broken live-reload meant edits did
+# not apply until a manual restart anyway. Regenerating from the DB here makes the
+# running config always match the DB + the current templates, and is self-healing for
+# stale/partial conf files. Non-fatal: a failure logs a warning and boot continues.
+bashio::log.info "ha-phone: regenerating Asterisk configs from DB..."
+PYTHONPATH=/app python3 -c "
+import os
+os.environ['BPX_DATA_DIR'] = '/data'
+from sqlmodel import Session, select
+from backend.database import init_db
+from backend.models import Trunk
+from backend.routers.extensions import _regenerate_extensions_conf, _regenerate_voicemail_conf
+from backend.routers.time_conditions import _regenerate_routing_conf
+from backend.routers.trunk import _regenerate_trunk_conf
+engine = init_db()
+with Session(engine) as s:
+    _regenerate_extensions_conf(s)
+    _regenerate_voicemail_conf(s)
+    _regenerate_routing_conf(s)
+    trunk = s.exec(select(Trunk)).first()
+    if trunk is not None:
+        _regenerate_trunk_conf(trunk)
+print('configs regenerated from DB')
+" || bashio::log.warning "ha-phone: config regeneration failed — Asterisk uses existing /data confs."
+
 # Set permissions — Asterisk runs as root in this container
 chown -R root:root /data/voicemail /data/logs /data/asterisk
 chmod -R 755 /data/voicemail /data/logs /data/asterisk

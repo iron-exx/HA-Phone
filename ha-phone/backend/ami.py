@@ -79,7 +79,11 @@ async def _ami_cli(command: str) -> None:
     extensions/trunk edits only took effect on a full add-on restart.
     """
     manager = await _get_manager()
-    await manager.send_action({"Action": "Command", "Command": command}, as_list=True)
+    # NOTE: no as_list=True here. A CLI 'Command' action replies with a single
+    # "Response: Follows ... --END COMMAND--" block, not a multi-event list; waiting
+    # for a list terminator makes panoramisk block until the timeout fires (which
+    # surfaced as an empty-message "AMI reload skipped:" — an asyncio.TimeoutError).
+    await manager.send_action({"Action": "Command", "Command": command})
 
 
 async def ami_reload_pjsip() -> None:
