@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.30
+
+**Feature — Dashboard-Ausbau**
+- Dashboard neu gestaltet (Dark-OLED, wie sysvoice): Live-Flächendiagramm für aktive Anrufe (rollende Historie, 5-Sek-Takt), Donut-Gauges für „Nebenstellen online" und „Aktive Gespräche", Trunk-Status-Panel, Geräte-Zähler (Provisioning) und kompakte Metrik-Chips. Alle Grafiken als schlanke Inline-SVG (keine externe Chart-Lib).
+
 ## 0.7.29
 
 **Feature — Auto-Provisioning (neu)**
