@@ -63,12 +63,16 @@ async def stop_trace():
 async def trace_status():
     running = _proc is not None and _proc.returncode is None
     file_exists = CAPTURE_FILE.exists()
-    size = CAPTURE_FILE.stat().st_size if file_exists else 0
+    stat = CAPTURE_FILE.stat() if file_exists else None
+    size = stat.st_size if stat else 0
     return {
         "running": running,
         "file_ready": not running and file_exists and size > 0,
         "size_bytes": size,
         "started_at": _started_at if running else None,
+        # mtime of the capture = when it finished recording. Lets the UI label each
+        # trace with its time so multiple captures aren't confused.
+        "file_mtime": stat.st_mtime if stat else None,
     }
 
 
@@ -76,10 +80,12 @@ async def trace_status():
 async def download_trace():
     if not CAPTURE_FILE.exists() or CAPTURE_FILE.stat().st_size == 0:
         raise HTTPException(status_code=404, detail="No capture file available")
+    # Timestamped filename so downloaded traces stay distinct on disk.
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(CAPTURE_FILE.stat().st_mtime))
     return FileResponse(
         str(CAPTURE_FILE),
         media_type="application/vnd.tcpdump.pcap",
-        filename="haphone-capture.pcap",
+        filename=f"haphone-capture-{stamp}.pcap",
     )
 
 

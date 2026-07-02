@@ -8,12 +8,20 @@ interface TraceStatus {
   file_ready: boolean;
   size_bytes: number;
   started_at: number | null;
+  file_mtime: number | null;
 }
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function formatTimestamp(epochSeconds: number): string {
+  return new Date(epochSeconds * 1000).toLocaleString("de-DE", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
 }
 
 function formatDuration(seconds: number): string {
@@ -23,7 +31,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function Diagnostics() {
-  const [status, setStatus] = useState<TraceStatus>({ running: false, file_ready: false, size_bytes: 0, started_at: null });
+  const [status, setStatus] = useState<TraceStatus>({ running: false, file_ready: false, size_bytes: 0, started_at: null, file_mtime: null });
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -169,6 +177,11 @@ export default function Diagnostics() {
                   <span className="inline-flex h-3 w-3 rounded-full bg-emerald-500" />
                   <span className="font-mono text-sm font-semibold text-emerald-400">DATEI BEREIT</span>
                   <span className="font-mono text-xs text-muted-foreground">{formatBytes(status.size_bytes)}</span>
+                  {status.file_mtime && (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      · {formatTimestamp(status.file_mtime)}
+                    </span>
+                  )}
                 </>
               ) : (
                 <>

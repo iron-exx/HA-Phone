@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.20
+
+**Verbesserung**
+- Diagnose: Aufnahmezeitpunkt wird jetzt neben "DATEI BEREIT" angezeigt und der PCAP-Download bekommt einen Zeitstempel im Dateinamen (`haphone-capture-JJJJMMTT-HHMMSS.pcap`) — mehrere Traces sind nicht mehr verwechselbar.
+
 ## 0.7.19
 
 **Fix**
