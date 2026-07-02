@@ -1,27 +1,18 @@
 import re
-import os
-from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import RingGroup, TimeCondition
-from backend.conf_generator import render_conf
+from backend.models import RingGroup
+# Use the canonical routing regen (includes inbound routes, outbound rules, CLIP).
+# The previous local copy here only wrote ring groups + time conditions and thus
+# WIPED routes/outbound rules from the dialplan whenever a ring group changed.
+from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
 
 router = APIRouter()
-
-
-def _data_dir() -> Path:
-    d = os.environ.get("BPX_DATA_DIR", "")
-    return Path(d) if d else Path("/data")
-
-
-def _build_dial_string(ring_group: RingGroup) -> str:
-    numbers = [n.strip() for n in ring_group.extension_numbers.split(",") if n.strip()]
-    return "&".join(f"PJSIP/{n}" for n in numbers)
 
 
 def _validate_extension_numbers(extension_numbers: str) -> None:
@@ -29,22 +20,6 @@ def _validate_extension_numbers(extension_numbers: str) -> None:
         raise HTTPException(status_code=422, detail="extension_numbers must not be empty")
     if not re.match(r'^\d+(,\d+)*$', extension_numbers.strip()):
         raise HTTPException(status_code=422, detail="extension_numbers must be comma-separated integers")
-
-
-def _regenerate_routing_conf(session: Session) -> None:
-    time_conditions = session.exec(select(TimeCondition)).all()
-    ring_groups_list = session.exec(select(RingGroup)).all()
-    ring_group_dials = {rg.id: _build_dial_string(rg) for rg in ring_groups_list}
-    output_path = _data_dir() / "asterisk" / "extensions_routing.conf"
-    render_conf(
-        "extensions_routing.conf.j2",
-        {
-            "time_conditions": time_conditions,
-            "ring_groups": ring_groups_list,
-            "ring_group_dials": ring_group_dials,
-        },
-        output_path,
-    )
 
 
 @router.get("/ring-groups", response_model=List[RingGroup])

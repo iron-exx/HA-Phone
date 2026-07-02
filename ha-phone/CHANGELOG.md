@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.35
+
+**Fix + Feature — Rufgruppen**
+- **Bug:** Beim Anlegen/Ändern einer Rufgruppe wurde eine veraltete Routing-Generierung genutzt, die eingehende Routen und Ausgangsregeln aus dem Dialplan **löschte**. Jetzt nutzt sie die gemeinsame, vollständige Generierung.
+- **Neu:** Rufgruppen-Verwaltung in der UI (Routing → Rufgruppen): Name, Nebenstellen (z.B. 10,11,12), Timeout. Mehrere Telefone klingeln gleichzeitig; als Ziel einer eingehenden Route wählbar.
+
 ## 0.7.34
 
 **Build / Aufräumen (Code-Review)**

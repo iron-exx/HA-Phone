@@ -597,6 +597,123 @@ function DeleteTimeConditionDialog({
   );
 }
 
+// ---- Ring groups ----
+interface RingGroup {
+  id: number;
+  name: string;
+  extension_numbers: string;
+  ring_timeout: number;
+}
+
+function RingGroupsSection() {
+  const [groups, setGroups] = useState<RingGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [numbers, setNumbers] = useState("");
+  const [timeout, setTimeoutVal] = useState("30");
+  const [saving, setSaving] = useState(false);
+
+  function load() {
+    fetch("/api/ring-groups")
+      .then((r) => r.json())
+      .then((data: RingGroup[]) => setGroups(data))
+      .catch(() => toast.error("Rufgruppen konnten nicht geladen werden."))
+      .finally(() => setLoading(false));
+  }
+  useEffect(load, []);
+
+  async function addGroup() {
+    if (!name.trim() || !numbers.trim()) {
+      toast.error("Name und Nebenstellen (z.B. 10,11) sind erforderlich.");
+      return;
+    }
+    if (!/^\d+(,\d+)*$/.test(numbers.trim())) {
+      toast.error("Nebenstellen als kommagetrennte Nummern, z.B. 10,11,12.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const resp = await fetch("/api/ring-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          extension_numbers: numbers.trim(),
+          ring_timeout: Number(timeout) || 30,
+        }),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      setName(""); setNumbers(""); setTimeoutVal("30");
+      load();
+      toast.success("Rufgruppe angelegt.");
+    } catch {
+      toast.error("Fehler beim Speichern.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteGroup(id: number) {
+    try {
+      const resp = await fetch(`/api/ring-groups/${id}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error();
+      setGroups((gs) => gs.filter((g) => g.id !== id));
+      toast.success("Rufgruppe gelöscht.");
+    } catch {
+      toast.error("Fehler beim Löschen.");
+    }
+  }
+
+  return (
+    <>
+      <Separator className="my-8" />
+      <div className="mb-2">
+        <h2 className="text-xl font-semibold">Rufgruppen</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Mehrere Nebenstellen gleichzeitig klingeln lassen. Als Ziel einer eingehenden Route wählbar.
+        </p>
+      </div>
+      {loading ? (
+        <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Nebenstellen</TableHead>
+              <TableHead>Timeout (s)</TableHead>
+              <TableHead className="text-right">Aktionen</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {groups.map((g) => (
+              <TableRow key={g.id}>
+                <TableCell className="font-medium">{g.name}</TableCell>
+                <TableCell className="font-mono">{g.extension_numbers}</TableCell>
+                <TableCell className="font-mono">{g.ring_timeout}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
+                    aria-label={`Rufgruppe ${g.name} löschen`} onClick={() => deleteGroup(g.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            <TableRow>
+              <TableCell><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Zentrale" className="h-9" /></TableCell>
+              <TableCell><Input value={numbers} onChange={(e) => setNumbers(e.target.value)} placeholder="10,11,12" className="h-9 font-mono" /></TableCell>
+              <TableCell><Input value={timeout} onChange={(e) => setTimeoutVal(e.target.value)} type="number" className="h-9 w-20 font-mono" /></TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" onClick={addGroup} disabled={saving}>{saving ? "…" : "Hinzufügen"}</Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      )}
+    </>
+  );
+}
+
 // ---- Outbound dial rules ----
 interface OutboundRule {
   id: number;
@@ -836,6 +953,9 @@ export default function Routing() {
           </TableBody>
         </Table>
       )}
+
+      {/* ─── Ring groups section ─────────────────────────────────────────── */}
+      <RingGroupsSection />
 
       {/* ─── Outbound dial rules section ─────────────────────────────────── */}
       <OutboundRulesSection />
