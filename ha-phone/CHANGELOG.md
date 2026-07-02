@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.26
+
+**Fix (kritisch — Gespräch bricht beim Annehmen ab)**
+- `direct_media = no` auf Trunk- und Extension-Endpoints gesetzt (+ `rtp_symmetric`/`force_rport`/`rewrite_contact` auf Extensions). PJSIP versucht per Default, RTP direkt zwischen den Endpunkten auszuhandeln — zwischen LAN-Softphone und CGNAT-Trunk (Deutsche Glasfaser) unmöglich → das Gespräch brach beim Abheben sofort ab. Asterisk bleibt jetzt im Medienpfad, RTP läuft über die PBX.
+
 ## 0.7.25
 
 **Feature — Routing**

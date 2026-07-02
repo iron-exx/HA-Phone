@@ -59,7 +59,8 @@ callerid = {{ trunk.phone_number }} <{{ trunk.phone_number }}>
 send_pai = yes
 send_rpid = yes
 trust_id_inbound = yes
-; NAT
+; NAT — Asterisk stays in the media path; direct media LAN<->CGNAT drops the call
+direct_media = no
 rtp_symmetric = yes
 force_rport = yes
 rewrite_contact = yes

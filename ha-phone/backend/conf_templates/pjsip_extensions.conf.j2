@@ -12,10 +12,15 @@ allow             = alaw,ulaw,g722
 {% if ext.video_capable %}
 allow             = h264
 max_video_streams = 1
-direct_media      = no
 {% else %}
 max_video_streams = 0
 {% endif %}
+; Keep Asterisk in the media path — direct media between a LAN softphone and a
+; NAT/CGNAT trunk cannot work and drops the call on answer.
+direct_media      = no
+rtp_symmetric     = yes
+force_rport       = yes
+rewrite_contact   = yes
 auth              = {{ ext.number }}-auth
 aors              = {{ ext.number }}
 callerid          = {{ ext.display_name }} <{{ ext.number }}>
