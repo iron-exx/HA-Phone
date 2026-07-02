@@ -66,6 +66,19 @@ class Trunk(SQLModel, table=True):
     codecs: str = "ulaw,alaw"  # comma-separated Asterisk codec names, in priority order
 
 
+class SmtpSettings(SQLModel, table=True):
+    """Outbound mail (SMTP) for sending voicemail-to-email. Single row."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    host: str = Field(default="", max_length=128)
+    port: int = 587
+    encryption: str = Field(default="starttls", max_length=16)  # starttls | ssl | none
+    username: str = Field(default="", max_length=128)
+    password: str = Field(default="", max_length=256)
+    from_addr: str = Field(default="", max_length=128)
+    from_name: str = Field(default="HA-Phone", max_length=64)
+    enabled: bool = False
+
+
 class Route(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     did: str = Field(max_length=32)

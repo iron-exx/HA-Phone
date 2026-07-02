@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.33
+
+**Feature — Postausgang (SMTP) für Voicemail-per-E-Mail**
+- Neuer Bereich **Settings → Postausgang (SMTP)**: Server, Port, Verschlüsselung (STARTTLS/SSL/keine), Benutzer, Passwort, Absender — mit **Test-Button** (sendet eine Test-E-Mail und meldet den genauen Fehler bei Problemen).
+- Voicemail-Mails gehen jetzt über **msmtp** (im Image ergänzt) an deinen SMTP-Server. Vorher stand `mailcmd = /bin/true` → Mails wurden still verworfen.
+- `voicemail.conf`-[general] wird aus den SMTP-Settings generiert (`serveremail`, `mailcmd`); ohne SMTP bleibt es bei `/bin/true` (keine Fehler).
+- Backend: `SmtpSettings`-Modell + `/api/settings/smtp` (GET/POST) + `/api/settings/smtp/test`.
+
 ## 0.7.32
 
 **Fix (kritisch — der eigentliche Grund für den Gesprächsabbruch, per Log belegt)**
