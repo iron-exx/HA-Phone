@@ -3,6 +3,24 @@ import pytest
 from pathlib import Path
 
 
+def _ensure_extension(client, number: int, name: str | None = None):
+    existing = client.get("/api/extensions")
+    if existing.status_code == 200:
+        for ext in existing.json():
+            if ext["number"] == number:
+                return ext
+    resp = client.post(
+        "/api/extensions",
+        json={
+            "number": number,
+            "display_name": name or f"Ext {number}",
+            "sip_password": "securepass1234567",
+        },
+    )
+    assert resp.status_code == 200
+    return resp.json()
+
+
 def test_extension_crud(client, tmp_data_dir):
     """POST /api/extensions creates extension and GET returns it in list."""
     # Create extension
@@ -181,7 +199,8 @@ def test_time_condition_conf_regen(client, tmp_data_dir):
     content = conf_path.read_text()
     assert "GotoIfTime" in content
     assert "Voicemail(10@default,u)" in content
-    assert "Dial(PJSIP/ext10,30)" in content
+    assert "Dial(PJSIP/10,30)" in content
+    assert "exten => _XX,1,NoOp(Internal call" in content
 
 
 def test_extension_creates_vm_settings(client, tmp_data_dir):
@@ -302,7 +321,7 @@ def _get_extension_stanza(conf_content: str, ext_number: int) -> str:
     in_stanza = False
     stanza_lines = []
     for line in lines:
-        if line.strip() == f"[{ext_number}]":
+        if not in_stanza and line.strip() == f"[{ext_number}]":
             in_stanza = True
             stanza_lines = [line]
         elif in_stanza:
@@ -346,6 +365,8 @@ def test_non_video_extension_conf(client, mock_ami, tmp_data_dir):
 
 def test_ring_group_crud(client, mock_ami):
     """RingGroup CRUD creates, lists, and deletes."""
+    for number in (10, 11, 12):
+        _ensure_extension(client, number)
     resp = client.post("/api/ring-groups", json={
         "name": "All Phones", "extension_numbers": "10,11,12", "ring_timeout": 30
     })
@@ -362,6 +383,8 @@ def test_ring_group_crud(client, mock_ami):
 
 def test_doorbell_dialplan_context(client, mock_ami, tmp_data_dir):
     """RingGroup creates [doorbell-out] context in extensions_routing.conf."""
+    for number in (10, 11):
+        _ensure_extension(client, number)
     resp = client.post("/api/ring-groups", json={
         "name": "Doorbell Ring", "extension_numbers": "10,11", "ring_timeout": 30
     })
@@ -374,6 +397,8 @@ def test_doorbell_dialplan_context(client, mock_ami, tmp_data_dir):
 
 def test_extension_numbers_validation(client, mock_ami):
     """extension_numbers field rejects empty and non-numeric values."""
+    for number in (10, 11, 12):
+        _ensure_extension(client, number)
     # Valid: comma-separated integers
     resp = client.post("/api/ring-groups", json={
         "name": "All Phones",
@@ -402,6 +427,14 @@ def test_extension_numbers_validation(client, mock_ami):
     resp = client.post("/api/ring-groups", json={
         "name": "Bad",
         "extension_numbers": "10,abc,12",
+        "ring_timeout": 30,
+    })
+    assert resp.status_code == 422
+
+    # Invalid: extension number does not exist
+    resp = client.post("/api/ring-groups", json={
+        "name": "Unknown",
+        "extension_numbers": "10,88",
         "ring_timeout": 30,
     })
     assert resp.status_code == 422

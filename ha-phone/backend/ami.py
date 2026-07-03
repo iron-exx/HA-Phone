@@ -40,7 +40,7 @@ async def _get_manager() -> Manager:
                 _manager = None
 
         secret = _read_ami_secret()
-        _log.info("AMI: connecting to 127.0.0.1:5038 user=bpx-admin secret=%s...", secret[:8])
+        _log.info("AMI: connecting to 127.0.0.1:5038 user=bpx-admin")
 
         manager = Manager(
             host="127.0.0.1",

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { MoreHorizontal, Pencil, Trash2, Plus, Phone } from "lucide-react";
 
-import { type Extension, type ExtensionStatus } from "@/types/api";
+import { type Extension, type ExtensionStatus, type RingGroup } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -64,6 +64,67 @@ const editSchema = extensionSchema.extend({
 
 type EditFormValues = z.infer<typeof editSchema>;
 
+function getExtensionRingGroupIds(extension: Extension, ringGroups: RingGroup[]) {
+  return ringGroups
+    .filter((group) =>
+      group.extension_numbers
+        .split(",")
+        .map((number) => number.trim())
+        .includes(String(extension.number))
+    )
+    .map((group) => group.id);
+}
+
+function toggleRingGroupId(ids: number[], id: number) {
+  return ids.includes(id) ? ids.filter((current) => current !== id) : [...ids, id];
+}
+
+function buildExtensionNumbers(group: RingGroup, extensionNumber: number, selected: boolean) {
+  const numbers = group.extension_numbers
+    .split(",")
+    .map((number) => number.trim())
+    .filter(Boolean)
+    .filter((number) => number !== String(extensionNumber));
+
+  if (selected) numbers.push(String(extensionNumber));
+
+  return Array.from(new Set(numbers))
+    .map((number) => Number(number))
+    .filter((number) => Number.isFinite(number))
+    .sort((a, b) => a - b)
+    .join(",");
+}
+
+async function syncRingGroupMemberships(
+  extensionNumber: number,
+  selectedRingGroupIds: number[],
+  ringGroups: RingGroup[]
+) {
+  const updates = ringGroups
+    .map((group) => ({
+      ...group,
+      extension_numbers: buildExtensionNumbers(
+        group,
+        extensionNumber,
+        selectedRingGroupIds.includes(group.id)
+      ),
+    }))
+    .filter((group, index) => group.extension_numbers !== ringGroups[index].extension_numbers);
+
+  await Promise.all(
+    updates.map((group) =>
+      fetch(`/api/ring-groups/${group.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(group),
+      }).then((resp) => {
+        if (!resp.ok) throw new Error("Failed to update ring group");
+        return resp.json();
+      })
+    )
+  );
+}
+
 // ---- Status dot ----
 function StatusDot({ status }: { status: "Online" | "Offline" | undefined }) {
   if (status === "Online") {
@@ -87,16 +148,21 @@ function AddExtensionDialog({
   open,
   onClose,
   onCreated,
+  ringGroups,
+  onRingGroupsChanged,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: (ext: Extension) => void;
+  ringGroups: RingGroup[];
+  onRingGroupsChanged: () => Promise<void>;
 }) {
   const form = useForm<ExtensionFormValues>({
     resolver: zodResolver(extensionSchema),
     defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, internal_only: false },
   });
   const [saving, setSaving] = useState(false);
+  const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>([]);
 
   async function generatePassword() {
     try {
@@ -125,6 +191,8 @@ function AddExtensionDialog({
       });
       if (!resp.ok) throw new Error(await resp.text());
       const created: Extension = await resp.json();
+      await syncRingGroupMemberships(created.number, selectedRingGroupIds, ringGroups);
+      await onRingGroupsChanged();
       onCreated(created);
       toast.success("Gespeichert.");
       onClose();
@@ -207,6 +275,38 @@ function AddExtensionDialog({
                 </FormItem>
               )}
             />
+            {ringGroups.length > 0 && (
+              <div className="space-y-2">
+                <FormLabel>Ring Groups</FormLabel>
+                <div className="grid gap-2">
+                  {ringGroups.map((group) => {
+                    const selected = selectedRingGroupIds.includes(group.id);
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedRingGroupIds((current) =>
+                            toggleRingGroupId(current, group.id)
+                          )
+                        }
+                        className={[
+                          "flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                          selected
+                            ? "border-violet-500/60 bg-violet-500/15 text-violet-100"
+                            : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                        ].join(" ")}
+                      >
+                        <span className="font-medium">{group.name}</span>
+                        <span className="text-xs">
+                          {selected ? "Zugewiesen" : "Nicht zugewiesen"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}
                 className="cursor-pointer">
@@ -230,10 +330,14 @@ function EditExtensionDialog({
   extension,
   onClose,
   onUpdated,
+  ringGroups,
+  onRingGroupsChanged,
 }: {
   extension: Extension;
   onClose: () => void;
   onUpdated: (ext: Extension) => void;
+  ringGroups: RingGroup[];
+  onRingGroupsChanged: () => Promise<void>;
 }) {
   const form = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
@@ -246,6 +350,9 @@ function EditExtensionDialog({
     },
   });
   const [saving, setSaving] = useState(false);
+  const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>(
+    getExtensionRingGroupIds(extension, ringGroups)
+  );
 
   async function onSubmit(values: EditFormValues) {
     setSaving(true);
@@ -265,6 +372,8 @@ function EditExtensionDialog({
       });
       if (!resp.ok) throw new Error(await resp.text());
       const updated: Extension = await resp.json();
+      await syncRingGroupMemberships(updated.number, selectedRingGroupIds, ringGroups);
+      await onRingGroupsChanged();
       onUpdated(updated);
       toast.success("Gespeichert.");
       onClose();
@@ -340,6 +449,38 @@ function EditExtensionDialog({
                 </FormItem>
               )}
             />
+            {ringGroups.length > 0 && (
+              <div className="space-y-2">
+                <FormLabel>Ring Groups</FormLabel>
+                <div className="grid gap-2">
+                  {ringGroups.map((group) => {
+                    const selected = selectedRingGroupIds.includes(group.id);
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedRingGroupIds((current) =>
+                            toggleRingGroupId(current, group.id)
+                          )
+                        }
+                        className={[
+                          "flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                          selected
+                            ? "border-violet-500/60 bg-violet-500/15 text-violet-100"
+                            : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                        ].join(" ")}
+                      >
+                        <span className="font-medium">{group.name}</span>
+                        <span className="text-xs">
+                          {selected ? "Zugewiesen" : "Nicht zugewiesen"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}
                 className="cursor-pointer">
@@ -416,6 +557,7 @@ function DeleteExtensionDialog({
 // ---- Main page ----
 export default function Extensions() {
   const [extensions, setExtensions] = useState<Extension[]>([]);
+  const [ringGroups, setRingGroups] = useState<RingGroup[]>([]);
   const [statusMap, setStatusMap] = useState<Record<string, "Online" | "Offline">>({});
   const [loading, setLoading] = useState(true);
   const [dialogMode, setDialogMode] = useState<"add" | "edit" | null>(null);
@@ -423,12 +565,24 @@ export default function Extensions() {
   const [deleteTarget, setDeleteTarget] = useState<Extension | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  async function fetchRingGroups() {
+    try {
+      const resp = await fetch("/api/ring-groups");
+      if (!resp.ok) throw new Error();
+      const data: RingGroup[] = await resp.json();
+      setRingGroups(data);
+    } catch {
+      toast.error("Ring Groups konnten nicht geladen werden.");
+    }
+  }
+
   useEffect(() => {
     fetch("/api/extensions")
       .then((r) => r.json())
       .then((data: Extension[]) => setExtensions(data))
       .catch(() => toast.error("Extensions konnten nicht geladen werden."))
       .finally(() => setLoading(false));
+    fetchRingGroups();
   }, []);
 
   useEffect(() => {
@@ -538,6 +692,9 @@ export default function Extensions() {
                   Status
                 </TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                  Ring Groups
+                </TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Aktiv
                 </TableHead>
                 <TableHead className="text-right text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -558,6 +715,17 @@ export default function Extensions() {
                   <TableCell className="font-medium text-foreground">{ext.display_name}</TableCell>
                   <TableCell>
                     <StatusDot status={statusMap[String(ext.number)]} />
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {ringGroups
+                      .filter((group) =>
+                        group.extension_numbers
+                          .split(",")
+                          .map((number) => number.trim())
+                          .includes(String(ext.number))
+                      )
+                      .map((group) => group.name)
+                      .join(", ") || "-"}
                   </TableCell>
                   <TableCell>
                     <Switch
@@ -616,6 +784,8 @@ export default function Extensions() {
           open
           onClose={() => setDialogMode(null)}
           onCreated={(ext) => setExtensions((prev) => [...prev, ext])}
+          ringGroups={ringGroups}
+          onRingGroupsChanged={fetchRingGroups}
         />
       )}
 
@@ -628,6 +798,8 @@ export default function Extensions() {
             setDialogMode(null);
             setEditTarget(null);
           }}
+          ringGroups={ringGroups}
+          onRingGroupsChanged={fetchRingGroups}
         />
       )}
 

@@ -24,6 +24,15 @@ def _build_dial_string(ring_group: RingGroup) -> str:
     return "&".join(f"PJSIP/{n}" for n in numbers)
 
 
+def _build_doorbell_dial_string(ring_groups: list[RingGroup]) -> str:
+    targets: list[str] = []
+    for ring_group in ring_groups:
+        dial_string = _build_dial_string(ring_group)
+        if dial_string:
+            targets.extend(dial_string.split("&"))
+    return "&".join(dict.fromkeys(targets))
+
+
 def _did_variants(did: str) -> list[str]:
     """Expand a stored DID into the formats a carrier might send in an inbound
     INVITE, so an inbound route matches regardless of whether the trunk delivers
@@ -58,7 +67,7 @@ def _regenerate_routing_conf(session: Session) -> None:
     extensions = session.exec(select(Extension)).all()
     route_dids = {r.id: _did_variants(r.did) for r in routes}
     # dial-all-extensions string for the no-route inbound fallback
-    all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions)
+    all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions if e.enabled)
     # Outbound caller ID (E.164) — set on outbound calls so the callee sees the
     # trunk's number (CLIP), independent of the calling extension's caller ID.
     trunk = session.exec(select(Trunk)).first()
@@ -75,6 +84,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "outbound_rules": outbound_rules,
             "extensions": extensions,
             "all_ext_dial": all_ext_dial,
+            "doorbell_dial": _build_doorbell_dial_string(ring_groups_list),
             "trunk_callerid": trunk_callerid,
         },
         output_path,

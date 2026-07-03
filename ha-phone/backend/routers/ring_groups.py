@@ -1,11 +1,10 @@
-import re
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import RingGroup
+from backend.models import Extension, RingGroup
 # Use the canonical routing regen (includes inbound routes, outbound rules, CLIP).
 # The previous local copy here only wrote ring groups + time conditions and thus
 # WIPED routes/outbound rules from the dialplan whenever a ring group changed.
@@ -15,11 +14,39 @@ from backend import ami
 router = APIRouter()
 
 
-def _validate_extension_numbers(extension_numbers: str) -> None:
+def _parse_extension_numbers(extension_numbers: str, allow_empty: bool = False) -> list[int]:
     if not extension_numbers or not extension_numbers.strip():
+        if allow_empty:
+            return []
         raise HTTPException(status_code=422, detail="extension_numbers must not be empty")
-    if not re.match(r'^\d+(,\d+)*$', extension_numbers.strip()):
-        raise HTTPException(status_code=422, detail="extension_numbers must be comma-separated integers")
+    try:
+        numbers = [int(n.strip()) for n in extension_numbers.split(",") if n.strip()]
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="extension_numbers must be comma-separated integers",
+        ) from exc
+    if not numbers and not allow_empty:
+        raise HTTPException(status_code=422, detail="extension_numbers must not be empty")
+    if len(numbers) != len(set(numbers)):
+        raise HTTPException(status_code=422, detail="extension_numbers must not contain duplicates")
+    return sorted(numbers)
+
+
+def _validate_extension_numbers(
+    extension_numbers: str,
+    session: Session,
+    allow_empty: bool = False,
+) -> list[int]:
+    numbers = _parse_extension_numbers(extension_numbers, allow_empty=allow_empty)
+    existing = set(session.exec(select(Extension.number)).all())
+    missing = [number for number in numbers if number not in existing]
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown extension_numbers: {','.join(str(number) for number in missing)}",
+        )
+    return numbers
 
 
 @router.get("/ring-groups", response_model=List[RingGroup])
@@ -29,7 +56,8 @@ def list_ring_groups(session: Session = Depends(get_session)):
 
 @router.post("/ring-groups", response_model=RingGroup)
 async def create_ring_group(rg: RingGroup, session: Session = Depends(get_session)):
-    _validate_extension_numbers(rg.extension_numbers)
+    numbers = _validate_extension_numbers(rg.extension_numbers, session)
+    rg.extension_numbers = ",".join(str(number) for number in numbers)
     rg.id = None
     session.add(rg)
     session.commit()
@@ -47,7 +75,8 @@ async def update_ring_group(rg_id: int, rg_data: RingGroup, session: Session = D
     for field, value in rg_data.model_dump(exclude_unset=True).items():
         if field != "id":
             setattr(existing, field, value)
-    _validate_extension_numbers(existing.extension_numbers)
+    numbers = _validate_extension_numbers(existing.extension_numbers, session, allow_empty=True)
+    existing.extension_numbers = ",".join(str(number) for number in numbers)
     session.add(existing)
     session.commit()
     session.refresh(existing)
