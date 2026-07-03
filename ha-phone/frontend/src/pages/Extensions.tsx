@@ -95,7 +95,11 @@ function buildProvisioningUrl(path: string) {
 }
 
 function buildLinphoneConfigUri(path: string) {
-  return `linphone-config://${buildProvisioningUrl(path)}`;
+  // Linphone's remote-provisioning URI is "linphone-config:" + the full config
+  // URL (which already contains its own "://") - a SINGLE colon separator, not
+  // "linphone-config://". The extra slashes produced an invalid URI that neither
+  // the QR scanner nor a manual "open" could resolve.
+  return `linphone-config:${buildProvisioningUrl(path)}`;
 }
 
 function buildExtensionNumbers(group: RingGroup, extensionNumber: number, selected: boolean) {
@@ -619,30 +623,60 @@ function LinphoneQrDialog({
   async function copyProvisioningLink() {
     if (!provisioning) return;
     const value = buildProvisioningUrl(provisioning.provisioning_path);
+
+    // This page usually runs inside Home Assistant's ingress <iframe>, where the
+    // async Clipboard API can be unavailable/blocked by permissions policy even
+    // in a secure context. Try it, but always fall back to execCommand, and if
+    // even that is blocked, leave the text selected so the user can hit Ctrl+C.
     try {
-      if (navigator.clipboard?.writeText && window.isSecureContext) {
+      if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(value);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = value;
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        const success = document.execCommand("copy");
-        document.body.removeChild(textarea);
-        if (!success) throw new Error("copy failed");
+        toast.success("Provisioning-Link kopiert.");
+        return;
       }
-      toast.success("Provisioning-Link kopiert.");
     } catch {
-      toast.error("Link konnte nicht kopiert werden.");
+      // fall through to execCommand fallback
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    let success = false;
+    try {
+      success = document.execCommand("copy");
+    } catch {
+      success = false;
+    }
+    document.body.removeChild(textarea);
+
+    if (success) {
+      toast.success("Provisioning-Link kopiert.");
+    } else {
+      toast.error("Automatisches Kopieren blockiert - bitte Link im Feld markieren und manuell kopieren.");
     }
   }
 
   function openInLinphone() {
     if (!provisioning) return;
-    window.location.href = buildLinphoneConfigUri(provisioning.provisioning_path);
+    const uri = buildLinphoneConfigUri(provisioning.provisioning_path);
+    // Inside Home Assistant's ingress <iframe>, navigating window.location only
+    // moves the iframe - the browser never sees it as a top-level navigation, so
+    // it won't offer to hand the custom "linphone-config:" scheme to the OS/app.
+    // Navigate the top window instead (same-origin under ingress), falling back
+    // to the local window if that's blocked (e.g. direct, non-ingress access).
+    try {
+      if (window.top && window.top !== window) {
+        window.top.location.href = uri;
+        return;
+      }
+    } catch {
+      // cross-origin or blocked - fall through
+    }
+    window.location.href = uri;
   }
 
   return (

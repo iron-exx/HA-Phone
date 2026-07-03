@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.55
+
+**Fix - Linphone QR-Code/Provisioning-Link ungueltig**
+- `buildLinphoneConfigUri` erzeugte `linphone-config://http://host:8099/...` - ein doppelter Scheme-Separator (`://` gefolgt von einem weiteren `http://`). Das offizielle Linphone-Format ist `linphone-config:` (ein Doppelpunkt) gefolgt von der vollen Config-URL. Dadurch war die im QR-Code kodierte URI schlicht ungueltig, unabhaengig von Host/Port.
+- "In Linphone oeffnen" navigierte `window.location`, was innerhalb des Home-Assistant-Ingress-`<iframe>` nur das iframe selbst umleitet - der Browser bietet das Custom-Scheme dann nie dem Betriebssystem/der App an. Navigiert jetzt stattdessen das Top-Window (mit Fallback auf das lokale Fenster ausserhalb von Ingress).
+- "Kopieren" nutzte die Clipboard-API nur, wenn `window.isSecureContext` true war, und warf sonst ohne Fallback einen Fehler. Jetzt: Clipboard-API zuerst versuchen, bei Fehlschlag auf `execCommand` zurueckfallen, und im schlimmsten Fall den Text selektiert lassen statt nur eine Fehlermeldung zu zeigen.
+- Live verifiziert: der Provisioning-Link selbst (`http://<lan-ip>:8099/api/linphone/provision/<token>`) war immer erreichbar und lieferte gueltiges Provisioning-XML - das Problem lag ausschliesslich am URI-Format und an der iframe-Navigation, nicht am Host/Port.
+
 ## 0.7.54
 
 **Doku - Deutsche Glasfaser/aarenet erwartet nationales Format, nicht E.164**
