@@ -598,7 +598,12 @@ function LinphoneQrDialog({
         const data: LinphoneProvisioningInfo = await resp.json();
         if (cancelled) return;
         setProvisioning(data);
-        const dataUrl = await QRCode.toDataURL(buildLinphoneConfigUri(data.provisioning_path), {
+        // Linphone's IN-APP QR scanner ("Scan QR Code" in the assistant) expects
+        // the RAW http(s) provisioning URL as QR payload — NOT the
+        // "linphone-config:" wrapped form, which it rejects as "invalid URI".
+        // The linphone-config: scheme is only for clickable links that launch
+        // the app via the OS (see openInLinphone below).
+        const dataUrl = await QRCode.toDataURL(buildProvisioningUrl(data.provisioning_path), {
           width: 320,
           margin: 2,
           color: {

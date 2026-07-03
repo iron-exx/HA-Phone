@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.58
+
+**Fix - Linphone QR: In-App-Scanner braucht die nackte URL**
+- Ursache fuer "ungueltige URI" beim Scannen gefunden und per Linphone-Entwicklerdoku belegt: Der QR-Scanner IN der Linphone-App (Assistent -> "QR-Code scannen") erwartet als QR-Inhalt die reine http(s)-Provisioning-URL. Das `linphone-config:`-Schema ist ausschliesslich fuer klickbare Links gedacht, die die App ueber das Betriebssystem oeffnen - im Scanner wird es als ungueltig abgelehnt.
+- QR-Code enthaelt jetzt die nackte URL (`http://<lan-ip>/api/linphone/provision/<token>`); der Button "In Linphone oeffnen" behaelt das `linphone-config:`-Schema (dort ist es korrekt).
+- Drittanbieter-/Selfhost-Provisioning per QR ist ein offiziell unterstuetztes Linphone-Feature - das Feature bleibt drin, es war nur der QR-Inhalt falsch verpackt.
+
 ## 0.7.57
 
 **Fix - Provisioning-Links ohne Portnummer (wie SIP mit Standardport 5060)**
