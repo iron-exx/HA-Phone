@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.61
+
+**Fix (kritisch) - Interne Anrufe kamen als "Anonymous" an**
+- Live per SIP-Trace bewiesen: Asterisk 22 anonymisiert den From-Header auf Dial()-erzeugten Anruf-Legs (`"Anonymous" <sip:anonymous@anonymous.invalid>`), wenn der Ziel-Endpoint `trust_id_outbound` nicht gesetzt hat. Direkt erzeugte Kanaele (AMI Originate auf PJSIP/xx) trugen die korrekte Kennung - nur der Dialplan-Pfad anonymisierte. Folgen: jeder interne Anruf zeigte "Anonym", und Linphone iOS zeigte fuer die ungueltige anonymous-URI teils gar keine Anruf-UI (SIP-Stack antwortete 180 Ringing, Display blieb leer).
+- Fix: `trust_id_outbound = yes` auf allen Extension-Endpoints - interne Nebenstellen sind eigene, vertrauenswuerdige Geraete. Vorab live am laufenden System verifiziert (Config-Patch + Reload + Testanruf: From wieder `"sandro" <sip:11@...>`).
+
+**Feature - Altgeraete-Modus pro Nebenstelle**
+- Neue Option je Nebenstelle: "Altgeraete-Modus". Anrufe AN dieses Geraet senden nur die Nummer als Anrufername (`Set(CALLERID(name)=${CALLERID(num)})` vor dem Dial).
+- Hintergrund: Alte SIP-Clients wie Androids eingestellter nativer SIP-Stack verwerfen nicht-numerische Anzeigenamen und zeigen "Anonym" - per Testreihe belegt (Anzeigename "sandro" -> Anonym, "11" -> Nummer wird angezeigt).
+- Moderne Geraete ohne die Option sehen weiterhin den Klarnamen des Anrufers.
+- DB-Migration `extension.numeric_callerid` + Checkbox in Anlegen-/Bearbeiten-Dialog.
+
 ## 0.7.60
 
 **Fix - Linphone registrierte sich nach Provisioning nie (ungueltiges reg_proxy-Format)**

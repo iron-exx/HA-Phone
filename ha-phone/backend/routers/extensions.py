@@ -167,6 +167,7 @@ def _extension_out(extension: Extension) -> ExtensionOut:
         enabled=extension.enabled,
         video_capable=extension.video_capable,
         internal_only=extension.internal_only,
+        numeric_callerid=extension.numeric_callerid,
     )
 
 

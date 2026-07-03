@@ -21,6 +21,13 @@ direct_media      = no
 rtp_symmetric     = yes
 force_rport       = yes
 rewrite_contact   = yes
+; Asterisk 22 anonymizes the From header on Dial()-created legs ("Anonymous"
+; <sip:anonymous@anonymous.invalid>) unless the callee endpoint trusts the
+; caller identity outbound - every internal call then shows "anonymous", and
+; Linphone iOS/CallKit may not even display the incoming-call UI for the
+; invalid anonymous URI. All extensions are our own trusted endpoints, so
+; always send the real caller id (verified live via pjsip logger).
+trust_id_outbound = yes
 auth              = {{ ext.number }}-auth
 aors              = {{ ext.number }}
 callerid          = {{ ext.display_name }} <{{ ext.number }}>

@@ -14,6 +14,10 @@ class Extension(SQLModel, table=True):
     enabled: bool = True
     video_capable: bool = False
     internal_only: bool = False  # restrict to internal calls (e.g. door intercom) — no outbound
+    # Legacy-device mode: calls TO this device send only the number as display
+    # name. Old clients (e.g. Android's discontinued native SIP) reject
+    # non-numeric caller names and show "Anonymous" instead.
+    numeric_callerid: bool = False
 
 
 class ExtensionUpdate(SQLModel):
@@ -24,6 +28,7 @@ class ExtensionUpdate(SQLModel):
     enabled: Optional[bool] = None
     video_capable: Optional[bool] = None
     internal_only: Optional[bool] = None
+    numeric_callerid: Optional[bool] = None
 
 
 class ExtensionOut(SQLModel):
@@ -33,6 +38,7 @@ class ExtensionOut(SQLModel):
     enabled: bool
     video_capable: bool = False
     internal_only: bool = False
+    numeric_callerid: bool = False
 
 
 class ExtensionCreateOut(ExtensionOut):

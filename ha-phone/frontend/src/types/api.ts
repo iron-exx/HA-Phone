@@ -4,6 +4,7 @@ export interface Extension {
   display_name: string;
   enabled: boolean;
   internal_only?: boolean;
+  numeric_callerid?: boolean;
   video_capable?: boolean;
   // sip_password is never returned by the API
 }

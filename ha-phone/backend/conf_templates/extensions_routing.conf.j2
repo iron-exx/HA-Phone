@@ -22,6 +22,20 @@ exten => {{ ring_group.number }},1,NoOp(Internal ring group {{ ring_group.name }
 {% endif %}
 {% endfor %}
 
+; Legacy-device extensions (Altgeraete-Modus): old SIP clients like Android's
+; discontinued native stack reject non-numeric caller display names and show
+; "Anonymous". Explicit entries win over the generic _XX pattern below and
+; rewrite the caller name to the bare number before dialling.
+{% for ext in extensions %}
+{% if ext.numeric_callerid and ext.enabled %}
+exten => {{ ext.number }},1,NoOp(Internal call to {{ ext.number }} (numeric caller id))
+ same => n,Set(CALLERID(name)=${CALLERID(num)})
+ same => n,Dial(PJSIP/{{ ext.number }},30)
+ same => n,Voicemail({{ ext.number }}@default,u)
+ same => n,Hangup()
+{% endif %}
+{% endfor %}
+
 ; Internal 2-digit extensions (scheme 10-99) - never routed to the trunk
 exten => _XX,1,NoOp(Internal call to ${EXTEN})
  same => n,Dial(PJSIP/${EXTEN},30)
@@ -59,6 +73,15 @@ exten => {{ ivr_menu.number }},1,NoOp(Internal-only IVR {{ ivr_menu.name }})
 {% if ring_group.number and ring_group_dials.get(ring_group.id, '') %}
 exten => {{ ring_group.number }},1,NoOp(Internal-only call to ring group {{ ring_group.name }})
  same => n,Dial({{ ring_group_dials.get(ring_group.id, '') }},{{ ring_group.ring_timeout }})
+ same => n,Hangup()
+{% endif %}
+{% endfor %}
+{% for ext in extensions %}
+{% if ext.numeric_callerid and ext.enabled %}
+exten => {{ ext.number }},1,NoOp(Internal-only call to {{ ext.number }} (numeric caller id))
+ same => n,Set(CALLERID(name)=${CALLERID(num)})
+ same => n,Dial(PJSIP/{{ ext.number }},30)
+ same => n,Voicemail({{ ext.number }}@default,u)
  same => n,Hangup()
 {% endif %}
 {% endfor %}

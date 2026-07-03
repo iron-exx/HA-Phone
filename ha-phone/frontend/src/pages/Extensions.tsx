@@ -58,6 +58,7 @@ const extensionSchema = z.object({
   sip_password: z.string().min(8, "Min 8 characters"),
   enabled: z.boolean(),
   internal_only: z.boolean().default(false),
+  numeric_callerid: z.boolean().default(false),
 });
 
 type ExtensionFormValues = z.infer<typeof extensionSchema>;
@@ -182,7 +183,7 @@ function AddExtensionDialog({
 }) {
   const form = useForm<ExtensionFormValues>({
     resolver: zodResolver(extensionSchema),
-    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, internal_only: false },
+    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, internal_only: false, numeric_callerid: false },
   });
   const [saving, setSaving] = useState(false);
   const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>([]);
@@ -298,6 +299,25 @@ function AddExtensionDialog({
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="numeric_callerid"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div>
+                    <FormLabel>Altgeräte-Modus</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte
+                      SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
             {ringGroups.length > 0 && (
               <div className="space-y-2">
                 <FormLabel>Ring Groups</FormLabel>
@@ -370,6 +390,7 @@ function EditExtensionDialog({
       sip_password: "",
       enabled: extension.enabled,
       internal_only: extension.internal_only ?? false,
+      numeric_callerid: extension.numeric_callerid ?? false,
     },
   });
   const [saving, setSaving] = useState(false);
@@ -379,10 +400,11 @@ function EditExtensionDialog({
 
   async function onSubmit(values: EditFormValues) {
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; internal_only: boolean }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; internal_only: boolean; numeric_callerid: boolean }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       internal_only: values.internal_only,
+      numeric_callerid: values.numeric_callerid,
     };
     if (values.sip_password && values.sip_password.length > 0) {
       body.sip_password = values.sip_password;
@@ -464,6 +486,25 @@ function EditExtensionDialog({
                     <FormLabel>Nur intern</FormLabel>
                     <p className="text-xs text-muted-foreground">
                       Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle).
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="numeric_callerid"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                  <div>
+                    <FormLabel>Altgeräte-Modus</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte
+                      SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.
                     </p>
                   </div>
                   <FormControl>
