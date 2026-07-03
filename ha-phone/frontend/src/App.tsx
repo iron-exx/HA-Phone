@@ -10,6 +10,7 @@ import Voicemail from "./pages/Voicemail";
 import PublicIP from "./pages/PublicIP";
 import Diagnostics from "./pages/Diagnostics";
 import Provisioning from "./pages/Provisioning";
+import IVR from "./pages/IVR";
 import Logo from "./components/Logo";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
@@ -105,6 +106,7 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/extensions" element={<Extensions />} />
+                  <Route path="/ivr" element={<IVR />} />
                   <Route path="/trunk" element={<Trunk />} />
                   <Route path="/routing" element={<Routing />} />
                   <Route path="/voicemail" element={<Voicemail />} />

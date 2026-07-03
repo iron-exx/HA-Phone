@@ -39,8 +39,25 @@ export interface PublicIPSettings {
 export interface Route {
   id: number;
   did: string;
-  destination_type: "extension" | "ring_group";
+  destination_type: "extension" | "ring_group" | "ivr";
   destination_id: number;
+}
+
+export interface IVROption {
+  key: string;        // "0"-"9", "*"
+  action: "extension" | "ring_group" | "voicemail" | "hangup";
+  target?: number;    // extension/ring_group number or voicemail extension
+  label?: string;     // human-readable label
+}
+
+export interface IVRMenu {
+  id: number;
+  number: number;           // internal extension number (10-99)
+  name: string;             // e.g. "Hauptmenu"
+  greeting_file: string;    // uploaded WAV filename
+  timeout: number;          // seconds to wait for DTMF
+  max_invalid_tries: number;
+  options: string;          // JSON string of IVROption[]
 }
 
 export interface RingGroup {

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Check, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 
-import { type Extension, type RingGroup, type Route, type TimeCondition } from "@/types/api";
+import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -55,7 +55,7 @@ import {
 // ---- Zod schemas ----
 const routeSchema = z.object({
   did: z.string().min(1, "Required").max(32, "Max 32 chars"),
-  destination_type: z.enum(["extension", "ring_group"]).default("extension"),
+  destination_type: z.enum(["extension", "ring_group", "ivr"]).default("extension"),
   destination_id: z.coerce.number().int().min(1, "Required"),
 });
 
@@ -76,7 +76,8 @@ type TimeConditionFormValues = z.infer<typeof timeConditionSchema>;
 function getRouteDestinationOptions(
   type: RouteFormValues["destination_type"],
   extensions: Extension[],
-  ringGroups: RingGroup[]
+  ringGroups: RingGroup[],
+  ivrMenus: IVRMenu[]
 ) {
   if (type === "ring_group") {
     return [...ringGroups]
@@ -85,6 +86,15 @@ function getRouteDestinationOptions(
       .map((group) => ({
         value: String(group.id),
         label: `${group.number} ${group.name}`,
+      }));
+  }
+  if (type === "ivr") {
+    return [...ivrMenus]
+      .filter((ivr) => ivr.number > 0)
+      .sort((a, b) => a.number - b.number)
+      .map((ivr) => ({
+        value: String(ivr.id),
+        label: `${ivr.number} ${ivr.name}`,
       }));
   }
   return [...extensions]
@@ -100,13 +110,25 @@ function DestinationSelectField({
   destinationType,
   extensions,
   ringGroups,
+  ivrMenus,
 }: {
   control: ReturnType<typeof useForm<RouteFormValues>>["control"];
   destinationType: RouteFormValues["destination_type"];
   extensions: Extension[];
   ringGroups: RingGroup[];
+  ivrMenus: IVRMenu[];
 }) {
-  const options = getRouteDestinationOptions(destinationType, extensions, ringGroups);
+  const options = getRouteDestinationOptions(destinationType, extensions, ringGroups, ivrMenus);
+  const placeholder = destinationType === "ring_group"
+    ? "Rufgruppe wählen"
+    : destinationType === "ivr"
+    ? "IVR-Menü wählen"
+    : "Nebenstelle wählen";
+  const emptyMsg = destinationType === "ring_group"
+    ? "Noch keine Rufgruppe mit Durchwahl vorhanden."
+    : destinationType === "ivr"
+    ? "Noch kein IVR-Menü mit Durchwahl vorhanden."
+    : "Noch keine Nebenstelle vorhanden.";
   return (
     <FormField
       control={control}
@@ -120,7 +142,7 @@ function DestinationSelectField({
           >
             <FormControl>
               <SelectTrigger>
-                <SelectValue placeholder={destinationType === "ring_group" ? "Rufgruppe wÃ¤hlen" : "Nebenstelle wÃ¤hlen"} />
+                <SelectValue placeholder={placeholder} />
               </SelectTrigger>
             </FormControl>
             <SelectContent>
@@ -132,11 +154,7 @@ function DestinationSelectField({
             </SelectContent>
           </Select>
           {options.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              {destinationType === "ring_group"
-                ? "Noch keine Rufgruppe mit Durchwahl vorhanden."
-                : "Noch keine Nebenstelle vorhanden."}
-            </p>
+            <p className="text-xs text-muted-foreground">{emptyMsg}</p>
           )}
           <FormMessage />
         </FormItem>
@@ -145,10 +163,14 @@ function DestinationSelectField({
   );
 }
 
-function formatRouteDestination(route: Route, extensions: Extension[], ringGroups: RingGroup[]) {
+function formatRouteDestination(route: Route, extensions: Extension[], ringGroups: RingGroup[], ivrMenus: IVRMenu[]) {
   if (route.destination_type === "ring_group") {
     const group = ringGroups.find((item) => item.id === route.destination_id);
     return group ? `${group.number} ${group.name}` : `Rufgruppe #${route.destination_id}`;
+  }
+  if (route.destination_type === "ivr") {
+    const ivr = ivrMenus.find((item) => item.id === route.destination_id);
+    return ivr ? `${ivr.number} ${ivr.name}` : `IVR #${route.destination_id}`;
   }
   const extension = extensions.find((item) => item.number === route.destination_id);
   return extension ? `${extension.number} ${extension.display_name}` : `Nebenstelle ${route.destination_id}`;
@@ -161,12 +183,14 @@ function AddRouteDialog({
   onCreated,
   extensions,
   ringGroups,
+  ivrMenus,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: (route: Route) => void;
   extensions: Extension[];
   ringGroups: RingGroup[];
+  ivrMenus: IVRMenu[];
 }) {
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
@@ -235,12 +259,13 @@ function AddRouteDialog({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Zieltyp wÃ¤hlen" />
+                        <SelectValue placeholder="Zieltyp wählen" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="extension">Nebenstelle</SelectItem>
                       <SelectItem value="ring_group">Rufgruppe</SelectItem>
+                      <SelectItem value="ivr">IVR-Menü</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -252,6 +277,7 @@ function AddRouteDialog({
               destinationType={destinationType}
               extensions={extensions}
               ringGroups={ringGroups}
+              ivrMenus={ivrMenus}
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
@@ -275,12 +301,14 @@ function EditRouteDialog({
   onUpdated,
   extensions,
   ringGroups,
+  ivrMenus,
 }: {
   route: Route;
   onClose: () => void;
   onUpdated: (route: Route) => void;
   extensions: Extension[];
   ringGroups: RingGroup[];
+  ivrMenus: IVRMenu[];
 }) {
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
@@ -339,11 +367,12 @@ function EditRouteDialog({
                   value={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger><SelectValue placeholder="Zieltyp wÃ¤hlen" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Zieltyp wählen" /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="extension">Nebenstelle</SelectItem>
                     <SelectItem value="ring_group">Rufgruppe</SelectItem>
+                    <SelectItem value="ivr">IVR-Menü</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -354,6 +383,7 @@ function EditRouteDialog({
               destinationType={destinationType}
               extensions={extensions}
               ringGroups={ringGroups}
+              ivrMenus={ivrMenus}
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
@@ -516,7 +546,7 @@ function AddTimeConditionDialog({
             )} />
             <FormField control={form.control} name="closed_destination" render={({ field }) => (
               <FormItem>
-                <FormLabel>Closed Destination (Extension â†’ Voicemail)</FormLabel>
+                <FormLabel>Closed Destination (Extension → Voicemail)</FormLabel>
                 <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -628,7 +658,7 @@ function EditTimeConditionDialog({
             )} />
             <FormField control={form.control} name="closed_destination" render={({ field }) => (
               <FormItem>
-                <FormLabel>Closed Destination (Extension â†’ Voicemail)</FormLabel>
+                <FormLabel>Closed Destination (Extension → Voicemail)</FormLabel>
                 <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -827,9 +857,9 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
       if (!resp.ok) throw new Error();
       setGroups((gs) => gs.filter((g) => g.id !== id));
       onChanged();
-      toast.success("Rufgruppe gelÃ¶scht.");
+      toast.success("Rufgruppe gelöscht.");
     } catch {
-      toast.error("Fehler beim LÃ¶schen.");
+      toast.error("Fehler beim Löschen.");
     }
   }
 
@@ -953,7 +983,7 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
               </TableCell>
               <TableCell><Input value={timeout} onChange={(e) => setTimeoutVal(e.target.value)} type="number" className="h-9 w-20 font-mono" /></TableCell>
               <TableCell className="text-right">
-                <Button size="sm" onClick={addGroup} disabled={saving}>{saving ? "â€¦" : "HinzufÃ¼gen"}</Button>
+                <Button size="sm" onClick={addGroup} disabled={saving}>{saving ? "…" : "Hinzufügen"}</Button>
               </TableCell>
             </TableRow>
           </TableBody>
@@ -1023,9 +1053,9 @@ function OutboundRulesSection() {
       const resp = await fetch(`/api/outbound-rules/${id}`, { method: "DELETE" });
       if (!resp.ok) throw new Error();
       setRules((rs) => rs.filter((r) => r.id !== id));
-      toast.success("Regel gelÃ¶scht.");
+      toast.success("Regel gelöscht.");
     } catch {
-      toast.error("Fehler beim LÃ¶schen.");
+      toast.error("Fehler beim Löschen.");
     }
   }
 
@@ -1035,9 +1065,9 @@ function OutboundRulesSection() {
       <div className="mb-2">
         <h2 className="text-xl font-semibold">Ausgehende Regeln</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          GewÃ¤hlte Nummern werden vor dem Trunk umgeschrieben: <span className="font-mono">Muster</span> matcht,
-          <span className="font-mono"> Entfernen</span> streicht fÃ¼hrende Ziffern, <span className="font-mono">Voranstellen</span> ergÃ¤nzt.
-          Beispiel: <span className="font-mono">0.</span> Â· Entfernen <span className="font-mono">1</span> Â· Voranstellen <span className="font-mono">+49</span>.
+          Gewählte Nummern werden vor dem Trunk umgeschrieben: <span className="font-mono">Muster</span> matcht,
+          <span className="font-mono"> Entfernen</span> streicht führende Ziffern, <span className="font-mono">Voranstellen</span> ergänzt.
+          Beispiel: <span className="font-mono">0.</span> · Entfernen <span className="font-mono">1</span> · Voranstellen <span className="font-mono">+49</span>.
         </p>
       </div>
 
@@ -1058,7 +1088,7 @@ function OutboundRulesSection() {
               <TableRow key={r.id}>
                 <TableCell className="font-mono">{r.pattern}</TableCell>
                 <TableCell className="font-mono">{r.strip}</TableCell>
-                <TableCell className="font-mono">{r.prepend || "â€”"}</TableCell>
+                <TableCell className="font-mono">{r.prepend || "—"}</TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
@@ -1088,7 +1118,7 @@ function OutboundRulesSection() {
               </TableCell>
               <TableCell className="text-right">
                 <Button size="sm" onClick={addRule} disabled={saving}>
-                  {saving ? "â€¦" : "HinzufÃ¼gen"}
+                  {saving ? "…" : "Hinzufügen"}
                 </Button>
               </TableCell>
             </TableRow>
@@ -1108,6 +1138,7 @@ export default function Routing() {
   const [editRouteTarget, setEditRouteTarget] = useState<Route | null>(null);
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [ringGroups, setRingGroups] = useState<RingGroup[]>([]);
+  const [ivrMenus, setIvrMenus] = useState<IVRMenu[]>([]);
 
   const [timeConditions, setTimeConditions] = useState<TimeCondition[]>([]);
   const [tcLoading, setTcLoading] = useState(true);
@@ -1127,10 +1158,12 @@ export default function Routing() {
     Promise.all([
       fetch("/api/extensions").then((r) => r.json()),
       fetch("/api/ring-groups").then((r) => r.json()),
+      fetch("/api/ivrs").then((r) => r.json()),
     ])
-      .then(([extensionData, groupData]: [Extension[], RingGroup[]]) => {
+      .then(([extensionData, groupData, ivrData]: [Extension[], RingGroup[], IVRMenu[]]) => {
         setExtensions(extensionData);
         setRingGroups(groupData);
+        setIvrMenus(ivrData);
       })
       .catch(() => toast.error("Routing-Ziele konnten nicht geladen werden."));
   }
@@ -1181,8 +1214,8 @@ export default function Routing() {
             {routes.map((route) => (
               <TableRow key={route.id}>
                 <TableCell className="font-medium">{route.did}</TableCell>
-                <TableCell>{route.destination_type === "ring_group" ? "Rufgruppe" : "Nebenstelle"}</TableCell>
-                <TableCell>{formatRouteDestination(route, extensions, ringGroups)}</TableCell>
+                <TableCell>{route.destination_type === "ring_group" ? "Rufgruppe" : route.destination_type === "ivr" ? "IVR-Menü" : "Nebenstelle"}</TableCell>
+                <TableCell>{formatRouteDestination(route, extensions, ringGroups, ivrMenus)}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <Tooltip>
@@ -1221,13 +1254,13 @@ export default function Routing() {
         </Table>
       )}
 
-      {/* â”€â”€â”€ Ring groups section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ─── Ring groups section ─────────────────────────────────────────── */}
       <RingGroupsSection onChanged={loadRoutingTargets} />
 
-      {/* â”€â”€â”€ Outbound dial rules section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ─── Outbound dial rules section ─────────────────────────────────── */}
       <OutboundRulesSection />
 
-      {/* â”€â”€â”€ Time Conditions section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ─── Time Conditions section ───────────────────────────────────── */}
       <Separator className="my-8" />
 
       <div className="flex items-center justify-between mb-6">
@@ -1263,7 +1296,7 @@ export default function Routing() {
             {timeConditions.map((tc) => (
               <TableRow key={tc.id}>
                 <TableCell className="font-medium">{tc.did}</TableCell>
-                <TableCell>{tc.open_hours_start} â€“ {tc.open_hours_end}</TableCell>
+                <TableCell>{tc.open_hours_start} – {tc.open_hours_end}</TableCell>
                 <TableCell>{tc.open_days}</TableCell>
                 <TableCell>ext {tc.open_destination}</TableCell>
                 <TableCell className="text-right">
@@ -1312,6 +1345,7 @@ export default function Routing() {
           onCreated={(route) => setRoutes((prev) => [...prev, route])}
           extensions={extensions}
           ringGroups={ringGroups}
+          ivrMenus={ivrMenus}
         />
       )}
 
@@ -1334,6 +1368,7 @@ export default function Routing() {
           onClose={() => setEditRouteTarget(null)}
           extensions={extensions}
           ringGroups={ringGroups}
+          ivrMenus={ivrMenus}
           onUpdated={(updated) => {
             setRoutes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
             setEditRouteTarget(null);

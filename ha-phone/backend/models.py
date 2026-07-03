@@ -109,6 +109,19 @@ class RingGroup(SQLModel, table=True):
     ring_timeout: int = 30
 
 
+class IVRMenu(SQLModel, table=True):
+    """Interactive Voice Response menu (digitaler Empfang).
+    Callers hear a greeting and press keys to reach extensions, ring groups, etc."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    number: int = Field(default=0, ge=10, le=99)  # internal extension number to reach this IVR
+    name: str = Field(max_length=64)  # e.g. "Hauptmenu"
+    greeting_file: str = ""  # filename of uploaded WAV greeting in /data/sounds/custom/ivr/
+    timeout: int = 10  # seconds to wait for DTMF input
+    max_invalid_tries: int = 3  # replay menu this many times on invalid input
+    options: str = ""  # JSON array: [{"key":"1","action":"extension","target":10,"label":"Verkauf"}, ...]
+    # action types: "extension", "ring_group", "voicemail", "hangup"
+
+
 class TimeCondition(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=64)

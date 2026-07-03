@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, Trunk
+from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, Trunk, IVRMenu
 from backend.conf_generator import render_conf
 from backend.routers.trunk import _to_e164
 from backend import ami
@@ -54,9 +54,20 @@ def _did_variants(did: str) -> list[str]:
     return sorted(variants)
 
 
+def _parse_ivr_options(options_str: str) -> list[dict]:
+    """Parse IVR options JSON string into a list of dicts."""
+    if not options_str or not options_str.strip():
+        return []
+    try:
+        import json
+        return json.loads(options_str)
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
 def _regenerate_routing_conf(session: Session) -> None:
     """Render extensions_routing.conf.j2 from time conditions, ring groups,
-    inbound routes and outbound dial rules (all editable via the web UI)."""
+    inbound routes, outbound dial rules, and IVR menus (all editable via the web UI)."""
     time_conditions = session.exec(select(TimeCondition)).all()
     ring_groups_list = session.exec(select(RingGroup)).all()
     ring_group_dials = {rg.id: _build_dial_string(rg) for rg in ring_groups_list}
@@ -66,12 +77,17 @@ def _regenerate_routing_conf(session: Session) -> None:
     ).all()
     extensions = session.exec(select(Extension)).all()
     route_dids = {r.id: _did_variants(r.did) for r in routes}
+    # IVR menus with parsed options
+    ivr_menus = list(session.exec(select(IVRMenu)).all())
+    for ivr in ivr_menus:
+        ivr.parsed_options = _parse_ivr_options(ivr.options)
     # dial-all-extensions string for the no-route inbound fallback
     all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions if e.enabled)
     # Outbound caller ID (E.164) — set on outbound calls so the callee sees the
     # trunk's number (CLIP), independent of the calling extension's caller ID.
     trunk = session.exec(select(Trunk)).first()
     trunk_callerid = _to_e164(trunk.phone_number) if trunk else ""
+    ivr_sounds_dir = str(_data_dir() / "sounds" / "custom" / "ivr")
     output_path = _data_dir() / "asterisk" / "extensions_routing.conf"
     render_conf(
         "extensions_routing.conf.j2",
@@ -86,6 +102,8 @@ def _regenerate_routing_conf(session: Session) -> None:
             "all_ext_dial": all_ext_dial,
             "doorbell_dial": _build_doorbell_dial_string(ring_groups_list),
             "trunk_callerid": trunk_callerid,
+            "ivr_menus": ivr_menus,
+            "ivr_sounds_dir": ivr_sounds_dir,
         },
         output_path,
     )

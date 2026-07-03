@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.41
+
+**Feature — IVR-Menü (Digitaler Empfang)**
+- Neues IVR-Menü-System (Interactive Voice Response) ähnlich wie bei 3CX/Yeastar.
+- Anrufer hören eine Begrüßung und werden per Tastendruck weitergeleitet.
+- Optionen: Nebenstelle, Rufgruppe, Voicemail oder Auflegen.
+- IVR-Menüs haben eine eigene interne Durchwahl (10-99) und können als Routing-Ziel verwendet werden.
+- Begrüßungs-Upload als WAV-Datei.
+- Timeout und max. Falscheingaben konfigurierbar.
+- Neue Sidebar-Navigation "IVR-Menüs".
+
 ## 0.7.40
 
 **Feature/Fix - Rufgruppen als echte interne Ziele**
