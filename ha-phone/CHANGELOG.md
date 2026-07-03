@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.47
+
+**Fix - Linphone QR robuster**
+- Der QR-Code fuer Linphone enthaelt wieder die reine Provisioning-URL statt eines `linphone-config`-Schemas. Das ist robuster fuer den In-App-QR-Scanner.
+- Zusaetzlich gibt es jetzt einen separaten Button **"In Linphone oeffnen"**, der das Linphone-spezifische Schema verwendet.
+- Der Kopier-Button nutzt jetzt auch in Umgebungen ohne modernes Clipboard-API einen Fallback, damit der Provisioning-Link im Home-Assistant-UI besser kopierbar bleibt.
+
 ## 0.7.46
 
 **Fix - Linphone QR / Provisioning**

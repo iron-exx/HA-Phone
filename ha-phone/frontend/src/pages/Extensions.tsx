@@ -91,7 +91,7 @@ function buildProvisioningUrl(path: string) {
 }
 
 function buildLinphoneConfigUri(path: string) {
-  return `linphone-config:${buildProvisioningUrl(path)}`;
+  return `linphone-config://${buildProvisioningUrl(path)}`;
 }
 
 function buildExtensionNumbers(group: RingGroup, extensionNumber: number, selected: boolean) {
@@ -590,7 +590,7 @@ function LinphoneQrDialog({
         const data: LinphoneProvisioningInfo = await resp.json();
         if (cancelled) return;
         setProvisioning(data);
-        const dataUrl = await QRCode.toDataURL(buildLinphoneConfigUri(data.provisioning_path), {
+        const dataUrl = await QRCode.toDataURL(buildProvisioningUrl(data.provisioning_path), {
           width: 320,
           margin: 2,
           color: {
@@ -614,12 +614,31 @@ function LinphoneQrDialog({
 
   async function copyProvisioningLink() {
     if (!provisioning) return;
+    const value = buildProvisioningUrl(provisioning.provisioning_path);
     try {
-      await navigator.clipboard.writeText(buildProvisioningUrl(provisioning.provisioning_path));
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const success = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (!success) throw new Error("copy failed");
+      }
       toast.success("Provisioning-Link kopiert.");
     } catch {
       toast.error("Link konnte nicht kopiert werden.");
     }
+  }
+
+  function openInLinphone() {
+    if (!provisioning) return;
+    window.location.href = buildLinphoneConfigUri(provisioning.provisioning_path);
   }
 
   return (
@@ -673,6 +692,12 @@ function LinphoneQrDialog({
                   Kopieren
                 </Button>
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button type="button" variant="outline" onClick={openInLinphone} className="cursor-pointer">
+                In Linphone oeffnen
+              </Button>
             </div>
           </div>
         ) : null}
