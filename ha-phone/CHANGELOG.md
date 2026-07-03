@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.43
+
+**Fix - GitHub-Build fuer Add-on-Update**
+- Fehlgeschlagenen CI-Build fuer `0.7.42` repariert: in `IVR.tsx` verbliebene unbenutzte Imports (`Check`, `X`, `Separator`) entfernte TypeScript im lokalen Lauf nicht, im Docker-CI aber schon.
+- Dadurch kann das Add-on-Image wieder gebaut und das Update in Home Assistant installiert werden.
+
 ## 0.7.42
 
 **Fix (kritisch, per Live-Reproduktion verifiziert) — IVR brach jede Config-Regenerierung**

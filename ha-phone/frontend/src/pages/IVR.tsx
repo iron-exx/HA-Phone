@@ -3,12 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Check, Pencil, Trash2, X, Upload, Volume2, PhoneIncoming } from "lucide-react";
+import { Pencil, Trash2, Upload, Volume2, PhoneIncoming } from "lucide-react";
 
 import { type Extension, type RingGroup, type IVRMenu, type IVROption } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
