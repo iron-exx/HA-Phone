@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.49
+
+**Fix - Linphone Provisioning XML**
+- Die fuer Linphone ausgelieferte Provisioning-XML wurde an das offizielle Linphone-Beispiel angenaehert.
+- `reg_proxy` und `reg_route` werden jetzt im erwarteten Format ohne vorangestelltes `sip:` geschrieben.
+- Zusaetzliche Auth-/Proxy-Felder (`userid`, `realm`, `publish`, `dial_escape_plus`) und das Linphone-XML-Schema wurden ergaenzt.
+- Ziel ist, den weiter gemeldeten Fehler **"ungueltige URI"** beim Linphone-Provisioning zu beseitigen.
+
 ## 0.7.48
 
 **Feature/Fix - IVR Untermenues und Dialog-Layout**

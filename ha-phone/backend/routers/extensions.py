@@ -103,32 +103,47 @@ def _render_linphone_provisioning_xml(extension: Extension, request: Request) ->
     username = html.escape(str(extension.number), quote=True)
     password = html.escape(extension.sip_password, quote=True)
     identity = f"sip:{username}@{host}"
-    proxy = f"sip:{host};transport=udp"
+    proxy = f"{host};transport=udp"
+    route = f"{host};transport=udp;lr"
     media_encryption = "none"
     video_enabled = "1" if extension.video_capable else "0"
 
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        "<config>\n"
+        '<config xmlns="http://www.linphone.org/xsds/lpconfig.xsd" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        'xsi:schemaLocation="http://www.linphone.org/xsds/lpconfig.xsd lpconfig.xsd">\n'
         '  <section name="sip">\n'
+        '    <entry name="sip_port" overwrite="true">-1</entry>\n'
+        '    <entry name="sip_tcp_port" overwrite="true">-1</entry>\n'
+        '    <entry name="sip_tls_port" overwrite="true">-1</entry>\n'
         '    <entry name="default_proxy" overwrite="true">0</entry>\n'
         '    <entry name="guess_hostname" overwrite="true">1</entry>\n'
         f'    <entry name="media_encryption" overwrite="true">{media_encryption}</entry>\n'
         "  </section>\n"
-        '  <section name="proxy_0">\n'
-        f'    <entry name="reg_identity" overwrite="true">{identity}</entry>\n'
-        f'    <entry name="reg_proxy" overwrite="true">{proxy}</entry>\n'
-        '    <entry name="reg_sendregister" overwrite="true">1</entry>\n'
-        '    <entry name="reg_expires" overwrite="true">600</entry>\n'
-        "  </section>\n"
         '  <section name="auth_info_0">\n'
         f'    <entry name="username" overwrite="true">{username}</entry>\n'
-        f'    <entry name="domain" overwrite="true">{host}</entry>\n'
+        f'    <entry name="userid" overwrite="true">{username}</entry>\n'
         f'    <entry name="passwd" overwrite="true">{password}</entry>\n'
+        f'    <entry name="realm" overwrite="true">{host}</entry>\n'
+        f'    <entry name="domain" overwrite="true">{host}</entry>\n'
+        "  </section>\n"
+        '  <section name="proxy_0">\n'
+        f'    <entry name="reg_proxy" overwrite="true">{proxy}</entry>\n'
+        f'    <entry name="reg_route" overwrite="true">{route}</entry>\n'
+        f'    <entry name="reg_identity" overwrite="true">{identity}</entry>\n'
+        '    <entry name="reg_expires" overwrite="true">600</entry>\n'
+        '    <entry name="reg_sendregister" overwrite="true">1</entry>\n'
+        '    <entry name="publish" overwrite="true">0</entry>\n'
+        '    <entry name="dial_escape_plus" overwrite="true">0</entry>\n'
         "  </section>\n"
         '  <section name="video">\n'
+        f'    <entry name="enabled" overwrite="true">{video_enabled}</entry>\n'
         f'    <entry name="capture" overwrite="true">{video_enabled}</entry>\n'
         f'    <entry name="display" overwrite="true">{video_enabled}</entry>\n'
+        '    <entry name="self_view" overwrite="true">0</entry>\n'
+        '    <entry name="automatically_initiate" overwrite="true">0</entry>\n'
+        '    <entry name="automatically_accept" overwrite="true">0</entry>\n'
         "  </section>\n"
         "</config>\n"
     )
