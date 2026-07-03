@@ -4,7 +4,15 @@ export interface Extension {
   display_name: string;
   enabled: boolean;
   internal_only?: boolean;
+  video_capable?: boolean;
   // sip_password is never returned by the API
+}
+
+export interface LinphoneProvisioningInfo {
+  extension_id: number;
+  extension_number: number;
+  display_name: string;
+  provisioning_path: string;
 }
 
 export interface ExtensionStatus {

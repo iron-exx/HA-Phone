@@ -59,6 +59,7 @@ except Exception:
 app.include_router(auth_router.router, prefix="/api")
 # Provisioning fetch endpoint (PUBLIC — IP phones fetch their config by MAC, no session)
 app.include_router(provisioning.public_router, prefix="/api")
+app.include_router(extensions.public_router, prefix="/api")
 
 # API routers — all protected by get_current_user
 app.include_router(extensions.router, prefix="/api", dependencies=[Depends(get_current_user)])

@@ -44,6 +44,11 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN internal_only INTEGER NOT NULL DEFAULT 0")
                 )
                 conn.commit()
+            if "provisioning_token" not in cols:
+                conn.execute(
+                    text("ALTER TABLE extension ADD COLUMN provisioning_token TEXT NOT NULL DEFAULT ''")
+                )
+                conn.commit()
         if "trunk" in tables:
             cols = [c["name"] for c in inspector.get_columns("trunk")]
             if "codecs" not in cols:

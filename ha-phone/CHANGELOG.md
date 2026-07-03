@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.44
+
+**Feature - Linphone QR fuer Nebenstellen**
+- In der Nebenstellenliste gibt es jetzt pro Extension eine neue Aktion **"Linphone QR"**. Damit wird ein QR-Code samt Provisioning-Link erzeugt, den Linphone direkt scannen kann.
+- HA-Phone stellt dafuer eine tokenisierte Provisioning-URL bereit. Die normale Nebenstellenliste liefert diesen Token nicht aus, damit die Verbindungsdaten nicht versehentlich offengelegt werden.
+- Die Linphone-Konfiguration wird als Provisioning-XML ausgeliefert und setzt Rufnummer, SIP-Server, Passwort und Video-Option passend fuer die gewaehlte Nebenstelle.
+- Frontend/Build: QR-Code-Erzeugung im Web-UI integriert.
+
 ## 0.7.43
 
 **Fix - GitHub-Build fuer Add-on-Update**

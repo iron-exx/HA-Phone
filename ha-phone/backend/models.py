@@ -10,6 +10,7 @@ class Extension(SQLModel, table=True):
     number: int = Field(ge=10, le=99)
     display_name: str = Field(max_length=64)
     sip_password: str = Field(default="", min_length=0)  # min enforced in router; default="" triggers auto-gen
+    provisioning_token: str = Field(default="", max_length=128)
     enabled: bool = True
     video_capable: bool = False
     internal_only: bool = False  # restrict to internal calls (e.g. door intercom) — no outbound
@@ -23,6 +24,19 @@ class ExtensionUpdate(SQLModel):
     enabled: Optional[bool] = None
     video_capable: Optional[bool] = None
     internal_only: Optional[bool] = None
+
+
+class ExtensionOut(SQLModel):
+    id: int
+    number: int
+    display_name: str
+    enabled: bool
+    video_capable: bool = False
+    internal_only: bool = False
+
+
+class ExtensionCreateOut(ExtensionOut):
+    sip_password: str
 
 
 class ProvisioningTemplate(SQLModel, table=True):

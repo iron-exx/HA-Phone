@@ -3,9 +3,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { MoreHorizontal, Pencil, Trash2, Plus, Phone } from "lucide-react";
+import QRCode from "qrcode";
+import { MoreHorizontal, Pencil, Trash2, Plus, Phone, QrCode, Copy } from "lucide-react";
 
-import { type Extension, type ExtensionStatus, type RingGroup } from "@/types/api";
+import {
+  type Extension,
+  type ExtensionStatus,
+  type RingGroup,
+  type LinphoneProvisioningInfo,
+} from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -77,6 +83,11 @@ function getExtensionRingGroupIds(extension: Extension, ringGroups: RingGroup[])
 
 function toggleRingGroupId(ids: number[], id: number) {
   return ids.includes(id) ? ids.filter((current) => current !== id) : [...ids, id];
+}
+
+function buildProvisioningUrl(path: string) {
+  const ingressPath = (window as Window & { __INGRESS_PATH__?: string }).__INGRESS_PATH__ ?? "";
+  return `${window.location.origin}${ingressPath}${path}`;
 }
 
 function buildExtensionNumbers(group: RingGroup, extensionNumber: number, selected: boolean) {
@@ -554,6 +565,124 @@ function DeleteExtensionDialog({
   );
 }
 
+function LinphoneQrDialog({
+  extension,
+  onClose,
+}: {
+  extension: Extension;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
+  const [provisioning, setProvisioning] = useState<LinphoneProvisioningInfo | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const resp = await fetch(`/api/extensions/${extension.id}/linphone-qr`);
+        if (!resp.ok) throw new Error();
+        const data: LinphoneProvisioningInfo = await resp.json();
+        if (cancelled) return;
+        setProvisioning(data);
+        const dataUrl = await QRCode.toDataURL(buildProvisioningUrl(data.provisioning_path), {
+          width: 320,
+          margin: 2,
+          color: {
+            dark: "#F8FAFC",
+            light: "#050816",
+          },
+        });
+        if (!cancelled) setQrCodeDataUrl(dataUrl);
+      } catch {
+        if (!cancelled) toast.error("Linphone-QR konnte nicht geladen werden.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [extension.id]);
+
+  async function copyProvisioningLink() {
+    if (!provisioning) return;
+    try {
+      await navigator.clipboard.writeText(buildProvisioningUrl(provisioning.provisioning_path));
+      toast.success("Provisioning-Link kopiert.");
+    } catch {
+      toast.error("Link konnte nicht kopiert werden.");
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Linphone QR fuer Extension {extension.number}</DialogTitle>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="space-y-3">
+            <Skeleton className="mx-auto h-72 w-72" style={{ background: "rgba(255,255,255,0.05)" }} />
+            <Skeleton className="h-10 w-full" style={{ background: "rgba(255,255,255,0.05)" }} />
+          </div>
+        ) : provisioning ? (
+          <div className="space-y-4">
+            <div
+              className="mx-auto flex w-full max-w-[320px] items-center justify-center rounded-xl border p-4"
+              style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.02)" }}
+            >
+              {qrCodeDataUrl ? (
+                <img
+                  src={qrCodeDataUrl}
+                  alt={`Linphone QR fuer Extension ${provisioning.extension_number}`}
+                  className="h-72 w-72 rounded-lg"
+                />
+              ) : (
+                <Skeleton className="h-72 w-72" style={{ background: "rgba(255,255,255,0.05)" }} />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm text-foreground">
+                {provisioning.display_name} ({provisioning.extension_number})
+              </p>
+              <p className="text-xs text-muted-foreground">
+                In Linphone "Scan QR Code" waehlen oder den Provisioning-Link manuell einfuegen.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <FormLabel>Provisioning-Link</FormLabel>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={buildProvisioningUrl(provisioning.provisioning_path)}
+                  className="font-mono text-xs"
+                />
+                <Button type="button" variant="outline" onClick={copyProvisioningLink} className="cursor-pointer shrink-0">
+                  <Copy className="mr-2 h-4 w-4" />
+                  Kopieren
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
+            Schliessen
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ---- Main page ----
 export default function Extensions() {
   const [extensions, setExtensions] = useState<Extension[]>([]);
@@ -563,6 +692,7 @@ export default function Extensions() {
   const [dialogMode, setDialogMode] = useState<"add" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<Extension | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Extension | null>(null);
+  const [qrTarget, setQrTarget] = useState<Extension | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchRingGroups() {
@@ -754,6 +884,13 @@ export default function Extensions() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           className="cursor-pointer"
+                          onClick={() => setQrTarget(ext)}
+                        >
+                          <QrCode className="mr-2 h-4 w-4" />
+                          Linphone QR
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer"
                           onClick={() => {
                             setEditTarget(ext);
                             setDialogMode("edit");
@@ -811,6 +948,13 @@ export default function Extensions() {
             setExtensions((prev) => prev.filter((e) => e.id !== id));
             setDeleteTarget(null);
           }}
+        />
+      )}
+
+      {qrTarget && (
+        <LinphoneQrDialog
+          extension={qrTarget}
+          onClose={() => setQrTarget(null)}
         />
       )}
     </div>

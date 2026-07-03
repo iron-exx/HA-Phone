@@ -93,6 +93,38 @@ def test_extension_status(client):
     assert isinstance(data, list)
 
 
+def test_linphone_qr_metadata_and_public_provisioning(client):
+    resp = client.post(
+        "/api/extensions",
+        json={
+            "number": 21,
+            "display_name": "Linphone User",
+            "sip_password": "securepass1234567",
+            "video_capable": True,
+        },
+    )
+    assert resp.status_code == 200
+    extension = resp.json()
+
+    qr_resp = client.get(f"/api/extensions/{extension['id']}/linphone-qr")
+    assert qr_resp.status_code == 200
+    payload = qr_resp.json()
+    assert payload["extension_number"] == 21
+    assert payload["display_name"] == "Linphone User"
+    assert payload["provisioning_path"].startswith("/api/linphone/provision/")
+
+    token = payload["provisioning_path"].rsplit("/", 1)[-1]
+    xml_resp = client.get(f"/api/linphone/provision/{token}")
+    assert xml_resp.status_code == 200
+    assert xml_resp.headers["content-type"].startswith("application/xml")
+    xml = xml_resp.text
+    assert '<section name="proxy_0">' in xml
+    assert "sip:21@testserver" in xml
+    assert "sip:testserver:5060;transport=udp" in xml
+    assert "securepass1234567" in xml
+    assert '<entry name="capture" overwrite="true">1</entry>' in xml
+
+
 def test_trunk_ami_reload(client, mock_ami):
     """POST /api/trunk calls ami_reload_pjsip (mock asserted)."""
     client.post(
