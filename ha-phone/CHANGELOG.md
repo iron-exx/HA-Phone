@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.56
+
+**Fix - Updates dauerten mehrere Minuten (lokaler Asterisk-Kompilierbau statt Image-Pull)**
+- `config.yaml` fehlte das Addon-Feld `image`. Der GitHub-Actions-Workflow baut bei jedem Push bereits ein fertiges Multi-Arch-Image nach `ghcr.io/iron-exx/ha-phone/{arch}`, aber ohne dieses Feld ignoriert der Supervisor das komplett und kompiliert bei jedem Install/Update Asterisk lokal aus dem Quellcode auf dem HA-Host (`./configure && make` im Dockerfile) - mehrere Minuten, je nach Hardware deutlich mehr.
+- `image: "ghcr.io/iron-exx/ha-phone/{arch}"` ergaenzt. Vor dem Einchecken verifiziert, dass das GHCR-Package tatsaechlich oeffentlich und ohne Zugangsdaten pullbar ist (Token-Exchange-Flow, 200 auf Manifest-Fetch), damit der Supervisor es ohne Anmeldedaten ziehen kann.
+- Ab dieser Version sollte ein Update ein reiner Registry-Pull des bereits gebauten Images sein statt eines vollstaendigen lokalen Kompilierlaufs. Dieses Update selbst (0.7.55 -> 0.7.56) laeuft noch einmal als lokaler Build, da die vorige Version noch ohne `image`-Feld installiert war.
+
 ## 0.7.55
 
 **Fix - Linphone QR-Code/Provisioning-Link ungueltig**
