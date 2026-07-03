@@ -77,6 +77,15 @@ exten => t,1,Hangup()
 
 ; Outbound PSTN via SIP trunk
 [outbound-pstn]
+; Outbound rules can prepend "+" (E.164, e.g. for German numbers rewritten to
+; +49...) before Goto()-ing here. `X` in an Asterisk pattern matches digits
+; only, never "+", so a bare _X. pattern silently rejects any +-prefixed
+; number ("sent to invalid extension but no invalid handler") — the call
+; drops instantly with no ring. Strip the "+" and re-dial so it re-matches
+; _X. below instead of duplicating the Dial logic for both cases.
+exten => _+X.,1,NoOp(Outbound via SIP trunk (E.164): ${EXTEN})
+ same => n,Goto(outbound-pstn,${EXTEN:1},1)
+
 exten => _X.,1,NoOp(Outbound via SIP trunk: ${EXTEN})
 {% if trunk_callerid %} same => n,Set(CALLERID(all)={{ trunk_callerid }} <{{ trunk_callerid }}>)
 {% endif %} same => n,Dial(PJSIP/${EXTEN}@trunk-endpoint,60)
