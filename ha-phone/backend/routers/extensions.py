@@ -103,7 +103,7 @@ def _render_linphone_provisioning_xml(extension: Extension, request: Request) ->
     username = html.escape(str(extension.number), quote=True)
     password = html.escape(extension.sip_password, quote=True)
     identity = f"sip:{username}@{host}"
-    proxy = f"sip:{host}:5060;transport=udp"
+    proxy = f"sip:{host};transport=udp"
     media_encryption = "none"
     video_enabled = "1" if extension.video_capable else "0"
 

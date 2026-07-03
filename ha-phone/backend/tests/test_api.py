@@ -120,7 +120,7 @@ def test_linphone_qr_metadata_and_public_provisioning(client):
     xml = xml_resp.text
     assert '<section name="proxy_0">' in xml
     assert "sip:21@testserver" in xml
-    assert "sip:testserver:5060;transport=udp" in xml
+    assert "sip:testserver;transport=udp" in xml
     assert "securepass1234567" in xml
     assert '<entry name="capture" overwrite="true">1</entry>' in xml
 

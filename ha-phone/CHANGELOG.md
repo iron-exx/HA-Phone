@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.46
+
+**Fix - Linphone QR / Provisioning**
+- QR-Code fuer Linphone nutzt jetzt das Linphone-spezifische URI-Format `linphone-config:` statt nur den nackten Provisioning-Link.
+- Die ausgelieferte Provisioning-XML setzt den SIP-Proxy jetzt in der kompakteren Linphone-Form `sip:host;transport=udp` statt `sip:host:5060;transport=udp`.
+- Dadurch wird der QR-/Provisioning-Flow von Linphone besser erkannt und die gemeldete "ungueltige URI" vermieden.
+
 ## 0.7.45
 
 **Fix - QR-Dialog absturzfrei**

@@ -90,6 +90,10 @@ function buildProvisioningUrl(path: string) {
   return `${window.location.origin}${ingressPath}${path}`;
 }
 
+function buildLinphoneConfigUri(path: string) {
+  return `linphone-config:${buildProvisioningUrl(path)}`;
+}
+
 function buildExtensionNumbers(group: RingGroup, extensionNumber: number, selected: boolean) {
   const numbers = group.extension_numbers
     .split(",")
@@ -586,7 +590,7 @@ function LinphoneQrDialog({
         const data: LinphoneProvisioningInfo = await resp.json();
         if (cancelled) return;
         setProvisioning(data);
-        const dataUrl = await QRCode.toDataURL(buildProvisioningUrl(data.provisioning_path), {
+        const dataUrl = await QRCode.toDataURL(buildLinphoneConfigUri(data.provisioning_path), {
           width: 320,
           margin: 2,
           color: {
@@ -652,7 +656,7 @@ function LinphoneQrDialog({
                 {provisioning.display_name} ({provisioning.extension_number})
               </p>
               <p className="text-xs text-muted-foreground">
-                In Linphone "Scan QR Code" waehlen oder den Provisioning-Link manuell einfuegen.
+                In Linphone "Scan QR Code" waehlen. Fuer die manuelle Einrichtung unten den Provisioning-Link in Linphone unter "Provisioning Link" einfuegen.
               </p>
             </div>
 
