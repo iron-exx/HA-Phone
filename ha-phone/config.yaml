@@ -1,5 +1,5 @@
 name: "HA-Phone"
-version: "0.7.56"
+version: "0.7.57"
 slug: "ha-phone"
 description: "SIP PBX for Home Assistant — any SIP trunk, IP phones, softphones, doorbells. Web UI, no CLI needed."
 url: "https://github.com/iron-exx/HA-Phone"
@@ -22,7 +22,7 @@ init: false
 host_network: true
 
 ingress: true
-ingress_port: 8099
+ingress_port: 80
 ingress_entry: "/"
 
 map:

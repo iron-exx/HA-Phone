@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # smoke-ui-ext.sh — end-to-end: POST /api/extensions → verify pjsip_extensions.conf written
 set -e
-BASE_URL="${1:-http://localhost:8099}"
+BASE_URL="${1:-http://localhost:80}"
 echo "Smoke: adding extension 20..."
 curl -sf -X POST "$BASE_URL/api/extensions" \
   -H "Content-Type: application/json" \

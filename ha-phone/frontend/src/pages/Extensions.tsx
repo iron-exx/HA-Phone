@@ -86,12 +86,12 @@ function toggleRingGroupId(ids: number[], id: number) {
 }
 
 function buildProvisioningUrl(path: string) {
-  const { protocol, hostname, port } = window.location;
-  if (port === "8099") {
-    return `${window.location.origin}${path}`;
-  }
-  const directProtocol = protocol === "https:" ? "https:" : "http:";
-  return `${directProtocol}//${hostname}:8099${path}`;
+  // HA-Phone's backend listens on plain HTTP port 80 (the ingress port), so a
+  // phone/softphone reaching it directly on the LAN needs no port at all -
+  // same as SIP registration defaulting to port 5060. Always force http: even
+  // if this admin page is itself loaded over https via HA ingress/a tunnel,
+  // since port 80 here never speaks TLS.
+  return `http://${window.location.hostname}${path}`;
 }
 
 function buildLinphoneConfigUri(path: string) {

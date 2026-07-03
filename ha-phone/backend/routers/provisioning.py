@@ -96,7 +96,7 @@ BUILTIN_TEMPLATES = [
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             "<!-- HA-Phone auto-provisioning — Gigaset DECT provider profile.\n"
             "     STARTVORLAGE: exakte Parameternamen je nach Firmware anpassen!\n"
-            "     Gigaset-Datenserver-URL am Gerät: http://<PBX-IP>:8099/api/autoprovision/[MAC].xml -->\n"
+            "     Gigaset-Datenserver-URL am Gerät: http://<PBX-IP>/api/autoprovision/[MAC].xml -->\n"
             '<provisioning version="1.1" productID="e2">\n'
             "  <nvm>\n"
             '    <param name="SipProvider.0.Name" value="HA-Phone"/>\n'
@@ -192,7 +192,7 @@ class DeviceOut(BaseModel):
 def _device_out(d: ProvisionedDevice, session: Session, lan_ip: str) -> DeviceOut:
     tpl = session.get(ProvisioningTemplate, d.template_id)
     fname = (tpl.file_pattern if tpl else "{mac}").replace("{mac}", d.mac)
-    base = f"http://{lan_ip}:8099" if lan_ip else "http://<PBX-IP>:8099"
+    base = f"http://{lan_ip}" if lan_ip else "http://<PBX-IP>"
     return DeviceOut(
         id=d.id, name=d.name, manufacturer=d.manufacturer, model=d.model, mac=d.mac,
         extension_id=d.extension_id, template_id=d.template_id,

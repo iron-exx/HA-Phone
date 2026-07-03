@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.57
+
+**Fix - Provisioning-Links ohne Portnummer (wie SIP mit Standardport 5060)**
+- Backend lauscht jetzt auf Port 80 statt 8099 (`ingress_port` + uvicorn-Bind angepasst). Port 80 ist der HTTP-Standardport, Browser/Apps haengen ihn nie sichtbar an eine URL an - genau wie SIP automatisch Port 5060 nutzt, ohne dass man ihn eintragen muss.
+- Betrifft den Linphone-Provisioning-Link UND die Gigaset/DECT-Autoprovisionierungs-URLs (`backend/routers/provisioning.py`) - beide nutzten bisher denselben ungewoehnlichen Port.
+- Vor der Umstellung geprueft, dass Port 80 auf dem Host frei ist (kein Konflikt mit einem anderen Add-on).
+- Zusammen mit dem `linphone-config:`-URI-Fix aus 0.7.55 sollte der Linphone-QR-Code jetzt vollstaendig funktionieren: gueltige URI-Syntax UND eine direkt erreichbare Adresse ohne Portnummer.
+
 ## 0.7.56
 
 **Fix - Updates dauerten mehrere Minuten (lokaler Asterisk-Kompilierbau statt Image-Pull)**

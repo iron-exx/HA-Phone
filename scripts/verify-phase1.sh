@@ -35,8 +35,8 @@ check "Asterisk 22.x running" \
     "Asterisk 22"
 
 echo "[ADD-04] Ingress placeholder HTTP..."
-check "Port 8099 returns HTTP 200" \
-    "docker exec ${CONTAINER} curl -s -o /dev/null -w '%{http_code}' http://localhost:8099/" \
+check "Port 80 returns HTTP 200" \
+    "docker exec ${CONTAINER} curl -s -o /dev/null -w '%{http_code}' http://localhost:80/" \
     "200"
 
 echo "[ADD-05/ADD-06] /data/ directory structure..."

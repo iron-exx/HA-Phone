@@ -27,7 +27,7 @@ the UDP port ranges required for RTP audio.
 | Port | Protocol | Purpose |
 |------|----------|---------|
 | 5060 | UDP/TCP | SIP signalling |
-| 8099 | TCP | Web UI (HA ingress only) |
+| 80 | TCP | Web UI / provisioning (HA ingress + direct LAN access) |
 | 10000–10200 | UDP | RTP audio |
 
 AMI (5038) and ARI (8088) are bound to `127.0.0.1` and are not reachable from the LAN.
