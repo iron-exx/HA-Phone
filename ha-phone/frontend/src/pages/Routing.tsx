@@ -80,12 +80,15 @@ function getRouteDestinationOptions(
   ivrMenus: IVRMenu[]
 ) {
   if (type === "ring_group") {
+    // Route destination_id is the ring group's DB id, not its internal dial number
+    // (`number`) — so a group without one (0 = "no internal extension", e.g. legacy
+    // groups from before that field existed) must still be selectable as an inbound
+    // route target. Filtering on `number > 0` here used to hide them entirely.
     return [...ringGroups]
-      .filter((group) => group.number > 0)
       .sort((a, b) => a.number - b.number)
       .map((group) => ({
         value: String(group.id),
-        label: `${group.number} ${group.name}`,
+        label: group.number > 0 ? `${group.number} ${group.name}` : group.name,
       }));
   }
   if (type === "ivr") {
@@ -869,7 +872,7 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
       <div className="mb-2">
         <h2 className="text-xl font-semibold">Rufgruppen</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Mehrere Nebenstellen gleichzeitig klingeln lassen. Als Ziel einer eingehenden Route wÃ¤hlbar.
+          Mehrere Nebenstellen gleichzeitig klingeln lassen. Als Ziel einer eingehenden Route wählbar.
         </p>
       </div>
       {loading ? (
@@ -1040,9 +1043,9 @@ function OutboundRulesSection() {
       if (!resp.ok) throw new Error(await resp.text());
       setPattern(""); setStrip("0"); setPrepend("");
       load();
-      toast.success("Regel hinzugefÃ¼gt.");
+      toast.success("Regel hinzugefügt.");
     } catch {
-      toast.error("Fehler beim Speichern. LÃ¤uft die PBX?");
+      toast.error("Fehler beim Speichern. Läuft die PBX?");
     } finally {
       setSaving(false);
     }
@@ -1094,7 +1097,7 @@ function OutboundRulesSection() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive"
-                    aria-label={`Regel ${r.pattern} lÃ¶schen`}
+                    aria-label={`Regel ${r.pattern} löschen`}
                     onClick={() => deleteRule(r.id)}
                   >
                     <Trash2 className="h-4 w-4" />

@@ -133,8 +133,14 @@ exten => 1,1,Voicemail({{ condition.closed_destination }}@default,u)
 ; IVR menus (Interactive Voice Response / Digitaler Empfang)
 {% for ivr_menu in ivr_menus %}
 [ivr-{{ ivr_menu.id }}]
+; `s` is the real entry point and initializes the invalid-attempt counter exactly
+; once. Replays after an invalid entry jump to `menu` instead of back to `s` — the
+; old code went back to `s`, which reset IVR_INVALID_COUNT to 0 on every replay, so
+; `max_invalid_tries` could never be reached (infinite reprompt loop, never hangs up).
 exten => s,1,Answer()
  same => n,Set(IVR_INVALID_COUNT=0)
+ same => n,Goto(menu,1)
+exten => menu,1,NoOp(IVR {{ ivr_menu.name }})
 {% if ivr_menu.greeting_file %}
  same => n,Set(TIMEOUT(digit)=5)
  same => n,Background({{ ivr_sounds_dir }}/{{ ivr_menu.greeting_file }})
@@ -159,7 +165,7 @@ exten => i,1,Set(IVR_INVALID_COUNT=$[${IVR_INVALID_COUNT} + 1])
  same => n,GotoIf($[${IVR_INVALID_COUNT} >= {{ ivr_menu.max_invalid_tries }}]?t,1)
 {% endif %}
  same => n,Playback(pbx-invalid)
- same => n,Goto(ivr-{{ ivr_menu.id }},s,1)
+ same => n,Goto(menu,1)
 exten => t,1,Hangup()
 {% endfor %}
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.42
+
+**Fix (kritisch, per Live-Reproduktion verifiziert) — IVR brach jede Config-Regenerierung**
+- `_regenerate_routing_conf` setzte `ivr.parsed_options` direkt auf ein `IVRMenu`-SQLModel-Tabellenobjekt, das dieses Feld nicht deklariert → `ValueError: "IVRMenu" object has no field "parsed_options"`. Reproduziert: `POST /api/ivrs` schlug mit 500 fehl, sobald ein IVR-Menü existierte. Da dieselbe Funktion von Extensions-, Rufgruppen-, Routen- und Trunk-Endpunkten **und dem Boot-Skript** aufgerufen wird, brach ab dem ersten angelegten IVR-Menü **jede** dieser Operationen — inklusive der Config-Regenerierung beim Neustart (Trunk/Voicemail/Mail-Settings wurden dann still nicht mehr aktualisiert). Fix: IVR-Daten werden für das Template jetzt als reines dict übergeben (Jinja2-Punktzugriff funktioniert unverändert), keine Mutation des ORM-Objekts mehr.
+- **IVR-Endlosschleife:** Der Ungültig-Zähler (`IVR_INVALID_COUNT`) wurde bei jeder Wiederholung auf 0 zurückgesetzt, weil der Replay-Pfad zurück zu `s,1` sprang — derselbe Einstiegspunkt, der den Zähler initialisiert. `max_invalid_tries` griff dadurch nie; der Anrufer konnte beliebig oft falsch eingeben, ohne dass aufgelegt wurde. Fix: eigener `menu`-Einstiegspunkt für Wiederholungen, der den Zähler nicht zurücksetzt.
+- Verbliebene Mojibake-Reste in Routing.tsx behoben (`wÃ¤hlbar`, `hinzugefÃ¼gt`, `LÃ¤uft`, `lÃ¶schen` → korrekte Umlaute) — trotz vorherigem "Encoding gefixt"-Commit übersehen.
+- Rufgruppen ohne eigene interne Durchwahl (z.B. migrierte Altbestände mit `number=0`) waren im Ziel-Dropdown für eingehende Routen unsichtbar, obwohl die Route über die DB-ID (nicht die Nummer) läuft — Filter entfernt, betroffene Gruppen sind jetzt wählbar.
+- Ursache für die Lücke: Das neue IVR-Feature hatte keinerlei Backend-Tests. Alle Fixes wurden per FastAPI-TestClient-Reproduktion end-to-end verifiziert (IVR anlegen → Extension/Rufgruppe/Route anlegen → kein Crash, korrekter generierter Dialplan).
+
 ## 0.7.41
 
 **Feature — IVR-Menü (Digitaler Empfang)**

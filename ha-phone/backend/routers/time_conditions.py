@@ -77,10 +77,19 @@ def _regenerate_routing_conf(session: Session) -> None:
     ).all()
     extensions = session.exec(select(Extension)).all()
     route_dids = {r.id: _did_variants(r.did) for r in routes}
-    # IVR menus with parsed options
-    ivr_menus = list(session.exec(select(IVRMenu)).all())
-    for ivr in ivr_menus:
-        ivr.parsed_options = _parse_ivr_options(ivr.options)
+    # IVR menus with parsed options. IVRMenu is a SQLModel table model and does not
+    # declare a `parsed_options` field, so assigning it as an attribute on the ORM
+    # instance raises ValueError ("... object has no field ..."). That crashed this
+    # function — and therefore every other config regeneration that runs alongside
+    # it (extensions, ring groups, routes, trunk, and the boot-time regen script) —
+    # the moment a single IVR menu existed. Use plain dicts for the template instead;
+    # Jinja2's attribute access falls back to __getitem__ for dicts, so `ivr_menu.id`
+    # etc. keep working unchanged.
+    ivr_menus = []
+    for ivr in session.exec(select(IVRMenu)).all():
+        data = ivr.model_dump()
+        data["parsed_options"] = _parse_ivr_options(ivr.options)
+        ivr_menus.append(data)
     # dial-all-extensions string for the no-route inbound fallback
     all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions if e.enabled)
     # Outbound caller ID (E.164) — set on outbound calls so the callee sees the
