@@ -65,7 +65,7 @@ def _validate_options(options_str: str) -> list[dict]:
         raise HTTPException(status_code=422, detail=f"Invalid options JSON: {e}")
     if not isinstance(options, list):
         raise HTTPException(status_code=422, detail="options must be a JSON array")
-    valid_actions = {"extension", "ring_group", "voicemail", "hangup"}
+    valid_actions = {"extension", "ring_group", "ivr", "voicemail", "hangup"}
     for opt in options:
         if "key" not in opt or "action" not in opt:
             raise HTTPException(status_code=422, detail="Each option needs 'key' and 'action'")
@@ -80,6 +80,36 @@ def _validate_options(options_str: str) -> list[dict]:
                 detail=f"Action '{opt['action']}' requires a 'target' value",
             )
     return options
+
+
+def _validate_option_targets(
+    ivr_number: int,
+    options: list[dict],
+    session: Session,
+    existing_id: int | None = None,
+) -> None:
+    extension_numbers = {ext.number for ext in session.exec(select(Extension)).all()}
+    ring_group_numbers = {group.number for group in session.exec(select(RingGroup)).all()}
+    ivr_numbers = {
+        menu.number
+        for menu in session.exec(select(IVRMenu)).all()
+        if menu.id != existing_id
+    }
+
+    for opt in options:
+        action = opt.get("action")
+        target = opt.get("target")
+        if action == "extension" and target not in extension_numbers:
+            raise HTTPException(status_code=422, detail=f"Unknown extension target '{target}'")
+        if action == "ring_group" and target not in ring_group_numbers:
+            raise HTTPException(status_code=422, detail=f"Unknown ring group target '{target}'")
+        if action == "voicemail" and target not in extension_numbers:
+            raise HTTPException(status_code=422, detail=f"Unknown voicemail target '{target}'")
+        if action == "ivr":
+            if target == ivr_number:
+                raise HTTPException(status_code=422, detail="IVR submenu cannot point to itself")
+            if target not in ivr_numbers:
+                raise HTTPException(status_code=422, detail=f"Unknown IVR submenu target '{target}'")
 
 
 @router.get("/ivrs", response_model=List[IVRMenu])
@@ -98,7 +128,8 @@ def get_ivr(ivr_id: int, session: Session = Depends(get_session)):
 @router.post("/ivrs", response_model=IVRMenu)
 async def create_ivr(ivr: IVRMenu, session: Session = Depends(get_session)):
     _validate_ivr_number(ivr, session)
-    _validate_options(ivr.options)
+    parsed_options = _validate_options(ivr.options)
+    _validate_option_targets(ivr.number, parsed_options, session)
     ivr.id = None
     session.add(ivr)
     session.commit()
@@ -117,7 +148,8 @@ async def update_ivr(ivr_id: int, ivr_data: IVRMenu, session: Session = Depends(
         if field != "id":
             setattr(existing, field, value)
     _validate_ivr_number(existing, session, existing_id=ivr_id)
-    _validate_options(existing.options)
+    parsed_options = _validate_options(existing.options)
+    _validate_option_targets(existing.number, parsed_options, session, existing_id=ivr_id)
     session.add(existing)
     session.commit()
     session.refresh(existing)

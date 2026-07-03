@@ -519,6 +519,43 @@ def test_generate_password_endpoint(client):
     assert re.fullmatch(r"[A-Za-z0-9_-]+", pw) is not None, f"Password contains SIP-unsafe chars: {pw!r}"
 
 
+def test_ivr_submenu_target_is_supported(client, tmp_data_dir):
+    resp_main = client.post("/api/ivrs", json={
+        "number": 23,
+        "name": "Hauptmenu",
+        "timeout": 10,
+        "max_invalid_tries": 3,
+        "options": '[{"key":"1","action":"hangup"}]',
+    })
+    assert resp_main.status_code == 200
+
+    resp_sub = client.post("/api/ivrs", json={
+        "number": 24,
+        "name": "Untermenu",
+        "timeout": 10,
+        "max_invalid_tries": 3,
+        "options": '[{"key":"1","action":"ivr","target":23}]',
+    })
+    assert resp_sub.status_code == 200
+
+    conf_path = tmp_data_dir / "asterisk" / "extensions_routing.conf"
+    content = conf_path.read_text()
+    assert "[ivr-1]" in content
+    assert "[ivr-2]" in content
+    assert "exten => 1,1,Goto(ivr-1,s,1)" in content
+
+
+def test_ivr_submenu_cannot_point_to_itself(client):
+    resp = client.post("/api/ivrs", json={
+        "number": 22,
+        "name": "Self Loop",
+        "timeout": 10,
+        "max_invalid_tries": 3,
+        "options": '[{"key":"1","action":"ivr","target":22}]',
+    })
+    assert resp.status_code == 422
+
+
 # ── GAP-INGRESS regression tests (06-04) ───────────────────────────────────────
 # These exercise the SPA catch-all injection against a REAL index.html fixture
 # (via BPX_DIST_DIR / _dist_index), NOT the "Frontend not built" stub. They prove:

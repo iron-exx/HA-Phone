@@ -133,7 +133,7 @@ class IVRMenu(SQLModel, table=True):
     timeout: int = 10  # seconds to wait for DTMF input
     max_invalid_tries: int = 3  # replay menu this many times on invalid input
     options: str = ""  # JSON array: [{"key":"1","action":"extension","target":10,"label":"Verkauf"}, ...]
-    # action types: "extension", "ring_group", "voicemail", "hangup"
+    # action types: "extension", "ring_group", "ivr", "voicemail", "hangup"
 
 
 class TimeCondition(SQLModel, table=True):

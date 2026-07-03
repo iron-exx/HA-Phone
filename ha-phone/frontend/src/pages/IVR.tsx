@@ -55,7 +55,8 @@ function formatOptionTarget(
   action: string,
   target: number | undefined,
   extensions: Extension[],
-  ringGroups: RingGroup[]
+  ringGroups: RingGroup[],
+  ivrs: IVRMenu[]
 ): string {
   if (action === "hangup") return "Auflegen";
   if (action === "voicemail") return `Voicemail ${target}`;
@@ -67,6 +68,10 @@ function formatOptionTarget(
     const rg = ringGroups.find((g) => g.number === target);
     return rg ? `${target} ${rg.name}` : `Rufgruppe ${target}`;
   }
+  if (action === "ivr") {
+    const ivr = ivrs.find((item) => item.number === target);
+    return ivr ? `${target} ${ivr.name}` : `IVR ${target}`;
+  }
   return String(target ?? "");
 }
 
@@ -77,12 +82,14 @@ function AddIVRDialog({
   onCreated,
   extensions,
   ringGroups,
+  ivrs,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: (ivr: IVRMenu) => void;
   extensions: Extension[];
   ringGroups: RingGroup[];
+  ivrs: IVRMenu[];
 }) {
   const form = useForm<IVRFormValues>({
     resolver: zodResolver(ivrSchema),
@@ -150,13 +157,13 @@ function AddIVRDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[min(720px,calc(100vw-2rem))] max-w-[min(720px,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>IVR-Menü anlegen</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField control={form.control} name="number" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Durchwahl</FormLabel>
@@ -172,7 +179,7 @@ function AddIVRDialog({
                 </FormItem>
               )} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField control={form.control} name="timeout" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Timeout (Sekunden)</FormLabel>
@@ -212,7 +219,7 @@ function AddIVRDialog({
 
             {/* Menu options */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <FormLabel>Menü-Optionen</FormLabel>
                 <Button type="button" variant="outline" size="sm" onClick={addOption}>
                   + Option hinzufügen
@@ -223,7 +230,7 @@ function AddIVRDialog({
               ) : (
                 <div className="space-y-2">
                   {options.map((opt, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 rounded-md border border-white/10 bg-white/[0.02]">
+                    <div key={idx} className="flex flex-col gap-2 rounded-md border border-white/10 bg-white/[0.02] p-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">Taste:</span>
                         <Input
@@ -237,12 +244,13 @@ function AddIVRDialog({
                         value={opt.action}
                         onValueChange={(v) => updateOption(idx, "action", v)}
                       >
-                        <SelectTrigger className="h-8 w-36">
+                        <SelectTrigger className="h-8 w-full sm:w-36">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="extension">Nebenstelle</SelectItem>
                           <SelectItem value="ring_group">Rufgruppe</SelectItem>
+                          <SelectItem value="ivr">Untermenü</SelectItem>
                           <SelectItem value="voicemail">Voicemail</SelectItem>
                           <SelectItem value="hangup">Auflegen</SelectItem>
                         </SelectContent>
@@ -252,7 +260,7 @@ function AddIVRDialog({
                           value={opt.target ? String(opt.target) : ""}
                           onValueChange={(v) => updateOption(idx, "target", Number(v))}
                         >
-                          <SelectTrigger className="h-8 w-48">
+                          <SelectTrigger className="h-8 w-full sm:w-48">
                             <SelectValue placeholder="Ziel wählen" />
                           </SelectTrigger>
                           <SelectContent>
@@ -264,6 +272,11 @@ function AddIVRDialog({
                             {opt.action === "ring_group" && ringGroups.map((g) => (
                               <SelectItem key={g.number} value={String(g.number)}>
                                 {g.number} {g.name}
+                              </SelectItem>
+                            ))}
+                            {opt.action === "ivr" && ivrs.map((menu) => (
+                              <SelectItem key={menu.number} value={String(menu.number)}>
+                                {menu.number} {menu.name}
                               </SelectItem>
                             ))}
                             {opt.action === "voicemail" && extensions.map((e) => (
@@ -278,7 +291,7 @@ function AddIVRDialog({
                         value={opt.label ?? ""}
                         onChange={(e) => updateOption(idx, "label", e.target.value)}
                         placeholder="Bezeichnung (optional)"
-                        className="h-8 flex-1"
+                        className="h-8 w-full min-w-0 flex-1"
                       />
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeOption(idx)}>
                         <Trash2 className="h-4 w-4" />
@@ -307,12 +320,14 @@ function EditIVRDialog({
   onUpdated,
   extensions,
   ringGroups,
+  ivrs,
 }: {
   ivr: IVRMenu;
   onClose: () => void;
   onUpdated: (ivr: IVRMenu) => void;
   extensions: Extension[];
   ringGroups: RingGroup[];
+  ivrs: IVRMenu[];
 }) {
   const parsedOptions: IVROption[] = (() => {
     try { return JSON.parse(ivr.options || "[]"); } catch { return []; }
@@ -389,13 +404,13 @@ function EditIVRDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[min(720px,calc(100vw-2rem))] max-w-[min(720px,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>IVR-Menü bearbeiten</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField control={form.control} name="number" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Durchwahl</FormLabel>
@@ -411,7 +426,7 @@ function EditIVRDialog({
                 </FormItem>
               )} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField control={form.control} name="timeout" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Timeout (Sekunden)</FormLabel>
@@ -460,7 +475,7 @@ function EditIVRDialog({
 
             {/* Menu options */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <FormLabel>Menü-Optionen</FormLabel>
                 <Button type="button" variant="outline" size="sm" onClick={addOption}>
                   + Option hinzufügen
@@ -471,7 +486,7 @@ function EditIVRDialog({
               ) : (
                 <div className="space-y-2">
                   {options.map((opt, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 rounded-md border border-white/10 bg-white/[0.02]">
+                    <div key={idx} className="flex flex-col gap-2 rounded-md border border-white/10 bg-white/[0.02] p-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">Taste:</span>
                         <Input
@@ -485,12 +500,13 @@ function EditIVRDialog({
                         value={opt.action}
                         onValueChange={(v) => updateOption(idx, "action", v)}
                       >
-                        <SelectTrigger className="h-8 w-36">
+                        <SelectTrigger className="h-8 w-full sm:w-36">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="extension">Nebenstelle</SelectItem>
                           <SelectItem value="ring_group">Rufgruppe</SelectItem>
+                          <SelectItem value="ivr">Untermenü</SelectItem>
                           <SelectItem value="voicemail">Voicemail</SelectItem>
                           <SelectItem value="hangup">Auflegen</SelectItem>
                         </SelectContent>
@@ -500,7 +516,7 @@ function EditIVRDialog({
                           value={opt.target ? String(opt.target) : ""}
                           onValueChange={(v) => updateOption(idx, "target", Number(v))}
                         >
-                          <SelectTrigger className="h-8 w-48">
+                          <SelectTrigger className="h-8 w-full sm:w-48">
                             <SelectValue placeholder="Ziel wählen" />
                           </SelectTrigger>
                           <SelectContent>
@@ -514,6 +530,11 @@ function EditIVRDialog({
                                 {g.number} {g.name}
                               </SelectItem>
                             ))}
+                            {opt.action === "ivr" && ivrs.filter((menu) => menu.id !== ivr.id).map((menu) => (
+                              <SelectItem key={menu.number} value={String(menu.number)}>
+                                {menu.number} {menu.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       )}
@@ -521,7 +542,7 @@ function EditIVRDialog({
                         value={opt.label ?? ""}
                         onChange={(e) => updateOption(idx, "label", e.target.value)}
                         placeholder="Bezeichnung (optional)"
-                        className="h-8 flex-1"
+                        className="h-8 w-full min-w-0 flex-1"
                       />
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeOption(idx)}>
                         <Trash2 className="h-4 w-4" />
@@ -635,7 +656,7 @@ export default function IVR() {
                         <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/10 text-xs font-mono">
                           <span className="font-bold">{opt.key}</span>
                           <span className="text-muted-foreground">→</span>
-                          <span>{formatOptionTarget(opt.action, opt.target, extensions, ringGroups)}</span>
+                          <span>{formatOptionTarget(opt.action, opt.target, extensions, ringGroups, ivrs)}</span>
                         </span>
                       ))}
                     </div>
@@ -676,6 +697,7 @@ export default function IVR() {
           onCreated={(ivr) => setIvrs((prev) => [...prev, ivr])}
           extensions={extensions}
           ringGroups={ringGroups}
+          ivrs={ivrs}
         />
       )}
 
@@ -690,6 +712,7 @@ export default function IVR() {
           }}
           extensions={extensions}
           ringGroups={ringGroups}
+          ivrs={ivrs}
         />
       )}
 

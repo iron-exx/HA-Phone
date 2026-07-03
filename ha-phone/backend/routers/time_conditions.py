@@ -86,10 +86,13 @@ def _regenerate_routing_conf(session: Session) -> None:
     # Jinja2's attribute access falls back to __getitem__ for dicts, so `ivr_menu.id`
     # etc. keep working unchanged.
     ivr_menus = []
+    ivr_number_to_id: dict[int, int] = {}
     for ivr in session.exec(select(IVRMenu)).all():
         data = ivr.model_dump()
         data["parsed_options"] = _parse_ivr_options(ivr.options)
         ivr_menus.append(data)
+        if ivr.number and ivr.id:
+            ivr_number_to_id[ivr.number] = ivr.id
     # dial-all-extensions string for the no-route inbound fallback
     all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions if e.enabled)
     # Outbound caller ID (E.164) — set on outbound calls so the callee sees the
@@ -112,6 +115,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "doorbell_dial": _build_doorbell_dial_string(ring_groups_list),
             "trunk_callerid": trunk_callerid,
             "ivr_menus": ivr_menus,
+            "ivr_number_to_id": ivr_number_to_id,
             "ivr_sounds_dir": ivr_sounds_dir,
         },
         output_path,

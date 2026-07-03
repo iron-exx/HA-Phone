@@ -153,6 +153,13 @@ exten => menu,1,NoOp(IVR {{ ivr_menu.name }})
 exten => {{ opt.key }},1,Goto(from-internal,{{ opt.target }},1)
 {% elif opt.action == 'ring_group' %}
 exten => {{ opt.key }},1,Goto(from-internal,{{ opt.target }},1)
+{% elif opt.action == 'ivr' %}
+{% if ivr_number_to_id.get(opt.target) %}
+exten => {{ opt.key }},1,Goto(ivr-{{ ivr_number_to_id.get(opt.target) }},s,1)
+{% else %}
+exten => {{ opt.key }},1,Playback(ss-noservice)
+ same => n,Hangup()
+{% endif %}
 {% elif opt.action == 'voicemail' %}
 exten => {{ opt.key }},1,Voicemail({{ opt.target }}@default,u)
  same => n,Hangup()

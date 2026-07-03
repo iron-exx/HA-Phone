@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.48
+
+**Feature/Fix - IVR Untermenues und Dialog-Layout**
+- IVR-Menuepunkte koennen jetzt auch auf ein anderes IVR-Menue als Untermenue zeigen.
+- Die Auswahl erfolgt ueber die interne IVR-Durchwahl, also passend zur PBX-Logik.
+- Selbstverweise werden serverseitig blockiert, damit ein Menue nicht direkt auf sich selbst zeigt.
+- Der IVR-Dialog wurde responsiver gemacht: Optionszeilen umbrechen jetzt sauber und das Fenster bleibt innerhalb des sichtbaren Bereichs statt rechts abgeschnitten zu werden.
+
 ## 0.7.47
 
 **Fix - Linphone QR robuster**

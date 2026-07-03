@@ -53,8 +53,8 @@ export interface Route {
 
 export interface IVROption {
   key: string;        // "0"-"9", "*"
-  action: "extension" | "ring_group" | "voicemail" | "hangup";
-  target?: number;    // extension/ring_group number or voicemail extension
+  action: "extension" | "ring_group" | "ivr" | "voicemail" | "hangup";
+  target?: number;    // extension/ring_group/ivr number or voicemail extension
   label?: string;     // human-readable label
 }
 
