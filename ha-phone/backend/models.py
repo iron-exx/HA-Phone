@@ -103,6 +103,7 @@ class OutboundRule(SQLModel, table=True):
 
 class RingGroup(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    number: int = Field(default=0, ge=0, le=99)
     name: str = Field(max_length=64)
     extension_numbers: str = ""  # comma-separated list e.g. "10,11,12"
     ring_timeout: int = 30

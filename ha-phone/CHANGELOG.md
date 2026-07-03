@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.40
+
+**Feature/Fix - Rufgruppen als echte interne Ziele**
+- Rufgruppen haben jetzt eine eigene interne Durchwahl (`10-99`) und dürfen nicht mit Nebenstellen oder anderen Rufgruppen kollidieren.
+- Rufgruppen können nach dem Anlegen bearbeitet werden: Durchwahl, Name, Mitglieder und Timeout.
+- Eingehende Routen wählen Ziele jetzt per Dropdown aus: Nebenstelle oder Rufgruppe mit verständlichem Namen statt technischer ID.
+- Der Asterisk-Dialplan erzeugt interne Rufgruppen-Durchwahlen, damit z.B. `10 = Zentrale` direkt gewählt werden kann.
+
 ## 0.7.39
 
 **Fix — Lesbarkeit und Rufgruppen-Bedienung**

@@ -45,6 +45,7 @@ export interface Route {
 
 export interface RingGroup {
   id: number;
+  number: number;
   name: string;
   extension_numbers: string;  // comma-separated e.g. "10,11,12"
   ring_timeout: number;

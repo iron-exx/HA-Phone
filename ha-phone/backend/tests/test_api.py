@@ -368,10 +368,11 @@ def test_ring_group_crud(client, mock_ami):
     for number in (10, 11, 12):
         _ensure_extension(client, number)
     resp = client.post("/api/ring-groups", json={
-        "name": "All Phones", "extension_numbers": "10,11,12", "ring_timeout": 30
+        "number": 70, "name": "All Phones", "extension_numbers": "10,11,12", "ring_timeout": 30
     })
     assert resp.status_code == 200
     rg_id = resp.json()["id"]
+    assert resp.json()["number"] == 70
 
     resp = client.get("/api/ring-groups")
     assert resp.status_code == 200
@@ -386,13 +387,15 @@ def test_doorbell_dialplan_context(client, mock_ami, tmp_data_dir):
     for number in (10, 11):
         _ensure_extension(client, number)
     resp = client.post("/api/ring-groups", json={
-        "name": "Doorbell Ring", "extension_numbers": "10,11", "ring_timeout": 30
+        "number": 71, "name": "Doorbell Ring", "extension_numbers": "10,11", "ring_timeout": 30
     })
     assert resp.status_code == 200
     conf_path = tmp_data_dir / "asterisk" / "extensions_routing.conf"
     content = conf_path.read_text()
     assert "[doorbell-out]" in content
     assert "PJSIP/10&PJSIP/11" in content
+    assert "exten => 71,1,NoOp(Internal ring group Doorbell Ring)" in content
+    assert "Dial(PJSIP/10&PJSIP/11,30)" in content
 
 
 def test_extension_numbers_validation(client, mock_ami):
@@ -401,6 +404,7 @@ def test_extension_numbers_validation(client, mock_ami):
         _ensure_extension(client, number)
     # Valid: comma-separated integers
     resp = client.post("/api/ring-groups", json={
+        "number": 72,
         "name": "All Phones",
         "extension_numbers": "10,11,12",
         "ring_timeout": 30,
@@ -409,6 +413,7 @@ def test_extension_numbers_validation(client, mock_ami):
 
     # Valid: single member
     resp = client.post("/api/ring-groups", json={
+        "number": 73,
         "name": "Solo",
         "extension_numbers": "10",
         "ring_timeout": 20,
@@ -417,6 +422,7 @@ def test_extension_numbers_validation(client, mock_ami):
 
     # Invalid: empty
     resp = client.post("/api/ring-groups", json={
+        "number": 74,
         "name": "Empty",
         "extension_numbers": "",
         "ring_timeout": 30,
@@ -425,6 +431,7 @@ def test_extension_numbers_validation(client, mock_ami):
 
     # Invalid: contains non-numeric
     resp = client.post("/api/ring-groups", json={
+        "number": 75,
         "name": "Bad",
         "extension_numbers": "10,abc,12",
         "ring_timeout": 30,
@@ -433,8 +440,27 @@ def test_extension_numbers_validation(client, mock_ami):
 
     # Invalid: extension number does not exist
     resp = client.post("/api/ring-groups", json={
+        "number": 76,
         "name": "Unknown",
         "extension_numbers": "10,88",
+        "ring_timeout": 30,
+    })
+    assert resp.status_code == 422
+
+    # Invalid: group number collides with an existing extension
+    resp = client.post("/api/ring-groups", json={
+        "number": 10,
+        "name": "Collision",
+        "extension_numbers": "10,11",
+        "ring_timeout": 30,
+    })
+    assert resp.status_code == 422
+
+    # Invalid: group number collides with another ring group
+    resp = client.post("/api/ring-groups", json={
+        "number": 72,
+        "name": "Duplicate",
+        "extension_numbers": "10,11",
         "ring_timeout": 30,
     })
     assert resp.status_code == 422

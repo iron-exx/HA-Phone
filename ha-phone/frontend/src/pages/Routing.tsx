@@ -3,9 +3,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Check, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 
-import { type Extension, type Route, type TimeCondition } from "@/types/api";
+import { type Extension, type RingGroup, type Route, type TimeCondition } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -56,7 +56,7 @@ import {
 const routeSchema = z.object({
   did: z.string().min(1, "Required").max(32, "Max 32 chars"),
   destination_type: z.enum(["extension", "ring_group"]).default("extension"),
-  destination_id: z.coerce.number().int().min(0, "Required"),
+  destination_id: z.coerce.number().int().min(1, "Required"),
 });
 
 type RouteFormValues = z.infer<typeof routeSchema>;
@@ -73,15 +73,100 @@ const timeConditionSchema = z.object({
 
 type TimeConditionFormValues = z.infer<typeof timeConditionSchema>;
 
+function getRouteDestinationOptions(
+  type: RouteFormValues["destination_type"],
+  extensions: Extension[],
+  ringGroups: RingGroup[]
+) {
+  if (type === "ring_group") {
+    return [...ringGroups]
+      .filter((group) => group.number > 0)
+      .sort((a, b) => a.number - b.number)
+      .map((group) => ({
+        value: String(group.id),
+        label: `${group.number} ${group.name}`,
+      }));
+  }
+  return [...extensions]
+    .sort((a, b) => a.number - b.number)
+    .map((extension) => ({
+      value: String(extension.number),
+      label: `${extension.number} ${extension.display_name}`,
+    }));
+}
+
+function DestinationSelectField({
+  control,
+  destinationType,
+  extensions,
+  ringGroups,
+}: {
+  control: ReturnType<typeof useForm<RouteFormValues>>["control"];
+  destinationType: RouteFormValues["destination_type"];
+  extensions: Extension[];
+  ringGroups: RingGroup[];
+}) {
+  const options = getRouteDestinationOptions(destinationType, extensions, ringGroups);
+  return (
+    <FormField
+      control={control}
+      name="destination_id"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Ziel</FormLabel>
+          <Select
+            onValueChange={(value) => field.onChange(Number(value))}
+            value={field.value ? String(field.value) : ""}
+          >
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder={destinationType === "ring_group" ? "Rufgruppe wÃ¤hlen" : "Nebenstelle wÃ¤hlen"} />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {options.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              {destinationType === "ring_group"
+                ? "Noch keine Rufgruppe mit Durchwahl vorhanden."
+                : "Noch keine Nebenstelle vorhanden."}
+            </p>
+          )}
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function formatRouteDestination(route: Route, extensions: Extension[], ringGroups: RingGroup[]) {
+  if (route.destination_type === "ring_group") {
+    const group = ringGroups.find((item) => item.id === route.destination_id);
+    return group ? `${group.number} ${group.name}` : `Rufgruppe #${route.destination_id}`;
+  }
+  const extension = extensions.find((item) => item.number === route.destination_id);
+  return extension ? `${extension.number} ${extension.display_name}` : `Nebenstelle ${route.destination_id}`;
+}
+
 // ---- Add Route dialog ----
 function AddRouteDialog({
   open,
   onClose,
   onCreated,
+  extensions,
+  ringGroups,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: (route: Route) => void;
+  extensions: Extension[];
+  ringGroups: RingGroup[];
 }) {
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
@@ -92,6 +177,7 @@ function AddRouteDialog({
     },
   });
   const [saving, setSaving] = useState(false);
+  const destinationType = form.watch("destination_type");
 
   async function onSubmit(values: RouteFormValues) {
     setSaving(true);
@@ -139,34 +225,33 @@ function AddRouteDialog({
               name="destination_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Destination Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormLabel>Zieltyp</FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      form.setValue("destination_id", undefined as unknown as number);
+                    }}
+                    value={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder="Zieltyp wÃ¤hlen" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="extension">Extension</SelectItem>
-                      <SelectItem value="ring_group">Ring Group</SelectItem>
+                      <SelectItem value="extension">Nebenstelle</SelectItem>
+                      <SelectItem value="ring_group">Rufgruppe</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
+            <DestinationSelectField
               control={form.control}
-              name="destination_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Destination ID</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="e.g. 10" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              destinationType={destinationType}
+              extensions={extensions}
+              ringGroups={ringGroups}
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
@@ -188,10 +273,14 @@ function EditRouteDialog({
   route,
   onClose,
   onUpdated,
+  extensions,
+  ringGroups,
 }: {
   route: Route;
   onClose: () => void;
   onUpdated: (route: Route) => void;
+  extensions: Extension[];
+  ringGroups: RingGroup[];
 }) {
   const form = useForm<RouteFormValues>({
     resolver: zodResolver(routeSchema),
@@ -202,6 +291,7 @@ function EditRouteDialog({
     },
   });
   const [saving, setSaving] = useState(false);
+  const destinationType = form.watch("destination_type");
 
   async function onSubmit(values: RouteFormValues) {
     setSaving(true);
@@ -240,26 +330,31 @@ function EditRouteDialog({
             )} />
             <FormField control={form.control} name="destination_type" render={({ field }) => (
               <FormItem>
-                <FormLabel>Destination Type</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormLabel>Zieltyp</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue("destination_id", undefined as unknown as number);
+                  }}
+                  value={field.value}
+                >
                   <FormControl>
-                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Zieltyp wÃ¤hlen" /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="extension">Extension</SelectItem>
-                    <SelectItem value="ring_group">Ring Group</SelectItem>
+                    <SelectItem value="extension">Nebenstelle</SelectItem>
+                    <SelectItem value="ring_group">Rufgruppe</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="destination_id" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Destination ID</FormLabel>
-                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <DestinationSelectField
+              control={form.control}
+              destinationType={destinationType}
+              extensions={extensions}
+              ringGroups={ringGroups}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Route"}</Button>
@@ -421,7 +516,7 @@ function AddTimeConditionDialog({
             )} />
             <FormField control={form.control} name="closed_destination" render={({ field }) => (
               <FormItem>
-                <FormLabel>Closed Destination (Extension → Voicemail)</FormLabel>
+                <FormLabel>Closed Destination (Extension â†’ Voicemail)</FormLabel>
                 <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -533,7 +628,7 @@ function EditTimeConditionDialog({
             )} />
             <FormField control={form.control} name="closed_destination" render={({ field }) => (
               <FormItem>
-                <FormLabel>Closed Destination (Extension → Voicemail)</FormLabel>
+                <FormLabel>Closed Destination (Extension â†’ Voicemail)</FormLabel>
                 <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -598,21 +693,20 @@ function DeleteTimeConditionDialog({
 }
 
 // ---- Ring groups ----
-interface RingGroup {
-  id: number;
-  name: string;
-  extension_numbers: string;
-  ring_timeout: number;
-}
-
-function RingGroupsSection() {
+function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
   const [groups, setGroups] = useState<RingGroup[]>([]);
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
+  const [number, setNumber] = useState("");
   const [name, setName] = useState("");
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [timeout, setTimeoutVal] = useState("30");
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editNumber, setEditNumber] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editSelectedNumbers, setEditSelectedNumbers] = useState<number[]>([]);
+  const [editTimeout, setEditTimeout] = useState("30");
 
   function load() {
     Promise.all([
@@ -622,6 +716,7 @@ function RingGroupsSection() {
       .then(([groupData, extensionData]: [RingGroup[], Extension[]]) => {
         setGroups(groupData);
         setExtensions(extensionData);
+        onChanged();
       })
       .catch(() => toast.error("Rufgruppen konnten nicht geladen werden."))
       .finally(() => setLoading(false));
@@ -636,9 +731,37 @@ function RingGroupsSection() {
     );
   }
 
+  function toggleEditExtension(number: number) {
+    setEditSelectedNumbers((current) =>
+      current.includes(number)
+        ? current.filter((item) => item !== number)
+        : [...current, number].sort((a, b) => a - b)
+    );
+  }
+
+  function parseGroupNumbers(value: string) {
+    return value.split(",").map((item) => Number(item.trim())).filter(Boolean);
+  }
+
+  function startEdit(group: RingGroup) {
+    setEditingId(group.id);
+    setEditNumber(String(group.number || ""));
+    setEditName(group.name);
+    setEditSelectedNumbers(parseGroupNumbers(group.extension_numbers));
+    setEditTimeout(String(group.ring_timeout));
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditNumber("");
+    setEditName("");
+    setEditSelectedNumbers([]);
+    setEditTimeout("30");
+  }
+
   async function addGroup() {
-    if (!name.trim() || selectedNumbers.length === 0) {
-      toast.error("Name und mindestens eine Nebenstelle sind erforderlich.");
+    if (!number.trim() || !name.trim() || selectedNumbers.length === 0) {
+      toast.error("Durchwahl, Name und mindestens eine Nebenstelle sind erforderlich.");
       return;
     }
     setSaving(true);
@@ -647,6 +770,7 @@ function RingGroupsSection() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          number: Number(number),
           name: name.trim(),
           extension_numbers: selectedNumbers.join(","),
           ring_timeout: Number(timeout) || 30,
@@ -656,9 +780,40 @@ function RingGroupsSection() {
         const detail = await resp.text();
         throw new Error(detail || "Speichern fehlgeschlagen");
       }
-      setName(""); setSelectedNumbers([]); setTimeoutVal("30");
+      setNumber(""); setName(""); setSelectedNumbers([]); setTimeoutVal("30");
       load();
       toast.success("Rufgruppe angelegt.");
+    } catch (error) {
+      toast.error(`Fehler beim Speichern: ${(error as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveGroup(id: number) {
+    if (!editNumber.trim() || !editName.trim() || editSelectedNumbers.length === 0) {
+      toast.error("Durchwahl, Name und mindestens eine Nebenstelle sind erforderlich.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const resp = await fetch(`/api/ring-groups/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          number: Number(editNumber),
+          name: editName.trim(),
+          extension_numbers: editSelectedNumbers.join(","),
+          ring_timeout: Number(editTimeout) || 30,
+        }),
+      });
+      if (!resp.ok) {
+        const detail = await resp.text();
+        throw new Error(detail || "Speichern fehlgeschlagen");
+      }
+      cancelEdit();
+      load();
+      toast.success("Rufgruppe gespeichert.");
     } catch (error) {
       toast.error(`Fehler beim Speichern: ${(error as Error).message}`);
     } finally {
@@ -671,9 +826,10 @@ function RingGroupsSection() {
       const resp = await fetch(`/api/ring-groups/${id}`, { method: "DELETE" });
       if (!resp.ok) throw new Error();
       setGroups((gs) => gs.filter((g) => g.id !== id));
-      toast.success("Rufgruppe gelöscht.");
+      onChanged();
+      toast.success("Rufgruppe gelÃ¶scht.");
     } catch {
-      toast.error("Fehler beim Löschen.");
+      toast.error("Fehler beim LÃ¶schen.");
     }
   }
 
@@ -683,7 +839,7 @@ function RingGroupsSection() {
       <div className="mb-2">
         <h2 className="text-xl font-semibold">Rufgruppen</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Mehrere Nebenstellen gleichzeitig klingeln lassen. Als Ziel einer eingehenden Route wählbar.
+          Mehrere Nebenstellen gleichzeitig klingeln lassen. Als Ziel einer eingehenden Route wÃ¤hlbar.
         </p>
       </div>
       {loading ? (
@@ -692,6 +848,7 @@ function RingGroupsSection() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Durchwahl</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Nebenstellen</TableHead>
               <TableHead>Timeout (s)</TableHead>
@@ -701,18 +858,72 @@ function RingGroupsSection() {
           <TableBody>
             {groups.map((g) => (
               <TableRow key={g.id}>
-                <TableCell className="font-medium">{g.name}</TableCell>
-                <TableCell className="font-mono">{g.extension_numbers}</TableCell>
-                <TableCell className="font-mono">{g.ring_timeout}</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
-                    aria-label={`Rufgruppe ${g.name} löschen`} onClick={() => deleteGroup(g.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+                {editingId === g.id ? (
+                  <>
+                    <TableCell>
+                      <Input value={editNumber} onChange={(e) => setEditNumber(e.target.value)} type="number" min={10} max={99} className="h-9 w-20 font-mono" />
+                    </TableCell>
+                    <TableCell>
+                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-9" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        {extensions.map((extension) => {
+                          const selected = editSelectedNumbers.includes(extension.number);
+                          return (
+                            <button
+                              key={extension.id}
+                              type="button"
+                              onClick={() => toggleEditExtension(extension.number)}
+                              className={[
+                                "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                                selected
+                                  ? "border-violet-500/60 bg-violet-500/20 text-violet-100"
+                                  : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                              ].join(" ")}
+                            >
+                              {extension.number} {extension.display_name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Input value={editTimeout} onChange={(e) => setEditTimeout(e.target.value)} type="number" min={1} className="h-9 w-20 font-mono" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Speichern" onClick={() => saveGroup(g.id)} disabled={saving}>
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Abbrechen" onClick={cancelEdit} disabled={saving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell className="font-mono font-medium">{g.number || "-"}</TableCell>
+                    <TableCell className="font-medium">{g.name}</TableCell>
+                    <TableCell className="font-mono">{g.extension_numbers}</TableCell>
+                    <TableCell className="font-mono">{g.ring_timeout}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Rufgruppe ${g.name} bearbeiten`} onClick={() => startEdit(g)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`Rufgruppe ${g.name} löschen`} onClick={() => deleteGroup(g.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </>
+                )}
               </TableRow>
             ))}
             <TableRow>
+              <TableCell><Input value={number} onChange={(e) => setNumber(e.target.value)} type="number" min={10} max={99} placeholder="10" className="h-9 w-20 font-mono" /></TableCell>
               <TableCell><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Zentrale" className="h-9" /></TableCell>
               <TableCell>
                 {extensions.length === 0 ? (
@@ -742,7 +953,7 @@ function RingGroupsSection() {
               </TableCell>
               <TableCell><Input value={timeout} onChange={(e) => setTimeoutVal(e.target.value)} type="number" className="h-9 w-20 font-mono" /></TableCell>
               <TableCell className="text-right">
-                <Button size="sm" onClick={addGroup} disabled={saving}>{saving ? "…" : "Hinzufügen"}</Button>
+                <Button size="sm" onClick={addGroup} disabled={saving}>{saving ? "â€¦" : "HinzufÃ¼gen"}</Button>
               </TableCell>
             </TableRow>
           </TableBody>
@@ -799,9 +1010,9 @@ function OutboundRulesSection() {
       if (!resp.ok) throw new Error(await resp.text());
       setPattern(""); setStrip("0"); setPrepend("");
       load();
-      toast.success("Regel hinzugefügt.");
+      toast.success("Regel hinzugefÃ¼gt.");
     } catch {
-      toast.error("Fehler beim Speichern. Läuft die PBX?");
+      toast.error("Fehler beim Speichern. LÃ¤uft die PBX?");
     } finally {
       setSaving(false);
     }
@@ -812,9 +1023,9 @@ function OutboundRulesSection() {
       const resp = await fetch(`/api/outbound-rules/${id}`, { method: "DELETE" });
       if (!resp.ok) throw new Error();
       setRules((rs) => rs.filter((r) => r.id !== id));
-      toast.success("Regel gelöscht.");
+      toast.success("Regel gelÃ¶scht.");
     } catch {
-      toast.error("Fehler beim Löschen.");
+      toast.error("Fehler beim LÃ¶schen.");
     }
   }
 
@@ -824,9 +1035,9 @@ function OutboundRulesSection() {
       <div className="mb-2">
         <h2 className="text-xl font-semibold">Ausgehende Regeln</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Gewählte Nummern werden vor dem Trunk umgeschrieben: <span className="font-mono">Muster</span> matcht,
-          <span className="font-mono"> Entfernen</span> streicht führende Ziffern, <span className="font-mono">Voranstellen</span> ergänzt.
-          Beispiel: <span className="font-mono">0.</span> · Entfernen <span className="font-mono">1</span> · Voranstellen <span className="font-mono">+49</span>.
+          GewÃ¤hlte Nummern werden vor dem Trunk umgeschrieben: <span className="font-mono">Muster</span> matcht,
+          <span className="font-mono"> Entfernen</span> streicht fÃ¼hrende Ziffern, <span className="font-mono">Voranstellen</span> ergÃ¤nzt.
+          Beispiel: <span className="font-mono">0.</span> Â· Entfernen <span className="font-mono">1</span> Â· Voranstellen <span className="font-mono">+49</span>.
         </p>
       </div>
 
@@ -847,13 +1058,13 @@ function OutboundRulesSection() {
               <TableRow key={r.id}>
                 <TableCell className="font-mono">{r.pattern}</TableCell>
                 <TableCell className="font-mono">{r.strip}</TableCell>
-                <TableCell className="font-mono">{r.prepend || "—"}</TableCell>
+                <TableCell className="font-mono">{r.prepend || "â€”"}</TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive"
-                    aria-label={`Regel ${r.pattern} löschen`}
+                    aria-label={`Regel ${r.pattern} lÃ¶schen`}
                     onClick={() => deleteRule(r.id)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -877,7 +1088,7 @@ function OutboundRulesSection() {
               </TableCell>
               <TableCell className="text-right">
                 <Button size="sm" onClick={addRule} disabled={saving}>
-                  {saving ? "…" : "Hinzufügen"}
+                  {saving ? "â€¦" : "HinzufÃ¼gen"}
                 </Button>
               </TableCell>
             </TableRow>
@@ -895,6 +1106,8 @@ export default function Routing() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Route | null>(null);
   const [editRouteTarget, setEditRouteTarget] = useState<Route | null>(null);
+  const [extensions, setExtensions] = useState<Extension[]>([]);
+  const [ringGroups, setRingGroups] = useState<RingGroup[]>([]);
 
   const [timeConditions, setTimeConditions] = useState<TimeCondition[]>([]);
   const [tcLoading, setTcLoading] = useState(true);
@@ -908,6 +1121,22 @@ export default function Routing() {
       .then((data: Route[]) => setRoutes(data))
       .catch(() => toast.error("Failed to load routes."))
       .finally(() => setLoading(false));
+  }, []);
+
+  function loadRoutingTargets() {
+    Promise.all([
+      fetch("/api/extensions").then((r) => r.json()),
+      fetch("/api/ring-groups").then((r) => r.json()),
+    ])
+      .then(([extensionData, groupData]: [Extension[], RingGroup[]]) => {
+        setExtensions(extensionData);
+        setRingGroups(groupData);
+      })
+      .catch(() => toast.error("Routing-Ziele konnten nicht geladen werden."));
+  }
+
+  useEffect(() => {
+    loadRoutingTargets();
   }, []);
 
   useEffect(() => {
@@ -943,8 +1172,8 @@ export default function Routing() {
           <TableHeader>
             <TableRow>
               <TableHead>DID</TableHead>
-              <TableHead>Destination Type</TableHead>
-              <TableHead>Destination ID</TableHead>
+              <TableHead>Zieltyp</TableHead>
+              <TableHead>Ziel</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -952,8 +1181,8 @@ export default function Routing() {
             {routes.map((route) => (
               <TableRow key={route.id}>
                 <TableCell className="font-medium">{route.did}</TableCell>
-                <TableCell>{route.destination_type}</TableCell>
-                <TableCell>{route.destination_id}</TableCell>
+                <TableCell>{route.destination_type === "ring_group" ? "Rufgruppe" : "Nebenstelle"}</TableCell>
+                <TableCell>{formatRouteDestination(route, extensions, ringGroups)}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <Tooltip>
@@ -992,13 +1221,13 @@ export default function Routing() {
         </Table>
       )}
 
-      {/* ─── Ring groups section ─────────────────────────────────────────── */}
-      <RingGroupsSection />
+      {/* â”€â”€â”€ Ring groups section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <RingGroupsSection onChanged={loadRoutingTargets} />
 
-      {/* ─── Outbound dial rules section ─────────────────────────────────── */}
+      {/* â”€â”€â”€ Outbound dial rules section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <OutboundRulesSection />
 
-      {/* ─── Time Conditions section ───────────────────────────────────── */}
+      {/* â”€â”€â”€ Time Conditions section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Separator className="my-8" />
 
       <div className="flex items-center justify-between mb-6">
@@ -1034,7 +1263,7 @@ export default function Routing() {
             {timeConditions.map((tc) => (
               <TableRow key={tc.id}>
                 <TableCell className="font-medium">{tc.did}</TableCell>
-                <TableCell>{tc.open_hours_start} – {tc.open_hours_end}</TableCell>
+                <TableCell>{tc.open_hours_start} â€“ {tc.open_hours_end}</TableCell>
                 <TableCell>{tc.open_days}</TableCell>
                 <TableCell>ext {tc.open_destination}</TableCell>
                 <TableCell className="text-right">
@@ -1081,6 +1310,8 @@ export default function Routing() {
           open
           onClose={() => setDialogOpen(false)}
           onCreated={(route) => setRoutes((prev) => [...prev, route])}
+          extensions={extensions}
+          ringGroups={ringGroups}
         />
       )}
 
@@ -1101,6 +1332,8 @@ export default function Routing() {
         <EditRouteDialog
           route={editRouteTarget}
           onClose={() => setEditRouteTarget(null)}
+          extensions={extensions}
+          ringGroups={ringGroups}
           onUpdated={(updated) => {
             setRoutes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
             setEditRouteTarget(null);

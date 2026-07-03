@@ -49,6 +49,27 @@ def _validate_extension_numbers(
     return numbers
 
 
+def _validate_ring_group_number(rg: RingGroup, session: Session, existing_id: int | None = None) -> None:
+    if rg.number < 10 or rg.number > 99:
+        raise HTTPException(status_code=422, detail="number must be between 10 and 99")
+    extension_conflict = session.exec(
+        select(Extension).where(Extension.number == rg.number)
+    ).first()
+    if extension_conflict:
+        raise HTTPException(
+            status_code=422,
+            detail=f"number {rg.number} is already used by an extension",
+        )
+    group_conflict = session.exec(
+        select(RingGroup).where(RingGroup.number == rg.number)
+    ).first()
+    if group_conflict and group_conflict.id != existing_id:
+        raise HTTPException(
+            status_code=422,
+            detail=f"number {rg.number} is already used by another ring group",
+        )
+
+
 @router.get("/ring-groups", response_model=List[RingGroup])
 def list_ring_groups(session: Session = Depends(get_session)):
     return session.exec(select(RingGroup)).all()
@@ -56,6 +77,7 @@ def list_ring_groups(session: Session = Depends(get_session)):
 
 @router.post("/ring-groups", response_model=RingGroup)
 async def create_ring_group(rg: RingGroup, session: Session = Depends(get_session)):
+    _validate_ring_group_number(rg, session)
     numbers = _validate_extension_numbers(rg.extension_numbers, session)
     rg.extension_numbers = ",".join(str(number) for number in numbers)
     rg.id = None
@@ -75,6 +97,7 @@ async def update_ring_group(rg_id: int, rg_data: RingGroup, session: Session = D
     for field, value in rg_data.model_dump(exclude_unset=True).items():
         if field != "id":
             setattr(existing, field, value)
+    _validate_ring_group_number(existing, session, existing_id=rg_id)
     numbers = _validate_extension_numbers(existing.extension_numbers, session, allow_empty=True)
     existing.extension_numbers = ",".join(str(number) for number in numbers)
     session.add(existing)

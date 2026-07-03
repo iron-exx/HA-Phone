@@ -58,6 +58,13 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE adminuser ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 1")
                 )
                 conn.commit()
+        if "ringgroup" in tables:
+            cols = [c["name"] for c in inspector.get_columns("ringgroup")]
+            if "number" not in cols:
+                conn.execute(
+                    text("ALTER TABLE ringgroup ADD COLUMN number INTEGER NOT NULL DEFAULT 0")
+                )
+                conn.commit()
 
 
 def init_db() -> Engine:

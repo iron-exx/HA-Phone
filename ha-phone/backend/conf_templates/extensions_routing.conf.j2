@@ -5,6 +5,15 @@
 ; Internal calls + outbound dial rules
 [from-internal]
 
+; Internal ring groups - explicit entries win before the generic 2-digit extension pattern.
+{% for ring_group in ring_groups %}
+{% if ring_group.number and ring_group_dials.get(ring_group.id, '') %}
+exten => {{ ring_group.number }},1,NoOp(Internal ring group {{ ring_group.name }})
+ same => n,Dial({{ ring_group_dials.get(ring_group.id, '') }},{{ ring_group.ring_timeout }})
+ same => n,Hangup()
+{% endif %}
+{% endfor %}
+
 ; Internal 2-digit extensions (scheme 10-99) - never routed to the trunk
 exten => _XX,1,NoOp(Internal call to ${EXTEN})
  same => n,Dial(PJSIP/${EXTEN},30)
@@ -32,6 +41,13 @@ exten => t,1,NoOp(Timeout: ${EXTEN})
 
 ; Internal-only endpoints (e.g. door intercom) - NO outbound to the trunk
 [from-internal-restricted]
+{% for ring_group in ring_groups %}
+{% if ring_group.number and ring_group_dials.get(ring_group.id, '') %}
+exten => {{ ring_group.number }},1,NoOp(Internal-only call to ring group {{ ring_group.name }})
+ same => n,Dial({{ ring_group_dials.get(ring_group.id, '') }},{{ ring_group.ring_timeout }})
+ same => n,Hangup()
+{% endif %}
+{% endfor %}
 exten => _XX,1,NoOp(Internal-only call to ${EXTEN})
  same => n,Dial(PJSIP/${EXTEN},30)
  same => n,Voicemail(${EXTEN}@default,u)
