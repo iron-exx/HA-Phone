@@ -31,7 +31,20 @@ jobs:
 
       - name: Read add-on version
         id: version
-        run: echo "version=$(grep '^version:' ha-phone/config.yaml | cut -d'\"' -f2)" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION="$(python3 - <<'PY'
+          from pathlib import Path
+
+          for line in Path("ha-phone/config.yaml").read_text().splitlines():
+              if line.startswith("version:"):
+                  print(line.split(":", 1)[1].strip().strip('"').strip("'"))
+                  break
+          else:
+              raise SystemExit("Could not read add-on version from ha-phone/config.yaml")
+          PY
+          )"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building HA-Phone ${VERSION}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
