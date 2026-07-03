@@ -369,7 +369,7 @@ def _get_extension_stanza(conf_content: str, ext_number: int) -> str:
 
 
 def test_doorbell_extension_conf(client, mock_ami, tmp_data_dir):
-    """video_capable=True generates h264 + max_video_streams=1 in pjsip conf."""
+    """video_capable=True keeps normal dial context and enables video codecs."""
     resp = client.post("/api/extensions", json={
         "number": 97, "display_name": "Doorbell2", "sip_password": "doorbellpass12345",
         "video_capable": True
@@ -380,7 +380,7 @@ def test_doorbell_extension_conf(client, mock_ami, tmp_data_dir):
     stanza = _get_extension_stanza(full_content, 97)
     assert "allow             = h264" in stanza
     assert "max_video_streams = 1" in stanza
-    assert "doorbell-out" in stanza
+    assert "context           = from-internal" in stanza
     assert "max_video_streams = 0" not in stanza
 
 
@@ -396,7 +396,20 @@ def test_non_video_extension_conf(client, mock_ami, tmp_data_dir):
     stanza = _get_extension_stanza(full_content, 96)
     assert "max_video_streams = 0" in stanza
     assert "allow             = h264" not in stanza
-    assert "internal" in stanza
+    assert "context           = from-internal" in stanza
+
+
+def test_internal_only_extension_conf(client, mock_ami, tmp_data_dir):
+    """internal_only=True uses the restricted dial context regardless of video support."""
+    resp = client.post("/api/extensions", json={
+        "number": 95, "display_name": "Nur intern", "sip_password": "internalpass12345",
+        "video_capable": True, "internal_only": True
+    })
+    assert resp.status_code == 200
+    conf_path = tmp_data_dir / "asterisk" / "pjsip_extensions.conf"
+    stanza = _get_extension_stanza(conf_path.read_text(), 95)
+    assert "context           = from-internal-restricted" in stanza
+    assert "allow             = h264" in stanza
 
 
 def test_ring_group_crud(client, mock_ami):
@@ -432,6 +445,26 @@ def test_doorbell_dialplan_context(client, mock_ami, tmp_data_dir):
     assert "PJSIP/10&PJSIP/11" in content
     assert "exten => 71,1,NoOp(Internal ring group Doorbell Ring)" in content
     assert "Dial(PJSIP/10&PJSIP/11,30)" in content
+
+
+def test_outbound_plus_pattern_is_rendered(client, tmp_data_dir):
+    """Outbound trunk context must also accept already-normalized +49 numbers."""
+    resp = client.post(
+        "/api/trunk",
+        json={
+            "registrar_host": "sip.example.com",
+            "port": 5060,
+            "auth_username": "123456789",
+            "password": "mysecretpassword",
+            "phone_number": "049123456789",
+            "reg_refresh": 60,
+        },
+    )
+    assert resp.status_code == 200
+    conf_path = tmp_data_dir / "asterisk" / "extensions_routing.conf"
+    content = conf_path.read_text()
+    assert "exten => _+X.,1,NoOp(Outbound via SIP trunk (E.164): ${EXTEN})" in content
+    assert "same => n,Goto(outbound-pstn,${EXTEN:1},1)" in content
 
 
 def test_extension_numbers_validation(client, mock_ami):

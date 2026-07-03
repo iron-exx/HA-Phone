@@ -1,12 +1,11 @@
 # Changelog
 
-## 0.7.52
+## 0.7.53
 
-**Fix - Ausgehende Anrufe mit E.164-Nummern (+49...) schlagen sofort fehl**
-- Ausgehende Regeln setzen `CALLNUM` haeufig mit fuehrendem `+` (z.B. Regel `0.` -> `+49...`) und springen per `Goto(outbound-pstn, CALLNUM, 1)` dorthin.
-- Der `[outbound-pstn]`-Kontext kannte aber nur das Pattern `_X.`, das laut Asterisk-Syntax ausschliesslich Ziffern matcht - niemals ein fuehrendes `+`.
-- Ergebnis: `sent to invalid extension but no invalid handler` - der Anruf wurde ohne Klingeln sofort abgewiesen, obwohl Trunk-Registrierung und Extension-Registrierung beide in Ordnung waren.
-- Fix: neuer `_+X.` Handler in `outbound-pstn`, der das `+` entfernt und die Nummer erneut in denselben Kontext schickt, wo sie dann auf `_X.` matcht und wie gewohnt gewaehlt wird.
+**Fix - Interne Anrufe, Voicemail und Plus-Rufnummern**
+- Videofaehige Nebenstellen nutzen wieder den normalen internen Wahlkontext statt faelschlich `doorbell-out`.
+- Bereits normalisierte Rufnummern wie `+49...` koennen jetzt auch im Trunk-Kontext sauber rausgewaehlt werden.
+- Asterisk laedt die fehlenden Voicemail-Abhaengigkeiten `res_adsi` und `res_smdi`, damit der Rueckfall auf Mailbox nicht mehr mit einem Modulfehler scheitert.
 
 ## 0.7.51
 
