@@ -136,6 +136,12 @@ def _render_linphone_provisioning_xml(extension: Extension, request: Request) ->
         '    <entry name="reg_sendregister" overwrite="true">1</entry>\n'
         '    <entry name="publish" overwrite="true">0</entry>\n'
         '    <entry name="dial_escape_plus" overwrite="true">0</entry>\n'
+        # No push gateway exists for this self-hosted PBX. With push enabled,
+        # Linphone (iOS in particular) registers once with ;pn- contact params,
+        # then suspends and waits for pushes that never come: the registration
+        # expires, the UI still claims "online", and tapping call does nothing.
+        '    <entry name="push_notification_allowed" overwrite="true">0</entry>\n'
+        '    <entry name="remote_push_notification_allowed" overwrite="true">0</entry>\n'
         "  </section>\n"
         '  <section name="video">\n'
         f'    <entry name="enabled" overwrite="true">{video_enabled}</entry>\n'

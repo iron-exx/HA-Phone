@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.59
+
+**Fix - Linphone iOS: Push deaktiviert im Provisioning (Konto schlief ein)**
+- Live diagnostiziert: iPhone-Linphone registrierte sich einmal (Contact mit `;pn`-Push-Parametern), erneuerte die Registrierung danach nie und verschwand nach Ablauf (600s) aus `pjsip show contacts` - waehrend die App weiter "Online" anzeigte. Anrufversuche aus der App erzeugten kein einziges SIP-Paket Richtung PBX.
+- Ursache: Bei aktivierten Push-Benachrichtigungen verlaesst sich Linphone (besonders iOS) auf ein Push-Gateway, das die App aufweckt. Eine selbstgehostete Asterisk-PBX hat kein Apple-Push-Gateway - die App schlaeft ein und wartet auf Pushes, die nie kommen.
+- Provisioning-XML setzt jetzt `push_notification_allowed=0` und `remote_push_notification_allowed=0`, damit per QR/Link eingerichtete Konten eine normale Registrierung halten.
+- Gegenprobe bestand: PBX -> Extension 11 klingelte auf MicroSIP (INVITE/180/200), die PBX-Seite war durchgehend in Ordnung.
+- Hinweis: Eingehende Anrufe bei geschlossener App bleiben auf iOS ohne Push-Gateway prinzipbedingt nicht moeglich; ausgehend + eingehend bei geoeffneter App funktioniert.
+
 ## 0.7.58
 
 **Fix - Linphone QR: In-App-Scanner braucht die nackte URL**
