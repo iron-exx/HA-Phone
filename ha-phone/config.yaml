@@ -4,6 +4,14 @@ slug: "ha-phone"
 description: "SIP PBX for Home Assistant — any SIP trunk, IP phones, softphones, doorbells. Web UI, no CLI needed."
 url: "https://github.com/iron-exx/HA-Phone"
 
+# Prebuilt multi-arch image from .github/workflows/build.yaml (ghcr.io/iron-exx/ha-phone/{arch}:{version}).
+# Without this, the Supervisor ignores the CI-built image entirely and compiles
+# Asterisk from source on every single install/update (./configure && make in
+# Dockerfile) - multiple minutes even on capable hardware, much worse on
+# constrained devices. With it, an update is just a registry pull of the image
+# GitHub Actions already built.
+image: "ghcr.io/iron-exx/ha-phone/{arch}"
+
 arch:
   - amd64
   - aarch64
