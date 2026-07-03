@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.38
+
+**Fix — Routing- und Rufgruppen-Basis**
+- Interne Nebenstellen `10-99` werden im Dialplan jetzt vollständig unterstützt; vorher waren intern nur `10-19` erreichbar.
+- Rufgruppen werden gegen vorhandene Nebenstellen validiert und doppelte Mitgliedschaften werden verhindert.
+- Nebenstellen können im Extension-Dialog direkt Rufgruppen zugewiesen werden; die Tabelle zeigt die aktuellen Gruppen.
+- Deaktivierte Nebenstellen werden nicht mehr als PJSIP-Endpunkte gerendert und der Routing-Dialplan wird bei Änderungen an Nebenstellen aktualisiert.
+- Doorbell-/Rufgruppen-Dialplan erzeugt nur noch einen stabilen `[doorbell-out]`-Kontext.
+- AMI-Secret wird nicht mehr teilweise ins Log geschrieben.
+
 ## 0.7.37
 
 **Fix — SMTP-Test**
