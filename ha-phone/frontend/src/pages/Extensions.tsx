@@ -230,7 +230,7 @@ function AddExtensionDialog({
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Extension hinzufügen</DialogTitle>
+          <DialogTitle>Nebenstelle hinzufügen</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -239,7 +239,7 @@ function AddExtensionDialog({
               name="number"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Extension Nummer</FormLabel>
+                  <FormLabel>Durchwahl (Nummer)</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="z.B. 10" className="font-mono" {...field} />
                   </FormControl>
@@ -411,7 +411,7 @@ function EditExtensionDialog({
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Extension {extension.number} bearbeiten</DialogTitle>
+          <DialogTitle>Nebenstelle {extension.number} bearbeiten</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -420,7 +420,7 @@ function EditExtensionDialog({
               name="number"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Extension Nummer</FormLabel>
+                  <FormLabel>Durchwahl (Nummer)</FormLabel>
                   <FormControl>
                     <Input type="number" className="font-mono opacity-60 cursor-not-allowed" {...field} readOnly />
                   </FormControl>
@@ -540,7 +540,7 @@ function DeleteExtensionDialog({
       const resp = await fetch(`/api/extensions/${extension.id}`, { method: "DELETE" });
       if (!resp.ok) throw new Error(await resp.text());
       onDeleted(extension.id);
-      toast.success("Extension gelöscht.");
+      toast.success("Nebenstelle gelöscht.");
       onClose();
     } catch {
       toast.error("Fehler beim Löschen.");
@@ -552,7 +552,7 @@ function DeleteExtensionDialog({
     <Dialog open onOpenChange={(o) => { if (!o && !deleteLoading) onClose(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Extension {extension.number} löschen?</DialogTitle>
+          <DialogTitle>Nebenstelle {extension.number} löschen?</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
           Das entfernt die SIP-Registrierung. Das Telefon muss sich mit neuen Zugangsdaten neu anmelden.
@@ -688,7 +688,7 @@ function LinphoneQrDialog({
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Linphone QR fuer Extension {extension.number}</DialogTitle>
+          <DialogTitle>Linphone QR fuer Nebenstelle {extension.number}</DialogTitle>
         </DialogHeader>
 
         {loading ? (
@@ -782,7 +782,7 @@ export default function Extensions() {
     fetch("/api/extensions")
       .then((r) => r.json())
       .then((data: Extension[]) => setExtensions(data))
-      .catch(() => toast.error("Extensions konnten nicht geladen werden."))
+      .catch(() => toast.error("Nebenstellen konnten nicht geladen werden."))
       .finally(() => setLoading(false));
     fetchRingGroups();
   }, []);
@@ -840,7 +840,7 @@ export default function Extensions() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Extensions</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Nebenstellen</h1>
           <p className="mt-1 text-sm text-muted-foreground">SIP-Nebenstellen verwalten</p>
         </div>
         <Button
@@ -853,7 +853,7 @@ export default function Extensions() {
           }}
         >
           <Plus className="h-4 w-4" />
-          Extension hinzufügen
+          Nebenstelle hinzufügen
         </Button>
       </div>
 
@@ -874,7 +874,7 @@ export default function Extensions() {
           >
             <Phone className="h-6 w-6 text-violet-400" />
           </div>
-          <h2 className="text-base font-semibold text-foreground">Noch keine Extensions</h2>
+          <h2 className="text-base font-semibold text-foreground">Noch keine Nebenstellen</h2>
           <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
             Füge deine erste Extension hinzu, damit SIP-Telefone sich registrieren können.
           </p>
@@ -947,7 +947,7 @@ export default function Extensions() {
                               className="h-8 w-8 cursor-pointer opacity-60 hover:opacity-100"
                             >
                               <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Aktionen für Extension {ext.number}</span>
+                              <span className="sr-only">Aktionen für Nebenstelle {ext.number}</span>
                             </Button>
                           </DropdownMenuTrigger>
                         </TooltipTrigger>

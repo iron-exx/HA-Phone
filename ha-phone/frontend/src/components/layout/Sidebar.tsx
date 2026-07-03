@@ -15,7 +15,7 @@ import {
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/extensions", label: "Extensions", icon: Phone, end: false },
+  { to: "/extensions", label: "Nebenstellen", icon: Phone, end: false },
   { to: "/ivr", label: "IVR-Menüs", icon: PhoneIncoming, end: false },
   { to: "/provisioning", label: "Provisioning", icon: Router, end: false },
   { to: "/trunk", label: "Trunk", icon: Network, end: false },

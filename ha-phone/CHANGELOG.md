@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.60
+
+**Fix - Linphone registrierte sich nach Provisioning nie (ungueltiges reg_proxy-Format)**
+- Live belegt: Das iPhone laedt die Provisioning-XML mehrfach erfolgreich herunter (HTTP 200), sendet danach aber kein einziges REGISTER - die App kann aus der Config kein Konto anlegen.
+- Ursache: Seit 0.7.49 wurden `reg_proxy`/`reg_route` OHNE `sip:`-Praefix geschrieben (`192.168.7.10;transport=udp`). Das linphonerc-Format verlangt aber eine echte SIP-URI (`<sip:host;transport=udp>`), belegt durch mehrere offizielle linphonerc-Beispiele. Der Download klappte, die Kontoerstellung scheiterte still.
+- `reg_proxy` und `reg_route` werden jetzt als `<sip:host;transport=udp>` bzw. `<sip:host;transport=udp;lr>` geschrieben (XML-escaped).
+
+**UI - "Extensions" heisst jetzt ueberall "Nebenstellen"**
+- Sidebar, Seitentitel, Dialoge, Buttons und Meldungen der Nebenstellen-Seite nutzen durchgehend den deutschen Begriff.
+
 ## 0.7.59
 
 **Fix - Linphone iOS: Push deaktiviert im Provisioning (Konto schlief ein)**

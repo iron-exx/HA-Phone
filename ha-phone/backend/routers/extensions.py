@@ -103,8 +103,12 @@ def _render_linphone_provisioning_xml(extension: Extension, request: Request) ->
     username = html.escape(str(extension.number), quote=True)
     password = html.escape(extension.sip_password, quote=True)
     identity = f"sip:{username}@{host}"
-    proxy = f"{host};transport=udp"
-    route = f"{host};transport=udp;lr"
+    # linphonerc URI format: reg_proxy/reg_route MUST carry the sip: scheme
+    # (canonically wrapped in <>). A bare "host;transport=udp" downloads fine
+    # but account creation fails silently - the app fetches the XML repeatedly
+    # and never sends a single REGISTER.
+    proxy = f"&lt;sip:{host};transport=udp&gt;"
+    route = f"&lt;sip:{host};transport=udp;lr&gt;"
     media_encryption = "none"
     video_enabled = "1" if extension.video_capable else "0"
 
