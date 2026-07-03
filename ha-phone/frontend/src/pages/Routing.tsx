@@ -5,7 +5,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
-import { type Route, type TimeCondition } from "@/types/api";
+import { type Extension, type Route, type TimeCondition } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -607,28 +607,38 @@ interface RingGroup {
 
 function RingGroupsSection() {
   const [groups, setGroups] = useState<RingGroup[]>([]);
+  const [extensions, setExtensions] = useState<Extension[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
-  const [numbers, setNumbers] = useState("");
+  const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [timeout, setTimeoutVal] = useState("30");
   const [saving, setSaving] = useState(false);
 
   function load() {
-    fetch("/api/ring-groups")
-      .then((r) => r.json())
-      .then((data: RingGroup[]) => setGroups(data))
+    Promise.all([
+      fetch("/api/ring-groups").then((r) => r.json()),
+      fetch("/api/extensions").then((r) => r.json()),
+    ])
+      .then(([groupData, extensionData]: [RingGroup[], Extension[]]) => {
+        setGroups(groupData);
+        setExtensions(extensionData);
+      })
       .catch(() => toast.error("Rufgruppen konnten nicht geladen werden."))
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
 
+  function toggleExtension(number: number) {
+    setSelectedNumbers((current) =>
+      current.includes(number)
+        ? current.filter((item) => item !== number)
+        : [...current, number].sort((a, b) => a - b)
+    );
+  }
+
   async function addGroup() {
-    if (!name.trim() || !numbers.trim()) {
-      toast.error("Name und Nebenstellen (z.B. 10,11) sind erforderlich.");
-      return;
-    }
-    if (!/^\d+(,\d+)*$/.test(numbers.trim())) {
-      toast.error("Nebenstellen als kommagetrennte Nummern, z.B. 10,11,12.");
+    if (!name.trim() || selectedNumbers.length === 0) {
+      toast.error("Name und mindestens eine Nebenstelle sind erforderlich.");
       return;
     }
     setSaving(true);
@@ -638,16 +648,19 @@ function RingGroupsSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          extension_numbers: numbers.trim(),
+          extension_numbers: selectedNumbers.join(","),
           ring_timeout: Number(timeout) || 30,
         }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
-      setName(""); setNumbers(""); setTimeoutVal("30");
+      if (!resp.ok) {
+        const detail = await resp.text();
+        throw new Error(detail || "Speichern fehlgeschlagen");
+      }
+      setName(""); setSelectedNumbers([]); setTimeoutVal("30");
       load();
       toast.success("Rufgruppe angelegt.");
-    } catch {
-      toast.error("Fehler beim Speichern.");
+    } catch (error) {
+      toast.error(`Fehler beim Speichern: ${(error as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -701,7 +714,32 @@ function RingGroupsSection() {
             ))}
             <TableRow>
               <TableCell><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Zentrale" className="h-9" /></TableCell>
-              <TableCell><Input value={numbers} onChange={(e) => setNumbers(e.target.value)} placeholder="10,11,12" className="h-9 font-mono" /></TableCell>
+              <TableCell>
+                {extensions.length === 0 ? (
+                  <span className="text-sm text-muted-foreground">Erst Nebenstellen anlegen</span>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {extensions.map((extension) => {
+                      const selected = selectedNumbers.includes(extension.number);
+                      return (
+                        <button
+                          key={extension.id}
+                          type="button"
+                          onClick={() => toggleExtension(extension.number)}
+                          className={[
+                            "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                            selected
+                              ? "border-violet-500/60 bg-violet-500/20 text-violet-100"
+                              : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          {extension.number} {extension.display_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </TableCell>
               <TableCell><Input value={timeout} onChange={(e) => setTimeoutVal(e.target.value)} type="number" className="h-9 w-20 font-mono" /></TableCell>
               <TableCell className="text-right">
                 <Button size="sm" onClick={addGroup} disabled={saving}>{saving ? "…" : "Hinzufügen"}</Button>

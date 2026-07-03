@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.39
+
+**Fix — Lesbarkeit und Rufgruppen-Bedienung**
+- Dialogfenster sind jetzt deckend dunkel statt transparent, damit Routing-Formulare lesbar bleiben.
+- Radix-Selects und native Browser-Dropdowns nutzen dunkle Hintergründe und helle Schrift.
+- Rufgruppen-Mitglieder werden beim Anlegen per Nebenstellen-Auswahl gesetzt statt per fehleranfälligem Zahlenfeld.
+- Die Rufgruppen-Maske zeigt klar an, wenn erst Nebenstellen angelegt werden müssen.
+
 ## 0.7.38
 
 **Fix — Routing- und Rufgruppen-Basis**

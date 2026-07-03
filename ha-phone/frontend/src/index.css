@@ -111,3 +111,13 @@ textarea:focus {
   box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.12) !important;
   outline: none;
 }
+
+select {
+  color-scheme: dark;
+  color: rgb(226, 232, 240) !important;
+}
+
+select option {
+  background-color: #080c17;
+  color: rgb(226, 232, 240);
+}
