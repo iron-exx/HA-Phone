@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.54
+
+**Doku - Deutsche Glasfaser/aarenet erwartet nationales Format, nicht E.164**
+- Live per SIP-Trace verifiziert: die aarenet/AareSwitch-Plattform (Deutsche Glasfaser Whitelabel) weist ausgehende Anrufe mit E.164-Zielnummer (`491741814689`) per Inband-Ansage ("diese Rufnummer ist ungueltig") ab - kein SIP-Fehlercode, sondern 183 Session Progress mit Ansage, danach Cancel.
+- Passt zur bereits bekannten Eigenheit dieser Plattform: Die Registrierungsidentitaet (AOR/From/Contact) nutzt ebenfalls die nationale Rufnummer mit fuehrender 0, nicht E.164 (siehe `pjsip_trunk.conf.j2`).
+- Kein Code-Bug - die betroffene Ausgehende Regel ist nutzerkonfigurierbar. Workaround: Regel `0.` auf "0 Ziffern entfernen, nichts voranstellen" stellen, damit die Nummer national (mit fuehrender 0) unveraendert zum Trunk geht statt zu `+49...` umgeschrieben zu werden.
+- Hinweis direkt bei `DEFAULT_OUTBOUND_RULES` ergaenzt, damit das bei einer frischen Datenbank (z.B. Neuinstallation) nicht erneut unbemerkt auftritt.
+
 ## 0.7.53
 
 **Fix - Interne Anrufe, Voicemail und Plus-Rufnummern**

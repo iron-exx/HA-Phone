@@ -13,6 +13,14 @@ router = APIRouter()
 #   0.  strip 1 prepend +49  → national (0…) → E.164
 #   00. strip 2 prepend +    → international (00…) → E.164
 #   +.  strip 0 prepend ''   → already E.164, pass through
+#
+# NOTE: the aarenet/AareSwitch platform (used by Deutsche Glasfaser as white-label,
+# see pjsip_trunk.conf.j2) rejects E.164 destination numbers with an in-band "invalid
+# number" announcement (183 Session Progress, no SIP error) — it expects the dialled
+# number in NATIONAL format (leading 0), matching the national format it already
+# requires for the registration identity (reg_user = trunk.phone_number). If calls to
+# this trunk get rejected with that announcement, change the "0." rule to strip=0,
+# prepend='' (pass the national number through unchanged) instead of rewriting to +49.
 DEFAULT_OUTBOUND_RULES = [
     {"pattern": "0.", "strip": 1, "prepend": "+49", "priority": 10},
     {"pattern": "00.", "strip": 2, "prepend": "+", "priority": 20},
