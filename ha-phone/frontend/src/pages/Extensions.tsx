@@ -657,7 +657,7 @@ function LinphoneQrDialog({
             </div>
 
             <div className="space-y-2">
-              <FormLabel>Provisioning-Link</FormLabel>
+              <p className="text-sm font-medium text-foreground">Provisioning-Link</p>
               <div className="flex gap-2">
                 <Input
                   readOnly

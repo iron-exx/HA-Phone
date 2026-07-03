@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.45
+
+**Fix - QR-Dialog absturzfrei**
+- Absturz auf der Extensions-Seite behoben: der neue Linphone-QR-Dialog nutzte ein `FormLabel` ausserhalb eines `FormField`, wodurch React Hook Form beim Rendern mit `getFieldState ... is null` abstuerzte.
+- Der Provisioning-Link im QR-Dialog wird jetzt ohne Formular-Kontext gerendert, damit die Seite in Home Assistant Ingress stabil laeuft.
+
 ## 0.7.44
 
 **Feature - Linphone QR fuer Nebenstellen**
