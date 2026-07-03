@@ -86,8 +86,12 @@ function toggleRingGroupId(ids: number[], id: number) {
 }
 
 function buildProvisioningUrl(path: string) {
-  const ingressPath = (window as Window & { __INGRESS_PATH__?: string }).__INGRESS_PATH__ ?? "";
-  return `${window.location.origin}${ingressPath}${path}`;
+  const { protocol, hostname, port } = window.location;
+  if (port === "8099") {
+    return `${window.location.origin}${path}`;
+  }
+  const directProtocol = protocol === "https:" ? "https:" : "http:";
+  return `${directProtocol}//${hostname}:8099${path}`;
 }
 
 function buildLinphoneConfigUri(path: string) {
@@ -590,7 +594,7 @@ function LinphoneQrDialog({
         const data: LinphoneProvisioningInfo = await resp.json();
         if (cancelled) return;
         setProvisioning(data);
-        const dataUrl = await QRCode.toDataURL(buildProvisioningUrl(data.provisioning_path), {
+        const dataUrl = await QRCode.toDataURL(buildLinphoneConfigUri(data.provisioning_path), {
           width: 320,
           margin: 2,
           color: {

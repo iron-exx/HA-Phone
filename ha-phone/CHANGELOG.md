@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.51
+
+**Fix - Linphone Link ohne Ingress-Pfad**
+- Provisioning-Link und QR-Code werden nicht mehr aus der Home-Assistant-Ingress-URL gebaut.
+- Statt `:8123/api/hassio_ingress/...` nutzt HA-Phone jetzt fuer Linphone die direkte Add-on-Adresse auf Port `8099`.
+- Dadurch zeigen QR und Kopier-Link wieder auf die eigentliche PBX-Provisioning-URL.
+
+## 0.7.50
+
+**Fix - Linphone QR Scanner**
+- Der angezeigte QR-Code nutzt jetzt wieder direkt das Linphone-spezifische Schema `linphone-config://...`.
+- Der normale Provisioning-Link bleibt separat fuer die manuelle Eingabe in Linphone sichtbar.
+- Damit wird der QR-Scanner in Linphone gezielter mit dem von der App erwarteten URI-Format gefuettert.
+
 ## 0.7.49
 
 **Fix - Linphone Provisioning XML**
