@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Phone, Network, PhoneCall, RefreshCw, ArrowUpCircle, Router, Voicemail } from "lucide-react";
+import { Phone, Network, PhoneCall, RefreshCw, ArrowUpCircle, Router, Voicemail, AlertTriangle } from "lucide-react";
 
 interface UpdateInfo {
   version: string;
@@ -12,7 +12,42 @@ interface ExtensionStatus {
   status: "Online" | "Offline";
 }
 
+interface RegenerationStepStatus {
+  name: string;
+  label: string;
+  ok: boolean;
+  skipped: boolean;
+  updated_at: string | null;
+  message: string;
+}
+
+interface ConfigRegenerationStatus {
+  ok: boolean;
+  source: string | null;
+  last_run_at: string | null;
+  last_failure_at: string | null;
+  steps: RegenerationStepStatus[];
+}
+
 const HISTORY_LEN = 40; // ~3.3 min at 5s sampling
+
+function formatRegenTimestamp(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatRegenSource(value: string | null) {
+  if (!value) return "";
+  return value.replace(/[:.]/g, " / ");
+}
 
 // ── Inline SVG donut gauge ───────────────────────────────────────────────────
 function Donut({
@@ -104,6 +139,7 @@ export default function Dashboard() {
   const [deviceCount, setDeviceCount] = useState(0);
   const [history, setHistory] = useState<number[]>([]);
   const [err, setErr] = useState(false);
+  const [regenStatus, setRegenStatus] = useState<ConfigRegenerationStatus | null>(null);
 
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -144,6 +180,11 @@ export default function Dashboard() {
       .then((d: UpdateInfo | null) => d && setUpdateInfo(d)).catch(() => {});
   }
 
+  function fetchRegenerationStatus() {
+    fetch("/api/diagnostics/config-regeneration").then((r) => (r.ok ? r.json() : null))
+      .then((d: ConfigRegenerationStatus | null) => d && setRegenStatus(d)).catch(() => {});
+  }
+
   function startUpdate() {
     setUpdating(true);
     fetch("/api/update/start", { method: "POST" })
@@ -152,16 +193,19 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    fetchExtensions(); fetchTrunk(); fetchCalls(); fetchDevices(); fetchUpdate();
+    fetchExtensions(); fetchTrunk(); fetchCalls(); fetchDevices(); fetchUpdate(); fetchRegenerationStatus();
     const a = setInterval(fetchExtensions, 10000);
     const b = setInterval(fetchTrunk, 15000);
     const c = setInterval(fetchCalls, 5000);
     const d = setInterval(fetchDevices, 30000);
-    return () => { clearInterval(a); clearInterval(b); clearInterval(c); clearInterval(d); };
+    const e = setInterval(fetchRegenerationStatus, 15000);
+    return () => { clearInterval(a); clearInterval(b); clearInterval(c); clearInterval(d); clearInterval(e); };
   }, []);
 
   const trunkColor = trunkStatus === "Registered" ? "#22C55E"
     : (trunkStatus === "Unreachable" || trunkStatus === "Unregistered") ? "#EAB308" : "#64748B";
+  const failedRegenerationSteps = (regenStatus?.steps ?? []).filter((step) => !step.ok);
+  const primaryRegenerationFailure = failedRegenerationSteps[0];
 
   return (
     <div className="space-y-6">
@@ -198,6 +242,26 @@ export default function Dashboard() {
           style={{ borderColor: "rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.06)" }}>
           <span className="inline-block h-2 w-2 rounded-full bg-red-400" />
           <span className="text-sm text-red-300">Asterisk nicht erreichbar — PBX startet evtl. noch.</span>
+        </div>
+      )}
+
+      {regenStatus && !regenStatus.ok && primaryRegenerationFailure && (
+        <div className="glass rounded-xl px-5 py-4"
+          style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)" }}>
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-amber-200">Konfiguration wurde nur teilweise aktualisiert.</p>
+              <p className="mt-1 text-sm text-slate-200">
+                {primaryRegenerationFailure.label}: {primaryRegenerationFailure.message}
+                {failedRegenerationSteps.length > 1 ? ` (+${failedRegenerationSteps.length - 1} weitere)` : ""}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatRegenSource(regenStatus.source)}
+                {regenStatus.last_failure_at ? ` - ${formatRegenTimestamp(regenStatus.last_failure_at)}` : ""}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

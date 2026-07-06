@@ -95,6 +95,7 @@ os.environ['BPX_DATA_DIR'] = '/data'
 from sqlmodel import Session, select
 from backend.database import init_db
 from backend.models import Trunk
+from backend.regeneration import run_regeneration_steps, skipped_regeneration
 from backend.routers.extensions import _regenerate_extensions_conf, _regenerate_voicemail_conf
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend.routers.trunk import _regenerate_trunk_conf
@@ -102,15 +103,35 @@ from backend.routers.outbound_rules import seed_default_outbound_rules
 from backend.routers.settings import regenerate_mail_configs
 engine = init_db()
 with Session(engine) as s:
-    seed_default_outbound_rules(s)
-    _regenerate_extensions_conf(s)
-    _regenerate_voicemail_conf(s)
-    _regenerate_routing_conf(s)
-    regenerate_mail_configs(s)
+    try:
+        seeded = seed_default_outbound_rules(s)
+        if seeded:
+            print('default outbound rules seeded')
+    except Exception as exc:
+        print(f'default outbound rule seed failed: {type(exc).__name__}: {exc}')
     trunk = s.exec(select(Trunk)).first()
-    if trunk is not None:
-        _regenerate_trunk_conf(trunk)
-print('configs regenerated from DB')
+    summary = run_regeneration_steps(
+        'boot.init',
+        [
+            ('extensions', lambda: _regenerate_extensions_conf(s)),
+            ('voicemail', lambda: _regenerate_voicemail_conf(s)),
+            ('routing', lambda: _regenerate_routing_conf(s)),
+            ('mail', lambda: regenerate_mail_configs(s)),
+            (
+                'trunk',
+                lambda trunk=trunk: _regenerate_trunk_conf(trunk)
+                if trunk is not None
+                else skipped_regeneration('Kein Trunk konfiguriert'),
+            ),
+        ],
+    )
+failed = [step for step in summary['steps'] if not step.get('ok')]
+if failed:
+    print('config regeneration completed with failures')
+    for step in failed:
+        print(f\"- {step['name']}: {step['message']}\")
+else:
+    print('configs regenerated from DB')
 " || bashio::log.warning "ha-phone: config regeneration failed — Asterisk uses existing /data confs."
 
 # Set permissions — Asterisk runs as root in this container

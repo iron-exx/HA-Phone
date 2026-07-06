@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import OutboundRule
+from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
 
@@ -50,8 +51,13 @@ async def create_outbound_rule(rule: OutboundRule, session: Session = Depends(ge
     session.add(rule)
     session.commit()
     session.refresh(rule)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "outbound_rules.create",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return rule
 
 
@@ -68,8 +74,13 @@ async def update_outbound_rule(
     session.add(existing)
     session.commit()
     session.refresh(existing)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "outbound_rules.update",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return existing
 
 
@@ -80,6 +91,11 @@ async def delete_outbound_rule(rule_id: int, session: Session = Depends(get_sess
         raise HTTPException(status_code=404, detail="Outbound rule not found")
     session.delete(existing)
     session.commit()
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "outbound_rules.delete",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return {"ok": True}

@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import IVRMenu, Extension, RingGroup
+from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
 
@@ -134,8 +135,13 @@ async def create_ivr(ivr: IVRMenu, session: Session = Depends(get_session)):
     session.add(ivr)
     session.commit()
     session.refresh(ivr)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        f"ivrs.create:{ivr.number}",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return ivr
 
 
@@ -153,8 +159,13 @@ async def update_ivr(ivr_id: int, ivr_data: IVRMenu, session: Session = Depends(
     session.add(existing)
     session.commit()
     session.refresh(existing)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        f"ivrs.update:{existing.number}",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return existing
 
 
@@ -170,8 +181,13 @@ async def delete_ivr(ivr_id: int, session: Session = Depends(get_session)):
             greeting_path.unlink()
     session.delete(existing)
     session.commit()
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        f"ivrs.delete:{existing.number}",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return {"ok": True}
 
 

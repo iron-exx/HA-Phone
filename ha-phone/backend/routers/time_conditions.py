@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from backend.database import get_session
 from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, Trunk, IVRMenu
 from backend.conf_generator import render_conf
+from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.trunk import _to_e164
 from backend import ami
 
@@ -134,8 +135,13 @@ async def create_time_condition(
     session.add(condition)
     session.commit()
     session.refresh(condition)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "time_conditions.create",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return condition
 
 
@@ -154,8 +160,13 @@ async def update_time_condition(
     session.add(existing)
     session.commit()
     session.refresh(existing)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "time_conditions.update",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return existing
 
 
@@ -168,6 +179,11 @@ async def delete_time_condition(
         raise HTTPException(status_code=404, detail="Time condition not found")
     session.delete(existing)
     session.commit()
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "time_conditions.delete",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return {"ok": True}

@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from backend.conf_generator import render_conf
 from backend.database import get_session
 from backend.models import SmtpSettings
+from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend import ami
 
 router = APIRouter()
@@ -146,8 +147,13 @@ async def save_smtp(body: SmtpConfig, session: Session = Depends(get_session)):
     s.enabled = body.enabled
     session.add(s)
     session.commit()
-    regenerate_mail_configs(session)
-    await ami.ami_reload_voicemail()
+    summary = run_single_regeneration_step(
+        "settings.smtp.save",
+        "mail",
+        lambda: regenerate_mail_configs(session),
+    )
+    if step_succeeded(summary, "mail"):
+        await ami.ami_reload_voicemail()
     return {"ok": True}
 
 

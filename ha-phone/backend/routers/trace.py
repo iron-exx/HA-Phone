@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from backend import ami
+from backend.regeneration import get_regeneration_status
 
 router = APIRouter()
 
@@ -90,7 +91,13 @@ async def diagnostics_overview():
         "extensions": extensions,
         "active_calls": active_calls,
         "channels": channels,
+        "config_regeneration": get_regeneration_status(),
     }
+
+
+@router.get("/diagnostics/config-regeneration")
+def config_regeneration_status():
+    return get_regeneration_status()
 
 
 @router.get("/trace/download")

@@ -1,6 +1,7 @@
 import re
 import pytest
 from pathlib import Path
+from unittest.mock import patch
 
 
 def _ensure_extension(client, number: int, name: str | None = None):
@@ -231,6 +232,140 @@ def test_diagnostics_overview(client, mock_ami):
     assert data["extensions"][0]["contact_status"] == "Reachable"
     assert len(data["channels"]) == 1
     assert data["channels"][0]["channel"] == "PJSIP/11-00000001"
+    assert data["config_regeneration"]["ok"] is True
+
+
+def test_config_regeneration_status_endpoint_records_success(client, tmp_data_dir):
+    status_path = tmp_data_dir / "asterisk" / "config_regeneration_status.json"
+    status_path.unlink(missing_ok=True)
+
+    resp = client.post(
+        "/api/extensions",
+        json={
+            "number": 31,
+            "display_name": "Status Probe",
+            "sip_password": "statusprobe12345",
+        },
+    )
+    assert resp.status_code == 200
+
+    status_resp = client.get("/api/diagnostics/config-regeneration")
+    assert status_resp.status_code == 200
+    data = status_resp.json()
+    assert data["ok"] is True
+    assert data["source"] == "extensions.create:31"
+    steps = {step["name"]: step for step in data["steps"]}
+    assert steps["extensions"]["ok"] is True
+    assert steps["voicemail"]["ok"] is True
+    assert steps["routing"]["ok"] is True
+
+
+def test_extension_regeneration_failure_is_isolated(client, mock_ami, tmp_data_dir):
+    status_path = tmp_data_dir / "asterisk" / "config_regeneration_status.json"
+    status_path.unlink(missing_ok=True)
+
+    with patch(
+        "backend.routers.extensions._regenerate_routing_conf",
+        side_effect=RuntimeError("routing exploded"),
+    ):
+        resp = client.post(
+            "/api/extensions",
+            json={
+                "number": 32,
+                "display_name": "Partial Regen",
+                "sip_password": "partialregen123",
+            },
+        )
+
+    assert resp.status_code == 200
+    assert (tmp_data_dir / "asterisk" / "pjsip_extensions.conf").read_text().find("[32]") != -1
+    assert (tmp_data_dir / "asterisk" / "voicemail_mailboxes.conf").read_text().find("32 =>") != -1
+    mock_ami["reload_pjsip"].assert_called_once()
+    mock_ami["reload_voicemail"].assert_called_once()
+    mock_ami["reload_dialplan"].assert_not_called()
+
+    status_resp = client.get("/api/diagnostics/config-regeneration")
+    assert status_resp.status_code == 200
+    data = status_resp.json()
+    assert data["ok"] is False
+    assert data["source"] == "extensions.create:32"
+    steps = {step["name"]: step for step in data["steps"]}
+    assert steps["extensions"]["ok"] is True
+    assert steps["voicemail"]["ok"] is True
+    assert steps["routing"]["ok"] is False
+    assert "routing exploded" in steps["routing"]["message"]
+
+
+def test_boot_regeneration_isolates_trunk_and_mail_from_routing_failures(client, tmp_data_dir):
+    status_path = tmp_data_dir / "asterisk" / "config_regeneration_status.json"
+    status_path.unlink(missing_ok=True)
+
+    trunk_resp = client.post(
+        "/api/trunk",
+        json={
+            "registrar_host": "sip.example.com",
+            "port": 5060,
+            "auth_username": "123456789",
+            "password": "mysecretpassword",
+            "phone_number": "049123456789",
+            "reg_refresh": 60,
+        },
+    )
+    assert trunk_resp.status_code == 200
+
+    smtp_resp = client.post(
+        "/api/settings/smtp",
+        json={
+            "host": "smtp.example.com",
+            "port": 587,
+            "encryption": "starttls",
+            "username": "mailer",
+            "password": "mailsecret",
+            "from_addr": "pbx@example.com",
+            "from_name": "HA-Phone",
+            "enabled": True,
+        },
+    )
+    assert smtp_resp.status_code == 200
+
+    from sqlmodel import Session, select
+
+    from backend.database import get_engine
+    from backend.models import Trunk
+    from backend.regeneration import run_regeneration_steps
+    from backend.routers.extensions import _regenerate_extensions_conf, _regenerate_voicemail_conf
+    from backend.routers.settings import regenerate_mail_configs
+    from backend.routers.trunk import _regenerate_trunk_conf
+    import backend.routers.time_conditions as time_conditions_module
+
+    with Session(get_engine()) as session:
+        trunk = session.exec(select(Trunk)).first()
+        assert trunk is not None
+        with patch(
+            "backend.routers.time_conditions._regenerate_routing_conf",
+            side_effect=RuntimeError("boot routing exploded"),
+        ):
+            summary = run_regeneration_steps(
+                "boot.init",
+                [
+                    ("extensions", lambda: _regenerate_extensions_conf(session)),
+                    ("voicemail", lambda: _regenerate_voicemail_conf(session)),
+                    ("routing", lambda: time_conditions_module._regenerate_routing_conf(session)),
+                    ("mail", lambda: regenerate_mail_configs(session)),
+                    ("trunk", lambda trunk=trunk: _regenerate_trunk_conf(trunk)),
+                ],
+            )
+
+    assert summary["ok"] is False
+    assert (tmp_data_dir / "asterisk" / "pjsip_trunk.conf").exists()
+    assert (tmp_data_dir / "asterisk" / "voicemail_general.conf").exists()
+    assert (tmp_data_dir / "asterisk" / "msmtprc").exists()
+    assert "type = registration" in (tmp_data_dir / "asterisk" / "pjsip_trunk.conf").read_text()
+    assert "smtp.example.com" in (tmp_data_dir / "asterisk" / "msmtprc").read_text()
+    steps = {step["name"]: step for step in summary["steps"]}
+    assert steps["routing"]["ok"] is False
+    assert steps["mail"]["ok"] is True
+    assert steps["trunk"]["ok"] is True
 
 
 def test_time_condition_crud(client, tmp_data_dir):

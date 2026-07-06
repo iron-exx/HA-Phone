@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.63
+
+**Feature - Konfig-Regenerierung ist jetzt fehlertolerant und sichtbar**
+- Die Asterisk-Konfigurationen fuer Nebenstellen, Voicemail, Routing, Mail und Trunk werden nicht mehr als ein monolithischer Block behandelt. Jeder Schritt laeuft isoliert, wird einzeln protokolliert und kann die anderen nicht mehr still blockieren.
+- Das Dashboard zeigt jetzt sichtbar an, wenn eine Teil-Regenerierung fehlgeschlagen ist, inklusive betroffenem Bereich und letzter Fehlerursache.
+- Beim Boot werden die Kern-Konfigurationen ebenfalls einzeln regeneriert. Ein Routing-Fehler blockiert damit nicht mehr automatisch Trunk- oder Mail-Dateien.
+
+**Test - Teilfehler und Boot-Pfad abgesichert**
+- Neue Backend-Tests sichern den neuen Status-Endpunkt, isolierte Fehler bei Nebenstellen-Speichern und den Boot-Fall ab, in dem Routing kaputt sein darf, ohne Trunk- und Mail-Konfiguration mitzuziehen.
+
 ## 0.7.62
 
 **Feature - Diagnose zeigt jetzt Live-SIP-Status statt nur PCAP**

@@ -64,12 +64,30 @@ export interface ChannelDiagnostic {
   duration: string;
 }
 
+export interface RegenerationStepStatus {
+  name: string;
+  label: string;
+  ok: boolean;
+  skipped: boolean;
+  updated_at: string | null;
+  message: string;
+}
+
+export interface ConfigRegenerationStatus {
+  ok: boolean;
+  source: string | null;
+  last_run_at: string | null;
+  last_failure_at: string | null;
+  steps: RegenerationStepStatus[];
+}
+
 export interface DiagnosticsOverview {
   trunk_status: TrunkStatus["status"];
   trunk_debug: Record<string, string>;
   extensions: ExtensionDiagnostic[];
   active_calls: number;
   channels: ChannelDiagnostic[];
+  config_regeneration?: ConfigRegenerationStatus;
 }
 
 export interface PublicIPSettings {

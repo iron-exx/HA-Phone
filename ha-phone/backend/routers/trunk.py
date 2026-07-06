@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from backend.database import get_session
 from backend.models import Trunk
 from backend.conf_generator import render_conf
+from backend.regeneration import run_regeneration_steps, step_succeeded
 from backend import ami
 
 router = APIRouter()
@@ -90,16 +91,21 @@ async def save_trunk(trunk_data: Trunk, session: Session = Depends(get_session))
     session.add(trunk_data)
     session.commit()
     session.refresh(trunk_data)
-    _regenerate_trunk_conf(trunk_data)
     # Also refresh the dialplan so the outbound caller ID (CLIP) picks up the new
     # number. Deferred import avoids a circular import with time_conditions.
-    try:
-        from backend.routers.time_conditions import _regenerate_routing_conf
-        _regenerate_routing_conf(session)
+    from backend.routers.time_conditions import _regenerate_routing_conf
+
+    summary = run_regeneration_steps(
+        f"trunk.save:{trunk_data.phone_number}",
+        [
+            ("trunk", lambda: _regenerate_trunk_conf(trunk_data)),
+            ("routing", lambda: _regenerate_routing_conf(session)),
+        ],
+    )
+    if step_succeeded(summary, "routing"):
         await ami.ami_reload_dialplan()
-    except Exception:
-        pass
-    await ami.ami_reload_pjsip()
+    if step_succeeded(summary, "trunk"):
+        await ami.ami_reload_pjsip()
     return TrunkPublic(
         id=trunk_data.id,
         registrar_host=trunk_data.registrar_host,

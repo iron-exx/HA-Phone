@@ -17,6 +17,7 @@ from backend.models import (
     VoicemailSettings,
 )
 from backend.conf_generator import render_conf
+from backend.regeneration import run_regeneration_steps, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
 
@@ -51,6 +52,17 @@ def _regenerate_voicemail_conf(session: Session) -> None:
         "voicemail_mailboxes.conf.j2",
         {"extensions": extensions, "email_map": email_map},
         output_path,
+    )
+
+
+def _regenerate_extension_bundle(session: Session, source: str) -> dict:
+    return run_regeneration_steps(
+        source,
+        [
+            ("extensions", lambda: _regenerate_extensions_conf(session)),
+            ("voicemail", lambda: _regenerate_voicemail_conf(session)),
+            ("routing", lambda: _regenerate_routing_conf(session)),
+        ],
     )
 
 
@@ -227,12 +239,13 @@ async def create_extension(extension: Extension, session: Session = Depends(get_
         )
         session.add(vm)
         session.commit()
-    _regenerate_extensions_conf(session)
-    _regenerate_voicemail_conf(session)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_pjsip()
-    await ami.ami_reload_voicemail()
-    await ami.ami_reload_dialplan()
+    summary = _regenerate_extension_bundle(session, f"extensions.create:{extension.number}")
+    if step_succeeded(summary, "extensions"):
+        await ami.ami_reload_pjsip()
+    if step_succeeded(summary, "voicemail"):
+        await ami.ami_reload_voicemail()
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return _extension_create_out(extension)
 
 
@@ -265,12 +278,13 @@ async def update_extension(
     session.add(existing)
     session.commit()
     session.refresh(existing)
-    _regenerate_extensions_conf(session)
-    _regenerate_voicemail_conf(session)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_pjsip()
-    await ami.ami_reload_voicemail()
-    await ami.ami_reload_dialplan()
+    summary = _regenerate_extension_bundle(session, f"extensions.update:{existing.number}")
+    if step_succeeded(summary, "extensions"):
+        await ami.ami_reload_pjsip()
+    if step_succeeded(summary, "voicemail"):
+        await ami.ami_reload_voicemail()
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return _extension_out(existing)
 
 
@@ -290,12 +304,13 @@ async def delete_extension(
     _remove_extension_from_ring_groups(session, existing.number)
     session.delete(existing)
     session.commit()
-    _regenerate_extensions_conf(session)
-    _regenerate_voicemail_conf(session)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_pjsip()
-    await ami.ami_reload_voicemail()
-    await ami.ami_reload_dialplan()
+    summary = _regenerate_extension_bundle(session, f"extensions.delete:{existing.number}")
+    if step_succeeded(summary, "extensions"):
+        await ami.ami_reload_pjsip()
+    if step_succeeded(summary, "voicemail"):
+        await ami.ami_reload_voicemail()
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return {"ok": True}
 
 

@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import Extension, RingGroup
+from backend.regeneration import run_single_regeneration_step, step_succeeded
 # Use the canonical routing regen (includes inbound routes, outbound rules, CLIP).
 # The previous local copy here only wrote ring groups + time conditions and thus
 # WIPED routes/outbound rules from the dialplan whenever a ring group changed.
@@ -84,8 +85,13 @@ async def create_ring_group(rg: RingGroup, session: Session = Depends(get_sessio
     session.add(rg)
     session.commit()
     session.refresh(rg)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        f"ring_groups.create:{rg.number}",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return rg
 
 
@@ -103,8 +109,13 @@ async def update_ring_group(rg_id: int, rg_data: RingGroup, session: Session = D
     session.add(existing)
     session.commit()
     session.refresh(existing)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        f"ring_groups.update:{existing.number}",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return existing
 
 
@@ -115,6 +126,11 @@ async def delete_ring_group(rg_id: int, session: Session = Depends(get_session))
         raise HTTPException(status_code=404, detail="Ring group not found")
     session.delete(existing)
     session.commit()
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        f"ring_groups.delete:{existing.number}",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return {"ok": True}

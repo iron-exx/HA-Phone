@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import Route
+from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
 
@@ -21,8 +22,13 @@ async def create_route(route: Route, session: Session = Depends(get_session)):
     session.add(route)
     session.commit()
     session.refresh(route)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "routes.create",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return route
 
 
@@ -39,8 +45,13 @@ async def update_route(
     session.add(existing)
     session.commit()
     session.refresh(existing)
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "routes.update",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return existing
 
 
@@ -51,6 +62,11 @@ async def delete_route(route_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Route not found")
     session.delete(existing)
     session.commit()
-    _regenerate_routing_conf(session)
-    await ami.ami_reload_dialplan()
+    summary = run_single_regeneration_step(
+        "routes.delete",
+        "routing",
+        lambda: _regenerate_routing_conf(session),
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
     return {"ok": True}
