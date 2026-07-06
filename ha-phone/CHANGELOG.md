@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.62
+
+**Feature - Diagnose zeigt jetzt Live-SIP-Status statt nur PCAP**
+- Die Diagnose-Seite zeigt jetzt neben dem Netzwerk-Trace auch Live-Daten aus Asterisk/AMI: Trunk-Status, Trunk-Details, registrierte Nebenstellen mit Kontakt-/Erreichbarkeitsdaten und aktive Kanaele.
+- Dadurch laesst sich bei "geht nicht" deutlich schneller sehen, ob ein Geraet wirklich registriert ist, welche Contact-URI Asterisk kennt und in welchem Dialplan-Kontext ein aktueller Kanal gerade laeuft.
+
+**Test - Regressionsschutz fuer Provisioning- und Template-Bugs**
+- Neue Regressionstests sichern die kritischen Formatfehler der letzten Session ab: Linphone-Provisioning-XML, QR-/`linphone-config:`-Verhalten, `trust_id_outbound`, Trunk-Template mit getrennter Rufnummer/Auth-Username und Port-Handling.
+- Ziel ist, genau die zuletzt mehrfach aufgetretenen "funktionierte eben noch, jetzt nicht mehr"-Fehler kuenftig vor dem Push abzufangen.
+
 ## 0.7.61
 
 **Fix (kritisch) - Interne Anrufe kamen als "Anonymous" an**
