@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, Download, Square, Trash2, Wifi } from "lucide-react";
+import { Activity, Download, PhoneCall, ServerCog, Square, Trash2, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import type { DiagnosticsOverview } from "@/types/api";
 
 interface TraceStatus {
   running: boolean;
@@ -32,6 +33,7 @@ function formatDuration(seconds: number): string {
 
 export default function Diagnostics() {
   const [status, setStatus] = useState<TraceStatus>({ running: false, file_ready: false, size_bytes: 0, started_at: null, file_mtime: null });
+  const [overview, setOverview] = useState<DiagnosticsOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -47,9 +49,25 @@ export default function Diagnostics() {
     } catch { /* ignore */ }
   }
 
+  async function fetchOverview() {
+    try {
+      const resp = await fetch("/api/diagnostics/overview");
+      if (resp.ok) {
+        const data: DiagnosticsOverview = await resp.json();
+        setOverview(data);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   useEffect(() => {
     fetchStatus();
-    pollRef.current = setInterval(fetchStatus, 3000);
+    fetchOverview();
+    pollRef.current = setInterval(() => {
+      fetchStatus();
+      fetchOverview();
+    }, 3000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -119,6 +137,16 @@ export default function Diagnostics() {
     window.location.href = `${ingress}/api/trace/download`;
   }
 
+  function formatMicros(value: number | null): string {
+    if (value === null) return "–";
+    return `${(value / 1000).toFixed(1)} ms`;
+  }
+
+  const onlineExtensions = overview?.extensions.filter((item) => item.status === "Online").length ?? 0;
+  const trunkDebugEntries = overview
+    ? Object.entries(overview.trunk_debug).filter(([, value]) => String(value ?? "").trim() !== "")
+    : [];
+
   return (
     <div className="space-y-8">
 
@@ -126,6 +154,161 @@ export default function Diagnostics() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Diagnose</h1>
         <p className="mt-1 text-sm text-muted-foreground">Netzwerk-Trace aufzeichnen und analysieren</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="glass rounded-xl p-5">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+              <ServerCog className="h-4 w-4 text-violet-300" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Trunk</p>
+              <p className="text-lg font-semibold text-foreground">{overview?.trunk_status ?? "Lädt..."}</p>
+            </div>
+          </div>
+          {trunkDebugEntries.length > 0 && (
+            <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+              {trunkDebugEntries.slice(0, 4).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between gap-3">
+                  <span className="truncate">{key}</span>
+                  <span className="truncate font-mono text-foreground">{String(value)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="glass rounded-xl p-5">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+              <Wifi className="h-4 w-4 text-emerald-300" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Nebenstellen online</p>
+              <p className="text-lg font-semibold text-foreground">
+                {onlineExtensions} / {overview?.extensions.length ?? 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass rounded-xl p-5">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+              <PhoneCall className="h-4 w-4 text-sky-300" />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Aktive Gespräche</p>
+              <p className="text-lg font-semibold text-foreground">{overview?.active_calls ?? 0}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass rounded-xl">
+        <div
+          className="flex items-center justify-between border-b px-6 py-4"
+          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        >
+          <div>
+            <p className="text-sm font-semibold text-foreground">Nebenstellen live</p>
+            <p className="text-xs text-muted-foreground">Registrierung, Kontakt und Erreichbarkeit direkt aus Asterisk</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto p-6">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead>
+              <tr className="border-b border-white/5 text-left text-xs uppercase tracking-widest text-muted-foreground">
+                <th className="pb-3 font-medium">Nr.</th>
+                <th className="pb-3 font-medium">Status</th>
+                <th className="pb-3 font-medium">Gerätezustand</th>
+                <th className="pb-3 font-medium">Kontakte</th>
+                <th className="pb-3 font-medium">Kontakt</th>
+                <th className="pb-3 font-medium">Latenz</th>
+                <th className="pb-3 font-medium">Kanäle</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(overview?.extensions ?? []).map((extension) => (
+                <tr key={extension.number} className="border-b border-white/5 last:border-0">
+                  <td className="py-3 font-mono text-violet-300">{extension.number}</td>
+                  <td className="py-3">
+                    <span className={extension.status === "Online" ? "text-emerald-300" : "text-slate-400"}>
+                      {extension.status}
+                    </span>
+                  </td>
+                  <td className="py-3 text-muted-foreground">{extension.device_state || "–"}</td>
+                  <td className="py-3 text-muted-foreground">
+                    {extension.contacts}
+                    {extension.contact_status ? ` · ${extension.contact_status}` : ""}
+                  </td>
+                  <td className="py-3 font-mono text-xs text-muted-foreground">{extension.contact_uri || "–"}</td>
+                  <td className="py-3 text-muted-foreground">{formatMicros(extension.roundtrip_usec)}</td>
+                  <td className="py-3 text-muted-foreground">{extension.active_channels}</td>
+                </tr>
+              ))}
+              {(overview?.extensions.length ?? 0) === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
+                    Noch keine Live-Daten für Nebenstellen verfügbar.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="glass rounded-xl">
+        <div
+          className="flex items-center justify-between border-b px-6 py-4"
+          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        >
+          <div>
+            <p className="text-sm font-semibold text-foreground">Aktive Kanäle</p>
+            <p className="text-xs text-muted-foreground">Laufende Gespräche und ihr aktueller Dialplan-Pfad</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto p-6">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b border-white/5 text-left text-xs uppercase tracking-widest text-muted-foreground">
+                <th className="pb-3 font-medium">Kanal</th>
+                <th className="pb-3 font-medium">Von</th>
+                <th className="pb-3 font-medium">Nach</th>
+                <th className="pb-3 font-medium">Status</th>
+                <th className="pb-3 font-medium">Kontext</th>
+                <th className="pb-3 font-medium">App</th>
+                <th className="pb-3 font-medium">Dauer</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(overview?.channels ?? []).map((channel) => (
+                <tr key={channel.channel} className="border-b border-white/5 last:border-0">
+                  <td className="py-3 font-mono text-xs text-muted-foreground">{channel.channel}</td>
+                  <td className="py-3 text-muted-foreground">
+                    {[channel.caller_id_num, channel.caller_id_name].filter(Boolean).join(" " ) || "–"}
+                  </td>
+                  <td className="py-3 text-muted-foreground">
+                    {[channel.connected_line_num, channel.connected_line_name].filter(Boolean).join(" " ) || channel.extension || "–"}
+                  </td>
+                  <td className="py-3 text-muted-foreground">{channel.state || "–"}</td>
+                  <td className="py-3 font-mono text-xs text-muted-foreground">{channel.context || "–"}</td>
+                  <td className="py-3 text-muted-foreground">{channel.application || "–"}</td>
+                  <td className="py-3 text-muted-foreground">{channel.duration || "–"}</td>
+                </tr>
+              ))}
+              {(overview?.channels.length ?? 0) === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
+                    Im Moment laufen keine Gespräche.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Capture card */}

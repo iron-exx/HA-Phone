@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from backend import ami
 
 router = APIRouter()
 
@@ -73,6 +74,22 @@ async def trace_status():
         # mtime of the capture = when it finished recording. Lets the UI label each
         # trace with its time so multiple captures aren't confused.
         "file_mtime": stat.st_mtime if stat else None,
+    }
+
+
+@router.get("/diagnostics/overview")
+async def diagnostics_overview():
+    trunk_status = await ami.get_trunk_status()
+    trunk_debug = await ami.get_trunk_debug()
+    extensions = await ami.get_extension_diagnostics()
+    active_calls = await ami.get_active_call_count()
+    channels = await ami.get_active_channel_details()
+    return {
+        "trunk_status": trunk_status,
+        "trunk_debug": trunk_debug,
+        "extensions": extensions,
+        "active_calls": active_calls,
+        "channels": channels,
     }
 
 

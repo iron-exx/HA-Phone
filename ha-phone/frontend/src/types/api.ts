@@ -38,6 +38,40 @@ export interface TrunkStatus {
   status: "Registered" | "Unregistered" | "Rejected" | "Forbidden" | "Unreachable" | "UNKNOWN";
 }
 
+export interface ExtensionDiagnostic {
+  number: string;
+  status: "Online" | "Offline";
+  device_state: string;
+  active_channels: number;
+  aor: string;
+  contacts: number;
+  contact_status: string;
+  contact_uri: string;
+  roundtrip_usec: number | null;
+  user_agent: string;
+}
+
+export interface ChannelDiagnostic {
+  channel: string;
+  state: string;
+  caller_id_num: string;
+  caller_id_name: string;
+  connected_line_num: string;
+  connected_line_name: string;
+  application: string;
+  context: string;
+  extension: string;
+  duration: string;
+}
+
+export interface DiagnosticsOverview {
+  trunk_status: TrunkStatus["status"];
+  trunk_debug: Record<string, string>;
+  extensions: ExtensionDiagnostic[];
+  active_calls: number;
+  channels: ChannelDiagnostic[];
+}
+
 export interface PublicIPSettings {
   ip: string | null;
   detected_at: string | null;

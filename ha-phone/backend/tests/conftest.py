@@ -24,11 +24,16 @@ def mock_ami():
          patch("backend.ami.ami_reload_dialplan", new_callable=AsyncMock) as mock_dialplan, \
          patch("backend.ami.ami_reload_voicemail", new_callable=AsyncMock) as mock_vm, \
          patch("backend.ami.get_trunk_status", new_callable=AsyncMock, return_value="Registered") as mock_status, \
+         patch("backend.ami.get_trunk_debug", new_callable=AsyncMock, return_value={"Status": "Registered"}) as mock_trunk_debug, \
          patch("backend.ami.get_extension_statuses", new_callable=AsyncMock, return_value=[]) as mock_exts, \
-         patch("backend.ami.get_active_call_count", new_callable=AsyncMock, return_value=0) as mock_calls:
+         patch("backend.ami.get_extension_diagnostics", new_callable=AsyncMock, return_value=[]) as mock_ext_diag, \
+         patch("backend.ami.get_active_call_count", new_callable=AsyncMock, return_value=0) as mock_calls, \
+         patch("backend.ami.get_active_channel_details", new_callable=AsyncMock, return_value=[]) as mock_channels:
         yield {"reload_pjsip": mock_reload, "reload_dialplan": mock_dialplan,
                "reload_voicemail": mock_vm, "trunk_status": mock_status,
-               "ext_statuses": mock_exts, "active_calls": mock_calls}
+               "trunk_debug": mock_trunk_debug, "ext_statuses": mock_exts,
+               "ext_diagnostics": mock_ext_diag, "active_calls": mock_calls,
+               "channel_details": mock_channels}
 
 @pytest.fixture
 def client(tmp_data_dir, mock_ami):

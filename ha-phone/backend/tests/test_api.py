@@ -184,6 +184,55 @@ def test_active_calls(client):
     assert isinstance(data["count"], int)
 
 
+def test_diagnostics_overview(client, mock_ami):
+    mock_ami["trunk_status"].return_value = "Registered"
+    mock_ami["trunk_debug"].return_value = {
+        "Status": "Registered",
+        "NextReg": "2026-07-06 15:30:00",
+    }
+    mock_ami["ext_diagnostics"].return_value = [
+        {
+            "number": "11",
+            "status": "Online",
+            "device_state": "Not in use",
+            "active_channels": 0,
+            "aor": "11",
+            "contacts": 1,
+            "contact_status": "Reachable",
+            "contact_uri": "sip:11@192.168.7.50:5060",
+            "roundtrip_usec": 3200,
+            "user_agent": "MicroSIP",
+        }
+    ]
+    mock_ami["active_calls"].return_value = 1
+    mock_ami["channel_details"].return_value = [
+        {
+            "channel": "PJSIP/11-00000001",
+            "state": "Up",
+            "caller_id_num": "11",
+            "caller_id_name": "sandro",
+            "connected_line_num": "12",
+            "connected_line_name": "larissa",
+            "application": "Dial",
+            "context": "from-internal",
+            "extension": "12",
+            "duration": "00:00:04",
+        }
+    ]
+
+    resp = client.get("/api/diagnostics/overview")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["trunk_status"] == "Registered"
+    assert data["trunk_debug"]["Status"] == "Registered"
+    assert data["active_calls"] == 1
+    assert len(data["extensions"]) == 1
+    assert data["extensions"][0]["number"] == "11"
+    assert data["extensions"][0]["contact_status"] == "Reachable"
+    assert len(data["channels"]) == 1
+    assert data["channels"][0]["channel"] == "PJSIP/11-00000001"
+
+
 def test_time_condition_crud(client, tmp_data_dir):
     """TimeCondition CRUD: POST creates, PATCH updates, DELETE removes."""
     # Create

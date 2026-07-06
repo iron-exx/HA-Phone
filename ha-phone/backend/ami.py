@@ -176,6 +176,85 @@ async def get_extension_statuses() -> list[dict]:
         return []
 
 
+async def get_extension_diagnostics() -> list[dict]:
+    try:
+        async with asyncio.timeout(_AMI_TIMEOUT):
+            manager = await _get_manager()
+            endpoint_responses = await manager.send_action(
+                {"Action": "PJSIPShowEndpoints"}, as_list=True
+            )
+            contact_responses = await manager.send_action(
+                {"Action": "PJSIPShowContacts"}, as_list=True
+            )
+
+        endpoints: dict[str, dict] = {}
+        for r in endpoint_responses:
+            if r.get("Event") != "EndpointList":
+                continue
+            name = r.get("ObjectName", "")
+            if not name.isdigit():
+                continue
+            endpoints[name] = {
+                "number": name,
+                "status": (
+                    "Online"
+                    if r.get("DeviceState", "") == "Not in use"
+                    else "Offline"
+                ),
+                "device_state": r.get("DeviceState", "UNKNOWN"),
+                "active_channels": int(r.get("ActiveChannels", 0) or 0),
+                "aor": r.get("Aor", ""),
+                "contacts": int(r.get("Contacts", 0) or 0),
+                "contact_status": "",
+                "contact_uri": "",
+                "roundtrip_usec": None,
+                "user_agent": "",
+            }
+
+        for r in contact_responses:
+            if r.get("Event") != "ContactList":
+                continue
+            endpoint_name = (
+                r.get("EndpointName")
+                or r.get("ObjectName")
+                or r.get("AOR")
+                or r.get("Aor")
+                or ""
+            )
+            endpoint_name = str(endpoint_name).split("/")[0]
+            if not endpoint_name.isdigit():
+                continue
+            existing = endpoints.get(endpoint_name)
+            if existing is None:
+                continue
+            existing["contact_status"] = (
+                r.get("Status")
+                or r.get("ContactStatus")
+                or existing["contact_status"]
+            )
+            existing["contact_uri"] = (
+                r.get("URI")
+                or r.get("Uri")
+                or r.get("Contact")
+                or existing["contact_uri"]
+            )
+            roundtrip = r.get("RoundtripUsec") or r.get("Roundtrip")
+            try:
+                existing["roundtrip_usec"] = int(roundtrip) if roundtrip not in (None, "") else None
+            except (TypeError, ValueError):
+                existing["roundtrip_usec"] = None
+            existing["user_agent"] = (
+                r.get("UserAgent")
+                or r.get("Useragent")
+                or existing["user_agent"]
+            )
+
+        return [endpoints[number] for number in sorted(endpoints, key=int)]
+    except Exception as exc:
+        _log.warning("AMI extension diagnostics unavailable: %s", exc)
+        return []
+
+
 async def get_active_call_count() -> int:
     try:
         async with asyncio.timeout(_AMI_TIMEOUT):
@@ -187,3 +266,34 @@ async def get_active_call_count() -> int:
     except Exception as exc:
         _log.warning("AMI active call count unavailable: %s", exc)
         return 0
+
+
+async def get_active_channel_details() -> list[dict]:
+    try:
+        async with asyncio.timeout(_AMI_TIMEOUT):
+            manager = await _get_manager()
+            responses = await manager.send_action(
+                {"Action": "CoreShowChannels"}, as_list=True
+            )
+        result = []
+        for r in responses:
+            if r.get("Event") != "CoreShowChannel":
+                continue
+            result.append(
+                {
+                    "channel": r.get("Channel", ""),
+                    "state": r.get("ChannelStateDesc", ""),
+                    "caller_id_num": r.get("CallerIDNum", ""),
+                    "caller_id_name": r.get("CallerIDName", ""),
+                    "connected_line_num": r.get("ConnectedLineNum", ""),
+                    "connected_line_name": r.get("ConnectedLineName", ""),
+                    "application": r.get("Application", ""),
+                    "context": r.get("Context", ""),
+                    "extension": r.get("Extension", ""),
+                    "duration": r.get("Duration", ""),
+                }
+            )
+        return result
+    except Exception as exc:
+        _log.warning("AMI active channel details unavailable: %s", exc)
+        return []
