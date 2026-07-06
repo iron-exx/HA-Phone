@@ -50,6 +50,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  buildLinphoneConfigUri,
+  buildLinphoneQrPayload,
+  buildProvisioningUrl,
+} from "@/lib/linphoneProvisioning";
 
 // ---- Zod schema ----
 const extensionSchema = z.object({
@@ -84,23 +89,6 @@ function getExtensionRingGroupIds(extension: Extension, ringGroups: RingGroup[])
 
 function toggleRingGroupId(ids: number[], id: number) {
   return ids.includes(id) ? ids.filter((current) => current !== id) : [...ids, id];
-}
-
-function buildProvisioningUrl(path: string) {
-  // HA-Phone's backend listens on plain HTTP port 80 (the ingress port), so a
-  // phone/softphone reaching it directly on the LAN needs no port at all -
-  // same as SIP registration defaulting to port 5060. Always force http: even
-  // if this admin page is itself loaded over https via HA ingress/a tunnel,
-  // since port 80 here never speaks TLS.
-  return `http://${window.location.hostname}${path}`;
-}
-
-function buildLinphoneConfigUri(path: string) {
-  // Linphone's remote-provisioning URI is "linphone-config:" + the full config
-  // URL (which already contains its own "://") - a SINGLE colon separator, not
-  // "linphone-config://". The extra slashes produced an invalid URI that neither
-  // the QR scanner nor a manual "open" could resolve.
-  return `linphone-config:${buildProvisioningUrl(path)}`;
 }
 
 function buildExtensionNumbers(group: RingGroup, extensionNumber: number, selected: boolean) {
@@ -644,7 +632,7 @@ function LinphoneQrDialog({
         // "linphone-config:" wrapped form, which it rejects as "invalid URI".
         // The linphone-config: scheme is only for clickable links that launch
         // the app via the OS (see openInLinphone below).
-        const dataUrl = await QRCode.toDataURL(buildProvisioningUrl(data.provisioning_path), {
+        const dataUrl = await QRCode.toDataURL(buildLinphoneQrPayload(data.provisioning_path), {
           width: 320,
           margin: 2,
           color: {

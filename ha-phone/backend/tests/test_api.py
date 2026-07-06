@@ -121,12 +121,14 @@ def test_linphone_qr_metadata_and_public_provisioning(client):
     assert '<section name="proxy_0">' in xml
     assert "sip:21@testserver" in xml
     assert 'xmlns="http://www.linphone.org/xsds/lpconfig.xsd"' in xml
-    assert "testserver;transport=udp" in xml
-    assert "testserver;transport=udp;lr" in xml
+    assert "&lt;sip:testserver;transport=udp&gt;" in xml
+    assert "&lt;sip:testserver;transport=udp;lr&gt;" in xml
     assert '<entry name="realm" overwrite="true">testserver</entry>' in xml
     assert "securepass1234567" in xml
     assert '<entry name="enabled" overwrite="true">1</entry>' in xml
     assert '<entry name="capture" overwrite="true">1</entry>' in xml
+    assert '<entry name="push_notification_allowed" overwrite="true">0</entry>' in xml
+    assert '<entry name="remote_push_notification_allowed" overwrite="true">0</entry>' in xml
 
 
 def test_trunk_ami_reload(client, mock_ami):
@@ -381,6 +383,7 @@ def test_doorbell_extension_conf(client, mock_ami, tmp_data_dir):
     assert "allow             = h264" in stanza
     assert "max_video_streams = 1" in stanza
     assert "context           = from-internal" in stanza
+    assert "trust_id_outbound = yes" in stanza
     assert "max_video_streams = 0" not in stanza
 
 
@@ -465,6 +468,77 @@ def test_outbound_plus_pattern_is_rendered(client, tmp_data_dir):
     content = conf_path.read_text()
     assert "exten => _+X.,1,NoOp(Outbound via SIP trunk (E.164): ${EXTEN})" in content
     assert "same => n,Goto(outbound-pstn,${EXTEN:1},1)" in content
+
+
+def test_trunk_conf_keeps_auth_username_separate_from_registered_number(client, tmp_data_dir):
+    """Registration identity must stay the phone number while auth uses the provider account."""
+    resp = client.post(
+        "/api/trunk",
+        json={
+            "registrar_host": "sip.example.com",
+            "port": 5060,
+            "transport": "udp",
+            "domain": "voice.example.net",
+            "auth_username": "30501827343",
+            "password": "mysecretpassword",
+            "phone_number": "063483260104",
+            "reg_refresh": 60,
+        },
+    )
+    assert resp.status_code == 200
+    conf_path = tmp_data_dir / "asterisk" / "pjsip_trunk.conf"
+    content = conf_path.read_text()
+    assert "server_uri = sip:sip.example.com" in content
+    assert "client_uri = sip:063483260104@voice.example.net" in content
+    assert "contact_user = 063483260104" in content
+    assert "username = 30501827343" in content
+    assert "from_user = 063483260104" in content
+    assert "from_domain = voice.example.net" in content
+    assert "send_pai = yes" in content
+    assert "send_rpid = yes" in content
+    assert "trust_id_inbound = yes" in content
+
+
+def test_trunk_conf_omits_default_port_but_keeps_custom_port(client, tmp_data_dir):
+    """SRV lookup requires omitting :5060, but custom ports must still be rendered."""
+    resp = client.post(
+        "/api/trunk",
+        json={
+            "registrar_host": "sip.example.com",
+            "port": 5060,
+            "transport": "udp",
+            "domain": "",
+            "auth_username": "123456789",
+            "password": "mysecretpassword",
+            "phone_number": "049123456789",
+            "reg_refresh": 60,
+        },
+    )
+    assert resp.status_code == 200
+    conf_path = tmp_data_dir / "asterisk" / "pjsip_trunk.conf"
+    content = conf_path.read_text()
+    assert "server_uri = sip:sip.example.com" in content
+    assert "server_uri = sip:sip.example.com:5060" not in content
+    assert "contact = sip:sip.example.com" in content
+    assert "contact = sip:sip.example.com:5060" not in content
+
+    resp = client.post(
+        "/api/trunk",
+        json={
+            "registrar_host": "sip.example.com",
+            "port": 5070,
+            "transport": "udp",
+            "domain": "",
+            "auth_username": "123456789",
+            "password": "mysecretpassword",
+            "phone_number": "049123456789",
+            "reg_refresh": 60,
+        },
+    )
+    assert resp.status_code == 200
+    content = conf_path.read_text()
+    assert "server_uri = sip:sip.example.com:5070" in content
+    assert "contact = sip:sip.example.com:5070" in content
 
 
 def test_extension_numbers_validation(client, mock_ami):
