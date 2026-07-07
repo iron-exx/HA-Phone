@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.66
+
+**Feature - IVR-Audio-Upload normalisiert jetzt auf das von Asterisk erwartete Format (loest D7, Roadmap Phase A.6)**
+- Hochgeladene WAV-Greetings wurden bisher nur an der Dateiendung `.wav` erkannt, nicht auf Samplerate/Kanaele/Bittiefe geprueft. Eine aus Audacity oder vom Handy exportierte Datei (typischerweise 44.1kHz Stereo) wird von Asterisks `Background()` nicht sauber abgespielt.
+- Der Upload wird jetzt serverseitig per `sox` auf 8kHz/Mono/16-Bit PCM normalisiert - das Standardformat fuer Asterisk-Sounds.
+- Dateien, die sox gar nicht als Audio lesen kann (z.B. eine `.wav`-umbenannte Textdatei), werden mit klarer Fehlermeldung abgelehnt statt unbrauchbar gespeichert zu werden. Leere Uploads ebenso.
+- 3 neue Regressionstests, inkl. eines Tests mit einer echten 44.1kHz-Stereo-WAV, der die tatsaechliche Sox-Konvertierung prueft (kein Mock).
+- CI installiert `sox` jetzt auch im Test-Job (war schon im Docker-Image, fehlte aber auf dem GitHub-Actions-Runner).
+
 ## 0.7.65
 
 **Fix + Refactor - Zentraler Numbering-Space-Dienst (loest D5, Roadmap Phase A.1)**

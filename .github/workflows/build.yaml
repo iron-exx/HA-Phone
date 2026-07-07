@@ -30,6 +30,9 @@ jobs:
         working-directory: ha-phone
         run: pip install -r backend/requirements.txt
 
+      - name: Install sox
+        run: sudo apt-get update && sudo apt-get install -y sox
+
       - name: Run backend tests
         working-directory: ha-phone
         run: python -m pytest backend/tests -q

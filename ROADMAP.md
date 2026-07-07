@@ -43,7 +43,7 @@ Diese Liste ist der eigentliche Input fuer Phase A. Eine Roadmap, die nur "Stabi
 | D4 | `Routing.tsx::getRouteDestinationOptions` | Rufgruppen ohne eigene interne Durchwahl (`number=0`, z.B. Altbestaende nach Migration von vor 0.7.40) waren im Ziel-Dropdown fuer eingehende Routen unsichtbar, obwohl die Route ueber die DB-ID laeuft, nicht die Nummer. | behoben in 0.7.42 |
 | D5 | `ring_groups.py` + `ivr.py` | Zwei fast identische `_validate_*_number`-Funktionen, jede prueft unabhaengig gegen Extension + RingGroup + IVRMenu. `extensions.py` hatte gar keine Cross-Table-Pruefung, `ring_groups.py` prueft nie gegen IVRMenu - zwei zusaetzliche Luecken beim Konsolidieren gefunden. | **behoben in 0.7.65** (`backend/numbering.py`) |
 | D6 | Boot-Skript `10-asterisk-init.sh` | Alle Config-Regenerierungen (Extensions, Voicemail, Routing, Mail, Trunk) liefen in einem einzigen Python-Block ohne Isolation. Ein Fehler in einer Regenerierung (siehe D1) verhinderte stillschweigend auch alle anderen, inklusive Trunk und Mail. | **behoben in 0.7.63** (`regeneration.py`, pro Schritt isoliert + Dashboard-Statusbanner) |
-| D7 | `ivr.py::upload_greeting` | Prueft nur die Dateiendung `.wav`, validiert/konvertiert aber nicht Samplerate/Kanaele/Codec. Eine aus Audacity oder vom Handy exportierte WAV (z.B. 44.1kHz Stereo) wird von Asterisk `Background()` nicht sauber abgespielt. `sox` ist bereits im Image installiert -> Konvertierung ist ein kleiner, klar umrissener Fix. | offen -> Phase A, Punkt 6 |
+| D7 | `ivr.py::upload_greeting` | Pruefte nur die Dateiendung `.wav`, validierte/konvertierte aber nicht Samplerate/Kanaele/Codec. Eine aus Audacity oder vom Handy exportierte WAV (z.B. 44.1kHz Stereo) wurde von Asterisk `Background()` nicht sauber abgespielt. | **behoben in 0.7.66** (`_normalize_greeting_wav` via `sox`) |
 | D8 | `models.py` (`Trunk.password`, `SmtpSettings.password`, `Extension.sip_password`) | Alle Zugangsdaten liegen im Klartext in SQLite. Fuer den aktuellen Single-Host-Betrieb tolerierbar, wird aber zum Problem, sobald Backup/Export (Phase B) existiert. | offen -> Entscheidung noetig vor Phase B, Punkt 4 |
 | D9 | Keine Locking-Strategie um `_regenerate_routing_conf` / Boot-Regenerierung | Zwei gleichzeitige Schreibvorgaenge (zwei Admin-Tabs, oder ein Request waehrend des Boots) koennen die generierten Dateien in unvorhersehbarer Reihenfolge ueberschreiben. `render_conf` selbst schreibt atomar (Temp-Datei + `os.replace`), es gibt aber keine Sperre ueber die gesamte DB-Lese- plus Render-Sequenz. | offen -> Phase A, Beobachtung, kein Blocker |
 | D10 | GitHub Actions `build.yaml` | Baut und pusht das Multi-Arch-Image, fuehrt aber weder Backend-Tests (`pytest`) noch Frontend-Typecheck (`tsc --noEmit`) vorher aus. Ist bereits einmal live eingetreten: der 0.7.42-Build brach im Docker-CI an unbenutzten TS-Imports, die lokal nicht auffielen (siehe 0.7.43-Changelog-Eintrag). | **behoben in 0.7.64** -> Phase A, Punkt 5 |
@@ -110,9 +110,10 @@ Pflichtpunkte, jeweils mit Fertig-Kriterium:
 - GitHub Actions fuehrt jetzt Backend-Tests (`pytest`) und Frontend-Typecheck+Build (`tsc -b && vite build`) sowie Frontend-Tests (`vitest run`) als eigenen `test`-Job aus, den der `build`-Job per `needs:` voraussetzt - ein fehlschlagender Test/Typecheck verhindert den Image-Build komplett.
 - Zusaetzlich `image:`-Feld in `config.yaml` seit 0.7.56 (loest D11) - Updates sind seitdem ein Registry-Pull (~30s) statt eines lokalen Asterisk-Kompilierlaufs (mehrere Minuten).
 
-**6. IVR-Audio-Upload robust machen (loest D7)**
-- Hochgeladene WAV-Dateien serverseitig mit dem bereits vorhandenen `sox` auf das von Asterisk erwartete Format normalisieren (Samplerate, Mono, passender Codec), statt nur die Dateiendung zu pruefen.
-- *Fertig, wenn:* eine 44.1kHz-Stereo-WAV nach Upload hoerbar im IVR abgespielt wird.
+**6. IVR-Audio-Upload robust machen (loest D7) - ERLEDIGT in 0.7.66**
+- Hochgeladene WAV-Dateien werden serverseitig mit `sox` auf 8kHz/Mono/16-Bit normalisiert, statt nur die Dateiendung zu pruefen.
+- Nicht-Audio-Uploads (kaputte Datei, `.wav`-umbenannte Textdatei) werden mit klarer Fehlermeldung abgelehnt.
+- 3 Regressionstests, davon einer mit echter Sox-Konvertierung (keine Mocks).
 
 **7. UI-Grundqualitaet verbessern**
 - Alle Dialoge, Dropdowns und Tabellen konsistent dunkel und lesbar.
@@ -288,16 +289,15 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65) - alle drei waren hier Ticket 1-3, sind raus.
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66) - alle vier waren hier Ticket 1-4, sind raus.
 
 1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
 2. Routing-Regressionstests erweitern, insbesondere: IVR + gleichzeitiges Anlegen von Extension/Rufgruppe/Route (genau das Szenario aus D1) - Grundstock existiert bereits (`test_api.py`), Matrix noch nicht vollstaendig
-3. IVR-Audio-Upload mit `sox` normalisieren (D7, klein und unabhaengig, kann jederzeit zwischengeschoben werden)
-4. Referenzielle Integritaet bei Loeschungen klaeren (Route zeigt auf geloeschte Rufgruppe/IVR)
-5. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
-6. Secrets-Entscheidung fuer Backup treffen, dann Backup/Restore entwerfen
-7. Telefonbuch-Datenmodell und CRUD bauen
-8. Sprachansagen als wiederverwendbare Objekte einfuehren
+3. Referenzielle Integritaet bei Loeschungen klaeren (Route zeigt auf geloeschte Rufgruppe/IVR)
+4. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
+5. Secrets-Entscheidung fuer Backup treffen, dann Backup/Restore entwerfen
+6. Telefonbuch-Datenmodell und CRUD bauen
+7. Sprachansagen als wiederverwendbare Objekte einfuehren
 
 ## 12. Entscheidung
 

@@ -1,5 +1,7 @@
+import asyncio
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import List
 
@@ -15,6 +17,15 @@ from backend import ami
 
 router = APIRouter()
 
+# Asterisk's Background()/Playback() expect 8kHz mono 16-bit PCM WAV (the classic
+# "asterisk sound" format) - it transcodes from there to whatever codec the call
+# negotiated. A greeting exported from Audacity or a phone's voice memo app is
+# typically 44.1kHz stereo and plays back distorted/at the wrong speed, or not at
+# all, without this normalization (D7).
+GREETING_SAMPLE_RATE = "8000"
+GREETING_CHANNELS = "1"
+GREETING_BIT_DEPTH = "16"
+
 
 def _data_dir() -> Path:
     d = os.environ.get("BPX_DATA_DIR", "")
@@ -26,6 +37,37 @@ def _ivr_dir() -> Path:
     d = _data_dir() / "sounds" / "custom" / "ivr"
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+async def _normalize_greeting_wav(raw_bytes: bytes, dest_path: Path) -> None:
+    """Convert an uploaded WAV to 8kHz/mono/16-bit PCM via sox and write it to
+    `dest_path`. Raises HTTPException(422) if the upload isn't audio sox can
+    read at all (corrupt file, wrong format wearing a .wav extension)."""
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_in:
+        tmp_in.write(raw_bytes)
+        tmp_in_path = Path(tmp_in.name)
+
+    tmp_out_path = tmp_in_path.with_suffix(".normalized.wav")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "sox", str(tmp_in_path),
+            "-r", GREETING_SAMPLE_RATE,
+            "-c", GREETING_CHANNELS,
+            "-b", GREETING_BIT_DEPTH,
+            str(tmp_out_path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0 or not tmp_out_path.exists():
+            raise HTTPException(
+                status_code=422,
+                detail=f"Could not read uploaded file as audio: {stderr.decode(errors='replace').strip()[:200]}",
+            )
+        dest_path.write_bytes(tmp_out_path.read_bytes())
+    finally:
+        tmp_in_path.unlink(missing_ok=True)
+        tmp_out_path.unlink(missing_ok=True)
 
 
 def _validate_ivr_number(ivr: IVRMenu, session: Session, existing_id: int | None = None) -> None:
@@ -173,7 +215,9 @@ async def upload_greeting(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
 ):
-    """Upload a WAV greeting file for an IVR menu."""
+    """Upload a WAV greeting file for an IVR menu. Normalized server-side to the
+    8kHz/mono/16-bit format Asterisk expects (D7) - accepts any sample rate,
+    channel count, or bit depth sox can read, not just already-correct WAVs."""
     ivr = session.get(IVRMenu, ivr_id)
     if not ivr:
         raise HTTPException(status_code=404, detail="IVR menu not found")
@@ -182,11 +226,13 @@ async def upload_greeting(
     if not file.filename or not file.filename.lower().endswith(".wav"):
         raise HTTPException(status_code=422, detail="Only WAV files are accepted")
 
-    # Save file
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty")
+
     filename = f"ivr_{ivr_id}_greeting.wav"
     filepath = _ivr_dir() / filename
-    content = await file.read()
-    filepath.write_bytes(content)
+    await _normalize_greeting_wav(content, filepath)
 
     # Update IVR record
     ivr.greeting_file = filename

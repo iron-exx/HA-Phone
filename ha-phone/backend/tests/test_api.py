@@ -851,6 +851,80 @@ def test_ivr_submenu_cannot_point_to_itself(client):
     assert resp.status_code == 422
 
 
+def _make_wav_bytes(sample_rate: int, channels: int, sample_width: int = 2, seconds: float = 0.2) -> bytes:
+    """Build a real, valid WAV file in memory so upload tests exercise actual
+    sox conversion instead of just checking the file extension."""
+    import io
+    import wave
+
+    n_frames = int(sample_rate * seconds)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wav_file:
+        wav_file.setnchannels(channels)
+        wav_file.setsampwidth(sample_width)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(b"\x00" * n_frames * channels * sample_width)
+    return buf.getvalue()
+
+
+def test_ivr_greeting_upload_normalizes_sample_rate_and_channels(client, tmp_data_dir):
+    """D7: a 44.1kHz stereo WAV (typical Audacity/phone export) must be
+    converted to the 8kHz mono format Asterisk's Background() expects,
+    not just accepted as-is because the extension is .wav."""
+    import wave
+
+    resp = client.post("/api/ivrs", json={
+        "number": 60, "name": "Greeting Test", "timeout": 10, "max_invalid_tries": 3, "options": "[]",
+    })
+    assert resp.status_code == 200
+    ivr_id = resp.json()["id"]
+
+    wav_bytes = _make_wav_bytes(sample_rate=44100, channels=2)
+    resp = client.post(
+        f"/api/ivrs/{ivr_id}/greeting",
+        files={"file": ("greeting.wav", wav_bytes, "audio/wav")},
+    )
+    assert resp.status_code == 200
+    filename = resp.json()["filename"]
+
+    stored_path = tmp_data_dir / "sounds" / "custom" / "ivr" / filename
+    assert stored_path.exists()
+    with wave.open(str(stored_path), "rb") as wav_file:
+        assert wav_file.getframerate() == 8000
+        assert wav_file.getnchannels() == 1
+        assert wav_file.getsampwidth() == 2
+
+
+def test_ivr_greeting_upload_rejects_non_audio_content(client):
+    """A .wav-named file that isn't actually audio must be rejected, not
+    silently stored as a greeting Asterisk can't play."""
+    resp = client.post("/api/ivrs", json={
+        "number": 61, "name": "Bad Upload", "timeout": 10, "max_invalid_tries": 3, "options": "[]",
+    })
+    assert resp.status_code == 200
+    ivr_id = resp.json()["id"]
+
+    resp = client.post(
+        f"/api/ivrs/{ivr_id}/greeting",
+        files={"file": ("greeting.wav", b"this is not a wav file", "audio/wav")},
+    )
+    assert resp.status_code == 422
+
+
+def test_ivr_greeting_upload_rejects_empty_file(client):
+    resp = client.post("/api/ivrs", json={
+        "number": 62, "name": "Empty Upload", "timeout": 10, "max_invalid_tries": 3, "options": "[]",
+    })
+    assert resp.status_code == 200
+    ivr_id = resp.json()["id"]
+
+    resp = client.post(
+        f"/api/ivrs/{ivr_id}/greeting",
+        files={"file": ("greeting.wav", b"", "audio/wav")},
+    )
+    assert resp.status_code == 422
+
+
 # ── GAP-INGRESS regression tests (06-04) ───────────────────────────────────────
 # These exercise the SPA catch-all injection against a REAL index.html fixture
 # (via BPX_DIST_DIR / _dist_index), NOT the "Frontend not built" stub. They prove:
