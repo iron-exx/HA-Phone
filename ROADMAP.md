@@ -1,7 +1,7 @@
 # HA-Phone Roadmap
 
 Stand: Juli 2026
-Aktuelle Add-on-Linie: `0.7.42`
+Aktuelle Add-on-Linie: `0.7.63`
 Ziel: von einer funktionierenden Home-Assistant-PBX zu einer stabilen, alltagstauglichen kleinen Business-Telefonanlage
 
 ## 1. Produktbild
@@ -42,12 +42,20 @@ Diese Liste ist der eigentliche Input fuer Phase A. Eine Roadmap, die nur "Stabi
 | D3 | `Routing.tsx` | Vier Stellen mit doppelt kodiertem UTF-8 (Mojibake) trotz vorherigem "Encoding gefixt"-Commit uebersehen. | behoben in 0.7.42 |
 | D4 | `Routing.tsx::getRouteDestinationOptions` | Rufgruppen ohne eigene interne Durchwahl (`number=0`, z.B. Altbestaende nach Migration von vor 0.7.40) waren im Ziel-Dropdown fuer eingehende Routen unsichtbar, obwohl die Route ueber die DB-ID laeuft, nicht die Nummer. | behoben in 0.7.42 |
 | D5 | `ring_groups.py` + `ivr.py` | Zwei fast identische `_validate_*_number`-Funktionen, jede prueft unabhaengig gegen Extension + RingGroup + IVRMenu. Reiner Copy-Paste-Stand; die dritte Kopie kommt spaetestens mit Queues (v0.9). | offen -> Phase A, Punkt 1 |
-| D6 | Boot-Skript `10-asterisk-init.sh` | Alle Config-Regenerierungen (Extensions, Voicemail, Routing, Mail, Trunk) laufen in einem einzigen Python-Block ohne Isolation. Ein Fehler in einer Regenerierung (siehe D1) verhindert stillschweigend auch alle anderen, inklusive Trunk und Mail. | offen -> Phase A, Punkt 2 (neu) |
-| D7 | `ivr.py::upload_greeting` | Prueft nur die Dateiendung `.wav`, validiert/konvertiert aber nicht Samplerate/Kanaele/Codec. Eine aus Audacity oder vom Handy exportierte WAV (z.B. 44.1kHz Stereo) wird von Asterisk `Background()` nicht sauber abgespielt. `sox` ist bereits im Image installiert -> Konvertierung ist ein kleiner, klar umrissener Fix. | offen -> Phase A, Punkt 6 (neu) |
+| D6 | Boot-Skript `10-asterisk-init.sh` | Alle Config-Regenerierungen (Extensions, Voicemail, Routing, Mail, Trunk) liefen in einem einzigen Python-Block ohne Isolation. Ein Fehler in einer Regenerierung (siehe D1) verhinderte stillschweigend auch alle anderen, inklusive Trunk und Mail. | **behoben in 0.7.63** (`regeneration.py`, pro Schritt isoliert + Dashboard-Statusbanner) |
+| D7 | `ivr.py::upload_greeting` | Prueft nur die Dateiendung `.wav`, validiert/konvertiert aber nicht Samplerate/Kanaele/Codec. Eine aus Audacity oder vom Handy exportierte WAV (z.B. 44.1kHz Stereo) wird von Asterisk `Background()` nicht sauber abgespielt. `sox` ist bereits im Image installiert -> Konvertierung ist ein kleiner, klar umrissener Fix. | offen -> Phase A, Punkt 6 |
 | D8 | `models.py` (`Trunk.password`, `SmtpSettings.password`, `Extension.sip_password`) | Alle Zugangsdaten liegen im Klartext in SQLite. Fuer den aktuellen Single-Host-Betrieb tolerierbar, wird aber zum Problem, sobald Backup/Export (Phase B) existiert. | offen -> Entscheidung noetig vor Phase B, Punkt 4 |
 | D9 | Keine Locking-Strategie um `_regenerate_routing_conf` / Boot-Regenerierung | Zwei gleichzeitige Schreibvorgaenge (zwei Admin-Tabs, oder ein Request waehrend des Boots) koennen die generierten Dateien in unvorhersehbarer Reihenfolge ueberschreiben. `render_conf` selbst schreibt atomar (Temp-Datei + `os.replace`), es gibt aber keine Sperre ueber die gesamte DB-Lese- plus Render-Sequenz. | offen -> Phase A, Beobachtung, kein Blocker |
+| D10 | GitHub Actions `build.yaml` | Baut und pusht das Multi-Arch-Image, fuehrt aber weder Backend-Tests (`pytest`) noch Frontend-Typecheck (`tsc --noEmit`) vorher aus. Ist bereits einmal live eingetreten: der 0.7.42-Build brach im Docker-CI an unbenutzten TS-Imports, die lokal nicht auffielen (siehe 0.7.43-Changelog-Eintrag). | **behoben in 0.7.64** -> Phase A, Punkt 5 |
+| D11 | `config.yaml` (vor 0.7.56) | Kein `image:`-Feld gesetzt. Der Supervisor ignorierte das von der CI bereits gebaute GHCR-Image komplett und kompilierte Asterisk bei jedem Install/Update lokal aus dem Quellcode (`./configure && make`) - mehrere Minuten statt Sekunden. | behoben in 0.7.56 |
+| D12 | `extensions_routing.conf.j2::[outbound-pstn]` | Pattern `_X.` matcht in Asterisk nur Ziffern, nie ein fuehrendes `+`. Ausgehende Regeln, die `+49...` erzeugen, wurden lokal sofort abgewiesen ("sent to invalid extension but no invalid handler"), bevor der Trunk ueberhaupt erreicht wurde. | behoben in 0.7.52 |
+| D13 | Ausgehende Regel-Default (`outbound_rules.py::DEFAULT_OUTBOUND_RULES`) | Die aarenet/AareSwitch-Plattform (Deutsche Glasfaser Whitelabel) akzeptiert fuer die Zielrufnummer nur nationales Format (fuehrende 0), nicht E.164 - live per SIP-Trace verifiziert (183 Session Progress + Inband-Ansage "ungueltige Rufnummer" statt SIP-Fehlercode). Kein Code-Bug (Regel ist nutzerkonfigurierbar), aber der generische `+49`-Default passt nicht zu diesem konkreten Trunk-Typ. | dokumentiert in 0.7.54, Workaround in DB angewendet |
+| D14 | `Extensions.tsx::buildLinphoneConfigUri` + Provisioning-XML (`extensions.py`) | Kette von 4 zusammenhaengenden Linphone-Bugs: (1) doppelter Scheme-Separator `linphone-config://http://...` statt `linphone-config:http://...`, (2) In-App-QR-Scanner erwartet die nackte URL, nicht die `linphone-config:`-Form, (3) `reg_proxy`/`reg_route` ohne `sip:`-Praefix -> App laed XML erfolgreich, sendet aber nie ein REGISTER, (4) Push-Benachrichtigungen aktiv, obwohl kein Apple-Push-Gateway existiert -> Registrierung schlief nach Ablauf ein, App zeigte trotzdem "Online". Jeder Einzelfehler live per SIP-Trace/HTTP-Test verifiziert. | behoben in 0.7.57-0.7.60 |
+| D15 | `pjsip_extensions.conf.j2` | Asterisk 22 anonymisiert den From-Header auf `Dial()`-erzeugten Anruf-Legs (`"Anonymous" <sip:anonymous@anonymous.invalid>`), wenn der Ziel-Endpoint `trust_id_outbound` nicht gesetzt hat. Jeder interne Anruf zeigte "Anonymous"; Linphone iOS zeigte fuer die ungueltige Anonymous-URI teils gar keine Anruf-UI. Live per SIP-Trace bewiesen (AMI-Originate vs. Dialplan-Pfad verglichen). | behoben in 0.7.61 (`trust_id_outbound = yes`) |
 
 Regel ab jetzt: Jeder in Code-Review oder Bugfix gefundene Defekt wird hier eingetragen, bevor er behoben wird, und erst nach Fix + Test als "behoben" markiert. Kein stillschweigendes Reparieren ohne Spur.
+
+**Neu, noch nicht eingeordnet (2026-07-06):** Externe eingehende Anrufe zeigen auf Linphone UND dem alten Android "Anonymous", obwohl der Provider laut Nutzerangabe die Rufnummer uebertraegt. Verdacht: `trunk-endpoint`-CallerID-Konfiguration (statisch gesetzte `callerid` fuer ausgehende CLIP) ueberschreibt moeglicherweise auch eingehend, oder die Nummer steckt im `P-Asserted-Identity`-Header statt `From` und `trust_id_inbound` wertet ihn nicht wie erwartet aus. Noch nicht per Trace verifiziert (Anruf kam waehrend der Diagnose-Session nicht durch) -> naechster Schritt: Live-SIP-Trace bei echtem externen Anruf.
 
 ## 4. Aktuelle Realitaet
 
@@ -80,11 +88,11 @@ Pflichtpunkte, jeweils mit Fertig-Kriterium:
 - *Fertig, wenn:* keine der drei Routing-Domaenen (Extension, RingGroup, IVRMenu) mehr eine eigene Cross-Table-Kollisionspruefung hat, und ein Test beweist, dass eine Nummernkollision zwischen allen drei Typen konsistent abgelehnt wird.
 - *Abhaengigkeit:* Queues und Konferenzraeume (v0.9) brauchen denselben Dienst - vor v0.9 zwingend erledigt.
 
-**2. Config-Regenerierung fehler-isolieren (loest D6, verhindert D1-Klasse-Bugs strukturell)**
-- Jede einzelne Regenerierungsfunktion (`_regenerate_extensions_conf`, `_regenerate_voicemail_conf`, `_regenerate_routing_conf`, `_regenerate_trunk_conf`, `regenerate_mail_configs`) wird im Boot-Skript und in jedem Router einzeln try/except-behandelt und geloggt, nicht mehr als ein monolithischer Block.
-- Ein Fehler in einer Regenerierung darf die anderen nicht verhindern.
-- Sichtbares Fehlersignal im Dashboard, wenn eine Regenerierung fehlgeschlagen ist ("Trunk-Konfiguration konnte nicht aktualisiert werden: <Ursache>"), nicht nur ein Log-Eintrag.
-- *Fertig, wenn:* ein absichtlich kaputtes IVR-Menu (oder aehnliches) in einem Test weiterhin eine funktionierende Trunk- und Mail-Konfiguration nach einem Neustart erlaubt.
+**2. Config-Regenerierung fehler-isolieren (loest D6, verhindert D1-Klasse-Bugs strukturell) - ERLEDIGT in 0.7.63**
+- Jede einzelne Regenerierungsfunktion laeuft jetzt ueber `regeneration.py::run_regeneration_steps` einzeln try/except-behandelt und geloggt, sowohl im Boot-Skript als auch in jedem Router (Extensions, Routing, Trunk, IVR, Rufgruppen, Zeitbedingungen, Ausgehende Regeln, Settings).
+- Ein Fehler in einer Regenerierung verhindert die anderen nicht mehr - AMI-Reload passiert nur noch pro erfolgreichem Schritt.
+- Status wird persistiert (`config_regeneration_status.json`) und im Dashboard als Banner angezeigt, inklusive Zeitstempel und Fehlermeldung pro Schritt.
+- Regressionstests vorhanden (`test_api.py`).
 
 **3. Routing-Modell konsistent validieren**
 - Ziele fuer Route, Rufgruppe, IVR und Zeitbedingung muessen im Backend konsistent validiert werden (baut auf Punkt 1 auf).
@@ -96,11 +104,10 @@ Pflichtpunkte, jeweils mit Fertig-Kriterium:
 - Zentrale Tests fuer `extensions_routing.conf`, mindestens ein Regressionstest pro Konfigurationspfad: Extension, Rufgruppe, IVR, Zeitbedingung, Outbound-Regeln, und die Kombination aus allen gleichzeitig (das genaue Szenario, das D1 aufgedeckt hat).
 - *Fertig, wenn:* CI schlaegt fehl, wenn `POST /api/ivrs` (oder jeder andere schreibende Endpunkt) nach dem Anlegen eines IVR-Menues einen Fehler wirft.
 
-**5. Add-on-Release-Prozess haerten**
+**5. Add-on-Release-Prozess haerten (loest D10) - ERLEDIGT in 0.7.64**
 - Jede Version braucht Changelog, Versionsbump und erfolgreichen Multi-Arch-Build.
-- Build-Fehler muessen vor Push lokal auffallen.
-- GitHub Actions sollen nicht nur Image bauen, sondern Frontend-Build (`tsc --noEmit`) und Backend-Tests (`pytest`) als Pflichtschritte vor dem Image-Build ausfuehren, nicht danach oder gar nicht.
-- *Fertig, wenn:* ein PR mit fehlschlagendem Test oder TypeScript-Fehler den Image-Build gar nicht erst startet.
+- GitHub Actions fuehrt jetzt Backend-Tests (`pytest`) und Frontend-Typecheck+Build (`tsc -b && vite build`) sowie Frontend-Tests (`vitest run`) als eigenen `test`-Job aus, den der `build`-Job per `needs:` voraussetzt - ein fehlschlagender Test/Typecheck verhindert den Image-Build komplett.
+- Zusaetzlich `image:`-Feld in `config.yaml` seit 0.7.56 (loest D11) - Updates sind seitdem ein Registry-Pull (~30s) statt eines lokalen Asterisk-Kompilierlaufs (mehrere Minuten).
 
 **6. IVR-Audio-Upload robust machen (loest D7)**
 - Hochgeladene WAV-Dateien serverseitig mit dem bereits vorhandenen `sox` auf das von Asterisk erwartete Format normalisieren (Samplerate, Mono, passender Codec), statt nur die Dateiendung zu pruefen.
@@ -280,11 +287,11 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch:
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63) und CI-Haertung (D10, 0.7.64) - beide waren hier Ticket 1 und 2, sind raus.
 
-1. Numbering-Space-Dienst extrahieren (loest D5, Voraussetzung fuer Ticket 4 und spaeter Queues)
-2. Config-Regenerierung fehler-isolieren (loest D6, verhindert zukuenftige D1-artige Ausfaelle strukturell)
-3. Routing-Regressionstests erweitern, insbesondere: IVR + gleichzeitiges Anlegen von Extension/Rufgruppe/Route (genau das Szenario aus D1)
+1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
+2. Numbering-Space-Dienst extrahieren (loest D5, Voraussetzung fuer Ticket 6 und spaeter Queues)
+3. Routing-Regressionstests erweitern, insbesondere: IVR + gleichzeitiges Anlegen von Extension/Rufgruppe/Route (genau das Szenario aus D1) - Grundstock existiert bereits (`test_api.py`), Matrix noch nicht vollstaendig
 4. IVR-Audio-Upload mit `sox` normalisieren (D7, klein und unabhaengig, kann jederzeit zwischengeschoben werden)
 5. Referenzielle Integritaet bei Loeschungen klaeren (Route zeigt auf geloeschte Rufgruppe/IVR)
 6. Zeitbedingungen in Business Hours + Feiertage ueberfuehren

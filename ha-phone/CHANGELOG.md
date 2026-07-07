@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.64
+
+**CI - Tests und Typecheck laufen jetzt vor dem Image-Build (loest D10, Roadmap Phase A.5)**
+- `build.yaml` hatte bisher direkt das Docker-Image gebaut und gepusht, ohne vorher Backend-Tests oder den Frontend-Typecheck laufen zu lassen. Genau das hat schon einmal einen kaputten Build durchgelassen (0.7.42 -> 0.7.43: unbenutzte TS-Imports, die lokal nicht auffielen, aber im Docker-CI-`tsc`-Lauf brachen).
+- Neuer `test`-Job (Backend: `pytest`, Frontend: `vitest run` + `tsc -b && vite build`) laeuft jetzt vor dem `build`-Job, der per `needs: test` davon abhaengt. Ein fehlschlagender Test oder Typfehler verhindert den Image-Build komplett, statt erst beim naechsten Install-Versuch aufzufallen.
+
 ## 0.7.63
 
 **Feature - Konfig-Regenerierung ist jetzt fehlertolerant und sichtbar**
