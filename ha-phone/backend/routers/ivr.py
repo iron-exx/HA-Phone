@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import IVRMenu, Extension, RingGroup
+from backend.numbering import validate_number
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
@@ -28,32 +29,7 @@ def _ivr_dir() -> Path:
 
 
 def _validate_ivr_number(ivr: IVRMenu, session: Session, existing_id: int | None = None) -> None:
-    if ivr.number < 10 or ivr.number > 99:
-        raise HTTPException(status_code=422, detail="number must be between 10 and 99")
-    ext_conflict = session.exec(
-        select(Extension).where(Extension.number == ivr.number)
-    ).first()
-    if ext_conflict:
-        raise HTTPException(
-            status_code=422,
-            detail=f"number {ivr.number} is already used by an extension",
-        )
-    rg_conflict = session.exec(
-        select(RingGroup).where(RingGroup.number == ivr.number)
-    ).first()
-    if rg_conflict:
-        raise HTTPException(
-            status_code=422,
-            detail=f"number {ivr.number} is already used by a ring group",
-        )
-    ivr_conflict = session.exec(
-        select(IVRMenu).where(IVRMenu.number == ivr.number)
-    ).first()
-    if ivr_conflict and ivr_conflict.id != existing_id:
-        raise HTTPException(
-            status_code=422,
-            detail=f"number {ivr.number} is already used by another IVR menu",
-        )
+    validate_number(session, ivr.number, kind="ivr", exclude_id=existing_id)
 
 
 def _validate_options(options_str: str) -> list[dict]:

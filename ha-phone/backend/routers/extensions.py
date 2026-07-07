@@ -17,6 +17,7 @@ from backend.models import (
     VoicemailSettings,
 )
 from backend.conf_generator import render_conf
+from backend.numbering import validate_number
 from backend.regeneration import run_regeneration_steps, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
@@ -217,11 +218,7 @@ def get_linphone_qr(extension_id: int, session: Session = Depends(get_session)):
 
 @router.post("/extensions", response_model=ExtensionCreateOut)
 async def create_extension(extension: Extension, session: Session = Depends(get_session)):
-    duplicate = session.exec(
-        select(Extension).where(Extension.number == extension.number)
-    ).first()
-    if duplicate:
-        raise HTTPException(status_code=409, detail="Extension number already exists")
+    validate_number(session, extension.number, kind="extension")
     # SEC-03: Auto-generate SIP password if not provided or empty (D-07)
     if not extension.sip_password:
         extension.sip_password = secrets.token_urlsafe(12)  # → exactly 16 SIP-safe chars
@@ -259,11 +256,7 @@ async def update_extension(
     if not existing:
         raise HTTPException(status_code=404, detail="Extension not found")
     if extension_data.number is not None and extension_data.number != existing.number:
-        duplicate = session.exec(
-            select(Extension).where(Extension.number == extension_data.number)
-        ).first()
-        if duplicate:
-            raise HTTPException(status_code=409, detail="Extension number already exists")
+        validate_number(session, extension_data.number, kind="extension", exclude_id=existing.id)
     old_number = existing.number
     for field, value in extension_data.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(existing, field, value)

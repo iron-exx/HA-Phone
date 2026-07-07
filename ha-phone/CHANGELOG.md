@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.65
+
+**Fix + Refactor - Zentraler Numbering-Space-Dienst (loest D5, Roadmap Phase A.1)**
+- Neu: `backend/numbering.py` beantwortet als einziger Ort "ist Nummer X (10-99) frei, und falls nicht, wem gehoert sie" - fuer Extensions, Rufgruppen und IVR-Menues gemeinsam.
+- `ring_groups.py::_validate_ring_group_number` und `ivr.py::_validate_ivr_number` waren zwei fast identische Kopien dieser Pruefung und wurden auf den gemeinsamen Dienst umgestellt.
+- **Bug dabei gefunden und behoben:** `extensions.py` hatte ueberhaupt keine Cross-Table-Pruefung - eine Nebenstelle konnte bisher mit einer Nummer angelegt werden, die bereits eine Rufgruppe oder ein IVR-Menue belegt. Ausserdem prüfte `ring_groups.py` nie gegen IVR-Menues. Beide Luecken sind mit dem gemeinsamen Dienst automatisch mitgeschlossen.
+- 5 neue Regressionstests decken alle sechs Kollisionsrichtungen zwischen den drei Typen ab (inkl. Update-Pfad).
+- Nebeneffekt: Fehlerantworten sind jetzt konsistent `422` mit lesbarer Nachricht statt teils `409` ohne Owner-Angabe.
+
 ## 0.7.64
 
 **CI - Tests und Typecheck laufen jetzt vor dem Image-Build (loest D10, Roadmap Phase A.5)**

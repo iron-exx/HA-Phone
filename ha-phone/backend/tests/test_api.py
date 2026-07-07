@@ -926,3 +926,82 @@ def test_ingress_path_malformed_rejected(ingress_client):
     body = resp.text
     assert 'window.__INGRESS_PATH__ = ""' in body
     assert "<script>alert(1)</script>" not in body
+
+
+# ---- Numbering-space service (Roadmap Phase A.1 / D5) ----
+# Extension, RingGroup and IVRMenu all share the 10-99 dial-number space.
+# Before backend/numbering.py existed, ring_groups.py and ivr.py each carried
+# their own near-identical cross-table check, and extensions.py had NONE at
+# all - an extension could be created with a number already used by a ring
+# group or IVR menu. These tests lock in that a collision between any two of
+# the three types is now rejected consistently, regardless of which side is
+# created first.
+
+def test_extension_number_conflicts_with_existing_ring_group(client, mock_ami):
+    for number in (10, 11):
+        _ensure_extension(client, number)
+    resp = client.post("/api/ring-groups", json={
+        "number": 80, "name": "Support", "extension_numbers": "10,11", "ring_timeout": 30
+    })
+    assert resp.status_code == 200
+
+    resp = client.post("/api/extensions", json={
+        "number": 80, "display_name": "Clash", "sip_password": "clashpassword1234"
+    })
+    assert resp.status_code == 422
+    assert "ring group" in resp.json()["detail"]
+
+
+def test_extension_number_conflicts_with_existing_ivr(client, tmp_data_dir):
+    resp = client.post("/api/ivrs", json={
+        "number": 81, "name": "Empfang", "timeout": 10, "max_invalid_tries": 3,
+        "options": '[{"key":"1","action":"hangup"}]',
+    })
+    assert resp.status_code == 200
+
+    resp = client.post("/api/extensions", json={
+        "number": 81, "display_name": "Clash", "sip_password": "clashpassword1234"
+    })
+    assert resp.status_code == 422
+    assert "IVR menu" in resp.json()["detail"]
+
+
+def test_ring_group_number_conflicts_with_existing_ivr(client, tmp_data_dir):
+    """Previously unchecked: ring_groups.py never looked at IVRMenu at all."""
+    resp = client.post("/api/ivrs", json={
+        "number": 82, "name": "Empfang", "timeout": 10, "max_invalid_tries": 3,
+        "options": '[{"key":"1","action":"hangup"}]',
+    })
+    assert resp.status_code == 200
+
+    for number in (10, 11):
+        _ensure_extension(client, number)
+    resp = client.post("/api/ring-groups", json={
+        "number": 82, "name": "Clash", "extension_numbers": "10,11", "ring_timeout": 30
+    })
+    assert resp.status_code == 422
+    assert "IVR menu" in resp.json()["detail"]
+
+
+def test_ivr_number_conflicts_with_existing_extension(client):
+    _ensure_extension(client, 83)
+    resp = client.post("/api/ivrs", json={
+        "number": 83, "name": "Clash", "timeout": 10, "max_invalid_tries": 3,
+        "options": '[{"key":"1","action":"hangup"}]',
+    })
+    assert resp.status_code == 422
+    assert "extension" in resp.json()["detail"]
+
+
+def test_extension_update_number_conflicts_across_types(client, mock_ami, tmp_data_dir):
+    """Updating an extension's number must also check ring groups/IVR menus."""
+    ext = _ensure_extension(client, 84)
+    resp = client.post("/api/ivrs", json={
+        "number": 85, "name": "Empfang", "timeout": 10, "max_invalid_tries": 3,
+        "options": '[{"key":"1","action":"hangup"}]',
+    })
+    assert resp.status_code == 200
+
+    resp = client.patch(f"/api/extensions/{ext['id']}", json={"number": 85})
+    assert resp.status_code == 422
+    assert "IVR menu" in resp.json()["detail"]

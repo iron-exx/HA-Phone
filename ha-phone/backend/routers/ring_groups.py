@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import Extension, RingGroup
+from backend.numbering import validate_number
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 # Use the canonical routing regen (includes inbound routes, outbound rules, CLIP).
 # The previous local copy here only wrote ring groups + time conditions and thus
@@ -51,24 +52,7 @@ def _validate_extension_numbers(
 
 
 def _validate_ring_group_number(rg: RingGroup, session: Session, existing_id: int | None = None) -> None:
-    if rg.number < 10 or rg.number > 99:
-        raise HTTPException(status_code=422, detail="number must be between 10 and 99")
-    extension_conflict = session.exec(
-        select(Extension).where(Extension.number == rg.number)
-    ).first()
-    if extension_conflict:
-        raise HTTPException(
-            status_code=422,
-            detail=f"number {rg.number} is already used by an extension",
-        )
-    group_conflict = session.exec(
-        select(RingGroup).where(RingGroup.number == rg.number)
-    ).first()
-    if group_conflict and group_conflict.id != existing_id:
-        raise HTTPException(
-            status_code=422,
-            detail=f"number {rg.number} is already used by another ring group",
-        )
+    validate_number(session, rg.number, kind="ring_group", exclude_id=existing_id)
 
 
 @router.get("/ring-groups", response_model=List[RingGroup])

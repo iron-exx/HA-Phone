@@ -41,7 +41,7 @@ Diese Liste ist der eigentliche Input fuer Phase A. Eine Roadmap, die nur "Stabi
 | D2 | `extensions_routing.conf.j2`, IVR-Kontext | Ungueltig-Zaehler (`IVR_INVALID_COUNT`) wurde bei jedem Replay auf 0 zurueckgesetzt, weil der Replay-Pfad zu `s,1` sprang (demselben Label, das den Zaehler initialisiert). `max_invalid_tries` griff nie -> Endlosschleife statt Auflegen. | behoben in 0.7.42 |
 | D3 | `Routing.tsx` | Vier Stellen mit doppelt kodiertem UTF-8 (Mojibake) trotz vorherigem "Encoding gefixt"-Commit uebersehen. | behoben in 0.7.42 |
 | D4 | `Routing.tsx::getRouteDestinationOptions` | Rufgruppen ohne eigene interne Durchwahl (`number=0`, z.B. Altbestaende nach Migration von vor 0.7.40) waren im Ziel-Dropdown fuer eingehende Routen unsichtbar, obwohl die Route ueber die DB-ID laeuft, nicht die Nummer. | behoben in 0.7.42 |
-| D5 | `ring_groups.py` + `ivr.py` | Zwei fast identische `_validate_*_number`-Funktionen, jede prueft unabhaengig gegen Extension + RingGroup + IVRMenu. Reiner Copy-Paste-Stand; die dritte Kopie kommt spaetestens mit Queues (v0.9). | offen -> Phase A, Punkt 1 |
+| D5 | `ring_groups.py` + `ivr.py` | Zwei fast identische `_validate_*_number`-Funktionen, jede prueft unabhaengig gegen Extension + RingGroup + IVRMenu. `extensions.py` hatte gar keine Cross-Table-Pruefung, `ring_groups.py` prueft nie gegen IVRMenu - zwei zusaetzliche Luecken beim Konsolidieren gefunden. | **behoben in 0.7.65** (`backend/numbering.py`) |
 | D6 | Boot-Skript `10-asterisk-init.sh` | Alle Config-Regenerierungen (Extensions, Voicemail, Routing, Mail, Trunk) liefen in einem einzigen Python-Block ohne Isolation. Ein Fehler in einer Regenerierung (siehe D1) verhinderte stillschweigend auch alle anderen, inklusive Trunk und Mail. | **behoben in 0.7.63** (`regeneration.py`, pro Schritt isoliert + Dashboard-Statusbanner) |
 | D7 | `ivr.py::upload_greeting` | Prueft nur die Dateiendung `.wav`, validiert/konvertiert aber nicht Samplerate/Kanaele/Codec. Eine aus Audacity oder vom Handy exportierte WAV (z.B. 44.1kHz Stereo) wird von Asterisk `Background()` nicht sauber abgespielt. `sox` ist bereits im Image installiert -> Konvertierung ist ein kleiner, klar umrissener Fix. | offen -> Phase A, Punkt 6 |
 | D8 | `models.py` (`Trunk.password`, `SmtpSettings.password`, `Extension.sip_password`) | Alle Zugangsdaten liegen im Klartext in SQLite. Fuer den aktuellen Single-Host-Betrieb tolerierbar, wird aber zum Problem, sobald Backup/Export (Phase B) existiert. | offen -> Entscheidung noetig vor Phase B, Punkt 4 |
@@ -82,11 +82,12 @@ Ziel: die vorhandenen Kernfunktionen muessen robust, vorhersagbar und supportbar
 
 Pflichtpunkte, jeweils mit Fertig-Kriterium:
 
-**1. Zentralen Numbering-Space-Dienst einfuehren (loest D5)**
-- Ein einziger Ort (Service-Funktion oder View ueber Extension+RingGroup+IVRMenu) beantwortet "ist Nummer X im Bereich 10-99 frei/belegt/von wem".
-- `ring_groups.py::_validate_ring_group_number` und `ivr.py::_validate_ivr_number` rufen diesen Dienst auf, statt eigene Kopien zu pflegen.
-- *Fertig, wenn:* keine der drei Routing-Domaenen (Extension, RingGroup, IVRMenu) mehr eine eigene Cross-Table-Kollisionspruefung hat, und ein Test beweist, dass eine Nummernkollision zwischen allen drei Typen konsistent abgelehnt wird.
-- *Abhaengigkeit:* Queues und Konferenzraeume (v0.9) brauchen denselben Dienst - vor v0.9 zwingend erledigt.
+**1. Zentralen Numbering-Space-Dienst einfuehren (loest D5) - ERLEDIGT in 0.7.65**
+- `backend/numbering.py::validate_number` ist jetzt der einzige Ort, der "ist Nummer X im Bereich 10-99 frei/belegt/von wem" beantwortet.
+- `extensions.py`, `ring_groups.py::_validate_ring_group_number` und `ivr.py::_validate_ivr_number` rufen alle denselben Dienst auf.
+- Beim Konsolidieren zwei zusaetzliche, vorher unentdeckte Luecken gefunden und mitgeschlossen: `extensions.py` hatte gar keine Cross-Table-Pruefung, `ring_groups.py` prueft nie gegen IVRMenu (siehe D5).
+- 5 Regressionstests decken alle Kollisionsrichtungen ab, inkl. Update-Pfad.
+- *Abhaengigkeit erfuellt:* Queues und Konferenzraeume (v0.9) koennen jetzt auf diesem Dienst aufbauen.
 
 **2. Config-Regenerierung fehler-isolieren (loest D6, verhindert D1-Klasse-Bugs strukturell) - ERLEDIGT in 0.7.63**
 - Jede einzelne Regenerierungsfunktion laeuft jetzt ueber `regeneration.py::run_regeneration_steps` einzeln try/except-behandelt und geloggt, sowohl im Boot-Skript als auch in jedem Router (Extensions, Routing, Trunk, IVR, Rufgruppen, Zeitbedingungen, Ausgehende Regeln, Settings).
@@ -287,17 +288,16 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63) und CI-Haertung (D10, 0.7.64) - beide waren hier Ticket 1 und 2, sind raus.
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65) - alle drei waren hier Ticket 1-3, sind raus.
 
 1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
-2. Numbering-Space-Dienst extrahieren (loest D5, Voraussetzung fuer Ticket 6 und spaeter Queues)
-3. Routing-Regressionstests erweitern, insbesondere: IVR + gleichzeitiges Anlegen von Extension/Rufgruppe/Route (genau das Szenario aus D1) - Grundstock existiert bereits (`test_api.py`), Matrix noch nicht vollstaendig
-4. IVR-Audio-Upload mit `sox` normalisieren (D7, klein und unabhaengig, kann jederzeit zwischengeschoben werden)
-5. Referenzielle Integritaet bei Loeschungen klaeren (Route zeigt auf geloeschte Rufgruppe/IVR)
-6. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
-7. Secrets-Entscheidung fuer Backup treffen, dann Backup/Restore entwerfen
-8. Telefonbuch-Datenmodell und CRUD bauen
-9. Sprachansagen als wiederverwendbare Objekte einfuehren
+2. Routing-Regressionstests erweitern, insbesondere: IVR + gleichzeitiges Anlegen von Extension/Rufgruppe/Route (genau das Szenario aus D1) - Grundstock existiert bereits (`test_api.py`), Matrix noch nicht vollstaendig
+3. IVR-Audio-Upload mit `sox` normalisieren (D7, klein und unabhaengig, kann jederzeit zwischengeschoben werden)
+4. Referenzielle Integritaet bei Loeschungen klaeren (Route zeigt auf geloeschte Rufgruppe/IVR)
+5. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
+6. Secrets-Entscheidung fuer Backup treffen, dann Backup/Restore entwerfen
+7. Telefonbuch-Datenmodell und CRUD bauen
+8. Sprachansagen als wiederverwendbare Objekte einfuehren
 
 ## 12. Entscheidung
 
