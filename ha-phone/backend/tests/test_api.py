@@ -1404,3 +1404,139 @@ def test_legacy_plaintext_trunk_row_readable_without_crashing(client, tmp_data_d
         "number": 56, "display_name": "Trigger Regen", "sip_password": "irrelevantpassword",
     })
     assert resp.status_code == 200
+
+
+# ---- Backup / Restore (Roadmap Phase B.4) ----
+# The core promise: a backup restored on a completely fresh instance must
+# produce a working PBX, and secrets must survive the round-trip even
+# though the target host has a DIFFERENT local encryption key than the
+# source (D8's local Fernet key never leaves the host - the backup itself
+# is protected by a separate, user-chosen password instead).
+
+import io
+import zipfile
+
+
+def test_backup_export_produces_password_protected_zip(client, mock_ami):
+    _ensure_extension(client, 45, "Backup Ext")
+    resp = client.post("/api/backup/export", data={"password": "correcthorsebattery"})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/zip"
+
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+    assert set(zf.namelist()) == {"meta.json", "data.enc"}
+    import json as _json
+    meta = _json.loads(zf.read("meta.json"))
+    assert meta["format_version"] == 1
+    # The plaintext extension name/password must not appear anywhere in the
+    # zip unencrypted - only inside the encrypted data.enc blob.
+    assert b"Backup Ext" not in zf.read("meta.json")
+    assert b"Backup Ext" not in zf.read("data.enc")
+
+
+def test_backup_export_rejects_short_password(client, mock_ami):
+    resp = client.post("/api/backup/export", data={"password": "short"})
+    assert resp.status_code == 422
+
+
+def test_backup_restore_round_trip_on_fresh_instance(client, mock_ami, tmp_data_dir):
+    """The actual Fertig-Kriterium: export, then restore onto a database that
+    has been wiped clean (simulating a fresh instance), and confirm the
+    restored data - including a secret - is byte-for-byte correct despite
+    the fresh instance having generated its own new local encryption key."""
+    _ensure_extension(client, 46, "Round Trip")
+    resp = client.post("/api/trunk", json={
+        "registrar_host": "sip.example.com", "port": 5060, "auth_username": "123456789",
+        "password": "originaltrunksecret", "phone_number": "049123456789", "reg_refresh": 60,
+    })
+    assert resp.status_code == 200
+
+    export_resp = client.post("/api/backup/export", data={"password": "correcthorsebattery"})
+    assert export_resp.status_code == 200
+    backup_bytes = export_resp.content
+
+    # Simulate a fresh instance: wipe the local encryption key so a new one
+    # gets generated on next use, proving secrets don't depend on the
+    # source host's key surviving.
+    from backend.crypto import _key_path, reset_fernet_cache
+    _key_path().unlink(missing_ok=True)
+    reset_fernet_cache()
+
+    # /api/backup/import wipes every covered table itself before re-inserting,
+    # so restoring is exercised exactly as it would run on a truly empty DB.
+    import_resp = client.post(
+        "/api/backup/import",
+        data={"password": "correcthorsebattery"},
+        files={"file": ("backup.zip", backup_bytes, "application/zip")},
+    )
+    assert import_resp.status_code == 200
+    body = import_resp.json()
+    assert body["ok"] is True
+    assert body["restored"]["extension"] >= 1
+
+    resp = client.get("/api/extensions")
+    numbers = [e["number"] for e in resp.json()]
+    assert 46 in numbers
+
+    # The trunk password must decrypt correctly under the FRESH instance's
+    # NEW local key - it was never encrypted with that key in the backup,
+    # proving the password-derived re-encryption round-trip actually works.
+    conf_path = tmp_data_dir / "asterisk" / "pjsip_trunk.conf"
+    assert "password = originaltrunksecret" in conf_path.read_text()
+
+
+def test_backup_restore_rejects_wrong_password(client, mock_ami):
+    export_resp = client.post("/api/backup/export", data={"password": "correcthorsebattery"})
+    backup_bytes = export_resp.content
+
+    import_resp = client.post(
+        "/api/backup/import",
+        data={"password": "totallywrongpassword"},
+        files={"file": ("backup.zip", backup_bytes, "application/zip")},
+    )
+    assert import_resp.status_code == 422
+    assert "password" in import_resp.json()["detail"].lower()
+
+
+def test_backup_restore_rejects_non_backup_file(client, mock_ami):
+    import_resp = client.post(
+        "/api/backup/import",
+        data={"password": "whatever123"},
+        files={"file": ("not-a-backup.zip", b"this is not a zip file at all", "application/zip")},
+    )
+    assert import_resp.status_code == 422
+
+
+def test_backup_restore_resolves_custom_provisioning_template_by_name(client, mock_ami):
+    """Custom template ids are dropped on export (Phase B.4 design note: a
+    fresh instance's re-seeded builtins already occupy low ids) - devices
+    must still end up pointing at the right template after restore, matched
+    by name rather than the now-meaningless old id."""
+    tpl_resp = client.post("/api/provisioning/templates", json={
+        "name": "Custom Backup Template", "vendor": "Test",
+        "file_pattern": "{mac}.cfg", "content": "auth_name={{sip_username}}\n",
+    })
+    assert tpl_resp.status_code == 200
+    tpl_id = tpl_resp.json()["id"]
+    _ensure_extension(client, 47, "Device Owner")
+    dev_resp = client.post("/api/provisioning/devices", json={
+        "name": "Backup Device", "mac": "aa00bb11cc22",
+        "extension_numbers": "47", "template_id": tpl_id,
+    })
+    assert dev_resp.status_code == 200
+
+    export_resp = client.post("/api/backup/export", data={"password": "correcthorsebattery"})
+    backup_bytes = export_resp.content
+
+    import_resp = client.post(
+        "/api/backup/import",
+        data={"password": "correcthorsebattery"},
+        files={"file": ("backup.zip", backup_bytes, "application/zip")},
+    )
+    assert import_resp.status_code == 200
+
+    devices = client.get("/api/provisioning/devices").json()
+    restored = next(d for d in devices if d["mac"] == "aa00bb11cc22")
+    templates = client.get("/api/provisioning/templates").json()
+    restored_tpl = next(t for t in templates if t["name"] == "Custom Backup Template")
+    assert restored["template_id"] == restored_tpl["id"]

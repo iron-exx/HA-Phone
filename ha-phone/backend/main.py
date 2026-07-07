@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.database import init_db
 from backend.auth import get_current_user, SESSION_SECRET
-from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning
+from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning, backup
 from backend.routers import auth as auth_router
 
 
@@ -74,6 +74,7 @@ app.include_router(update.router, prefix="/api", dependencies=[Depends(get_curre
 app.include_router(trace.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(outbound_rules.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(provisioning.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(backup.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
 # SPA shell — serve the BUILT dist/index.html so hashed asset + CSS names always
 # match the actual Vite output. A hand-maintained template drifts every build and

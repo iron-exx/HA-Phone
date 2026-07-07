@@ -11,6 +11,7 @@ import {
   Router,
   LogOut,
   PhoneIncoming,
+  DatabaseBackup,
 } from "lucide-react";
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/routing", label: "Routing", icon: GitBranch, end: false },
   { to: "/voicemail", label: "Voicemail", icon: Voicemail, end: false },
   { to: "/settings/public-ip", label: "Settings", icon: Settings, end: false },
+  { to: "/backup", label: "Backup", icon: DatabaseBackup, end: false },
   { to: "/diagnostics", label: "Diagnose", icon: Activity, end: false },
 ];
 

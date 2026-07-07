@@ -11,6 +11,7 @@ import PublicIP from "./pages/PublicIP";
 import Diagnostics from "./pages/Diagnostics";
 import Provisioning from "./pages/Provisioning";
 import IVR from "./pages/IVR";
+import Backup from "./pages/Backup";
 import Logo from "./components/Logo";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
@@ -113,6 +114,7 @@ export default function App() {
                   <Route path="/settings/public-ip" element={<PublicIP />} />
                   <Route path="/diagnostics" element={<Diagnostics />} />
                   <Route path="/provisioning" element={<Provisioning />} />
+                  <Route path="/backup" element={<Backup />} />
                 </Routes>
               </Shell>
             </AuthGuard>

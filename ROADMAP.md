@@ -153,10 +153,12 @@ Pflichtpunkte:
 - Feiertage als echte Erweiterung der Zeitbedingungen.
 - Klare Regelprioritaet.
 
-**4. Backup und Restore - Secrets-Grundlage aus D8 bereits vorhanden**
-- Export/Import der PBX-Konfiguration, mindestens JSON/ZIP auf Add-on-Ebene.
-- Secrets-Entscheidung (D8) ist getroffen und umgesetzt: Passwoerter liegen seit 0.7.69 verschluesselt in der DB (`backend/crypto.py`). Fuer den Export selbst noch zu entscheiden: die verschluesselten Blobs 1:1 mit exportieren (funktioniert nur bei Restore auf denselben Host, da der Schluessel lokal in `/data/.secret_key` bleibt) oder zusaetzlich mit einem vom Nutzer eingegebenen Passwort neu verschluesseln (portabler, aufwendiger).
-- *Fertig, wenn:* ein Restore auf einer frischen Instanz eine funktionierende PBX ergibt, und die Entscheidung zur Portabilitaet der Secrets im Backup dokumentiert und umgesetzt ist.
+**4. Backup und Restore - ERLEDIGT in 0.7.71**
+- Neue Seite "Backup": Export/Import der kompletten PBX-Konfiguration als ZIP (`backend/routers/backup.py`).
+- Secrets-Entscheidung umgesetzt: Portabilitaet gewaehlt (nicht "nur gleicher Host") - der komplette Export wird mit einem beim Export eingegebenen Backup-Passwort neu verschluesselt (PBKDF2-HMAC-SHA256 -> Fernet), unabhaengig vom lokalen `.secret_key` des Zielhosts.
+- Admin-Login bewusst ausgeschlossen - ein Restore darf den Zugang zum Zielhost nie aendern.
+- Provisioning-Vorlagen werden per Name statt ID zugeordnet (Kollisionsvermeidung mit bereits geseedeten Builtin-Vorlagen auf der Zielinstanz).
+- *Fertig-Kriterium erfuellt und per Test bewiesen:* `test_backup_restore_round_trip_on_fresh_instance` loescht den lokalen Schluessel (simuliert eine frische Instanz), stellt wieder her, und prueft, dass ein Trunk-Passwort korrekt in der generierten Config landet.
 
 Definition of done fuer Phase B:
 
@@ -288,14 +290,13 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69), Migrations-Testabdeckung + Fehlertexte in der UI (0.7.70) - Phase A ist damit bis auf Punkt 7 (UI-Konsistenz, manuelle Checkliste) vollstaendig abgearbeitet.
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69), Migrations-Testabdeckung + Fehlertexte in der UI (0.7.70), Backup/Restore (0.7.71) - Phase A ist bis auf Punkt 7 (UI-Konsistenz, manuelle Checkliste) fertig, und mit Backup/Restore ist der erste groessere Phase-B-Baustein live.
 
 1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
 2. UI-Konsistenz-Durchgang (Phase A.7, letzter offener Phase-A-Punkt) - manuelle Checkliste durch alle Dialoge/Dropdowns/Tabellen
 3. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
-4. Backup/Restore entwerfen (Secrets-Grundlage aus D8 bereits vorhanden, siehe Phase B Punkt 4)
-5. Telefonbuch-Datenmodell und CRUD bauen
-6. Sprachansagen als wiederverwendbare Objekte einfuehren
+4. Telefonbuch-Datenmodell und CRUD bauen
+5. Sprachansagen als wiederverwendbare Objekte einfuehren
 
 ## 12. Entscheidung
 

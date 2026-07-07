@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.71
+
+**Feature - Backup und Wiederherstellung (Roadmap Phase B.4)**
+- Neue Seite "Backup" exportiert die komplette PBX-Konfiguration (Nebenstellen, Trunk, Rufgruppen, IVR, Routing, Ausgehende Regeln, Zeitbedingungen, Voicemail-Einstellungen, eigene Provisioning-Vorlagen und -Geraete) als ZIP-Datei.
+- Secrets-Portabilitaets-Entscheidung (Anschluss an D8): Die verschluesselten Passwoerter im lokalen `.secret_key` sind host-gebunden - ein rohes DB-Backup liesse sich nur auf demselben Host wiederherstellen. Stattdessen wird der komplette Export-Inhalt mit einem beim Export eingegebenen Backup-Passwort neu verschluesselt (PBKDF2-HMAC-SHA256 mit 480.000 Iterationen -> Fernet). Die ZIP-Datei ist dadurch auf jeder Instanz wiederherstellbar, unabhaengig vom lokalen Schluessel des Zielhosts.
+- Falsches Passwort beim Wiederherstellen wird ueber einen Verifikationswert klar erkannt ("Wrong backup password"), nicht als kryptischer Entschluesselungsfehler tief im Ablauf.
+- Der Admin-Login (`AdminUser`) ist bewusst nicht Teil des Backups - eine Wiederherstellung darf den Login auf dem Zielhost nie stillschweigend aendern oder aussperren.
+- Design-Detail: Eigene (nicht eingebaute) Provisioning-Vorlagen werden beim Export ohne ID gespeichert und beim Restore per Name zugeordnet, da eine frische Instanz ihre eingebauten Vorlagen bereits vor dem Restore mit eigenen IDs anlegt - eine ID-basierte Zuordnung haette zu Kollisionen fuehren koennen.
+- 6 neue Backend-Tests, darunter ein echter Export-Restore-Rundlauf: Backup erstellen, den lokalen Verschluesselungsschluessel loeschen (simuliert eine frische Instanz mit eigenem Schluessel), wiederherstellen, und pruefen, dass ein Trunk-Passwort korrekt entschluesselt in der generierten Asterisk-Config landet.
+
 ## 0.7.70
 
 **Fix (kritisch, per Test gefunden) - Fehlende Migration fuer `extension.enabled` (Roadmap Phase A.8)**
