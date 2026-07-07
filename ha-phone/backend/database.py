@@ -54,6 +54,15 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN numeric_callerid INTEGER NOT NULL DEFAULT 0")
                 )
                 conn.commit()
+            if "enabled" not in cols:
+                # Found via test_migrations.py's from-scratch legacy-DB simulation
+                # (Roadmap A.8): `enabled` had no migration at all, so upgrading a
+                # database that predates it would crash on the very first ORM
+                # query touching the extension table.
+                conn.execute(
+                    text("ALTER TABLE extension ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1")
+                )
+                conn.commit()
         if "trunk" in tables:
             cols = [c["name"] for c in inspector.get_columns("trunk")]
             if "codecs" not in cols:

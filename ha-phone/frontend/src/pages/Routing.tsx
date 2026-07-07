@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Check, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 
 import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu } from "@/types/api";
@@ -214,13 +215,13 @@ function AddRouteDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
       const created: Route = await resp.json();
       onCreated(created);
       toast.success("Saved.");
       onClose();
-    } catch {
-      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
     } finally {
       setSaving(false);
     }
@@ -332,13 +333,13 @@ function EditRouteDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
       const updated: Route = await resp.json();
       onUpdated(updated);
       toast.success("Saved.");
       onClose();
-    } catch {
-      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
     } finally {
       setSaving(false);
     }
@@ -415,12 +416,12 @@ function DeleteRouteDialog({
     setDeleteLoading(true);
     try {
       const resp = await fetch(`/api/routes/${route.id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
       onDeleted(route.id);
       toast.success("Route deleted.");
       onClose();
-    } catch {
-      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
       setDeleteLoading(false);
     }
   }
@@ -485,13 +486,13 @@ function AddTimeConditionDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
       const created: TimeCondition = await resp.json();
       onCreated(created);
       toast.success("Saved.");
       onClose();
-    } catch {
-      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
     } finally {
       setSaving(false);
     }
@@ -597,13 +598,13 @@ function EditTimeConditionDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
       const updated: TimeCondition = await resp.json();
       onUpdated(updated);
       toast.success("Saved.");
       onClose();
-    } catch {
-      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
     } finally {
       setSaving(false);
     }
@@ -693,12 +694,12 @@ function DeleteTimeConditionDialog({
     setDeleting(true);
     try {
       const resp = await fetch(`/api/time-conditions/${condition.id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
       onDeleted(condition.id);
       toast.success("Time condition deleted.");
       onClose();
-    } catch {
-      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
       setDeleting(false);
     }
   }
@@ -809,15 +810,12 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
           ring_timeout: Number(timeout) || 30,
         }),
       });
-      if (!resp.ok) {
-        const detail = await resp.text();
-        throw new Error(detail || "Speichern fehlgeschlagen");
-      }
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
       setNumber(""); setName(""); setSelectedNumbers([]); setTimeoutVal("30");
       load();
       toast.success("Rufgruppe angelegt.");
     } catch (error) {
-      toast.error(`Fehler beim Speichern: ${(error as Error).message}`);
+      toast.error(toErrorMessage(error, "Speichern fehlgeschlagen."));
     } finally {
       setSaving(false);
     }
@@ -840,15 +838,12 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
           ring_timeout: Number(editTimeout) || 30,
         }),
       });
-      if (!resp.ok) {
-        const detail = await resp.text();
-        throw new Error(detail || "Speichern fehlgeschlagen");
-      }
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
       cancelEdit();
       load();
       toast.success("Rufgruppe gespeichert.");
     } catch (error) {
-      toast.error(`Fehler beim Speichern: ${(error as Error).message}`);
+      toast.error(toErrorMessage(error, "Speichern fehlgeschlagen."));
     } finally {
       setSaving(false);
     }
@@ -1043,12 +1038,12 @@ function OutboundRulesSection() {
           priority: nextPriority,
         }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern. Läuft die PBX?"));
       setPattern(""); setStrip("0"); setPrepend("");
       load();
       toast.success("Regel hinzugefügt.");
-    } catch {
-      toast.error("Fehler beim Speichern. Läuft die PBX?");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Speichern. Läuft die PBX?"));
     } finally {
       setSaving(false);
     }
@@ -1057,11 +1052,11 @@ function OutboundRulesSection() {
   async function deleteRule(id: number) {
     try {
       const resp = await fetch(`/api/outbound-rules/${id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error();
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
       setRules((rs) => rs.filter((r) => r.id !== id));
       toast.success("Regel gelöscht.");
-    } catch {
-      toast.error("Fehler beim Löschen.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
     }
   }
 

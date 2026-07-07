@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Copy, Trash2, Plus, Save, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,11 +138,11 @@ export default function Provisioning() {
           body: JSON.stringify(editTpl),
         },
       );
-      if (!resp.ok) throw new Error();
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern des Templates."));
       setEditTpl(null);
       loadAll();
       toast.success("Template gespeichert.");
-    } catch { toast.error("Fehler beim Speichern des Templates."); }
+    } catch (err) { toast.error(toErrorMessage(err, "Fehler beim Speichern des Templates.")); }
   }
 
   async function deleteTemplate(id: number) {

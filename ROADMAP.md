@@ -95,11 +95,10 @@ Pflichtpunkte, jeweils mit Fertig-Kriterium:
 - Status wird persistiert (`config_regeneration_status.json`) und im Dashboard als Banner angezeigt, inklusive Zeitstempel und Fehlermeldung pro Schritt.
 - Regressionstests vorhanden (`test_api.py`).
 
-**3. Routing-Modell konsistent validieren**
-- Ziele fuer Route, Rufgruppe, IVR und Zeitbedingung muessen im Backend konsistent validiert werden (baut auf Punkt 1 auf).
-- Fehlertexte muessen fuer Admins klar lesbar sein (keine rohen Pydantic/SQLAlchemy-Fehler in der UI).
-- ~~Delete- und Aenderungsfaelle muessen sauber behandelt werden~~ - **Delete-Teil erledigt in 0.7.67:** Loeschen einer Rufgruppe/eines IVR-Menues wird mit `409` abgelehnt, solange eine Route oder (bei IVR) ein Untermenue-Verweis darauf zeigt; Frontend zeigt die konkrete Fehlermeldung statt generischem "Fehler beim Loeschen". Noch offen: Aenderungsfaelle (z.B. eine Rufgruppen-Nummer aendern, waehrend eine Route per ID darauf zeigt - referenziert weiterhin korrekt per ID, aber noch nicht explizit getestet) und die breitere Frage roher Backend-Fehler in Zeitbedingungen/anderen Formularen.
-- *Fertig, wenn (Rest):* keine rohen Pydantic/SQLAlchemy-Fehlertexte mehr in einem der Routing-Formulare sichtbar sind.
+**3. Routing-Modell konsistent validieren - ERLEDIGT in 0.7.67/0.7.70**
+- Delete-Teil (0.7.67): Loeschen einer Rufgruppe/eines IVR-Menues wird mit `409` abgelehnt, solange eine Route oder (bei IVR) ein Untermenue-Verweis darauf zeigt.
+- Fehlertexte (0.7.70): Neue gemeinsame Hilfsfunktion `apiErrorMessage`/`toErrorMessage` (`src/lib/apiError.ts`) extrahiert die echte Backend-`detail`-Meldung statt generischer Texte oder rohem JSON im Toast. Angewendet in ca. 20 Speicher-/Loeschvorgaengen ueber Routing, Voicemail, Nebenstellen, Trunk und IVR.
+- Noch offen (kleinerer Rest, kein Blocker): Aenderungsfaelle wie eine Rufgruppen-Nummer aendern, waehrend eine Route per ID darauf zeigt - funktioniert bereits (Route referenziert per ID, nicht Nummer), aber noch nicht mit einem expliziten Test abgesichert.
 
 **4. Dialplan-Generierung absichern - ERLEDIGT in 0.7.68**
 - Regressionstests fuer `extensions_routing.conf` pro Konfigurationspfad (Extension, Rufgruppe, IVR, Zeitbedingung, Outbound-Regeln) existierten bereits verteilt in `test_api.py`.
@@ -122,11 +121,10 @@ Pflichtpunkte, jeweils mit Fertig-Kriterium:
 - Editing-Flows fuer Rufgruppen, IVR und Routen angleichen.
 - *Fertig, wenn:* eine Stichprobe aller Dropdown-Menues in einem dunklen Browser-Theme manuell durchgeklickt wurde und lesbar ist (kein automatischer Test moeglich, daher manuelle Checkliste im PR).
 
-**8. Datenmigrationen aufraeumen**
-- Migrationen fuer neue Felder wie Rufgruppen-Nummer und IVR sauber halten.
-- Altbestaende muessen ohne manuelle SQLite-Eingriffe migrieren.
-- Aktuelles Muster (`if column not in cols: ALTER TABLE ...` in `database.py`) ist fuer die heutige Groesse okay, sollte aber nicht beliebig weiterwachsen. Ab der naechsten neuen Tabelle mit Fremdschluessel-Bezug pruefen, ob ein leichtgewichtiges Migrationswerkzeug (z.B. Alembic) den manuellen Ansatz ablösen sollte.
-- *Fertig, wenn:* ein Upgrade von der aeltesten unterstuetzten Version (0.7.0) auf HEAD in einem Testlauf ohne manuelle SQL-Eingriffe durchlaeuft.
+**8. Datenmigrationen aufraeumen - ERLEDIGT in 0.7.70**
+- Neue Testdatei `test_migrations.py` baut die historisch aelteste Spaltenstruktur von Hand nach, laesst `create_all()` + `run_migrations()` echt darueberlaufen und prueft alle Spalten/Defaults/Datenerhalt/ORM-Lesbarkeit. Zusaetzlicher Idempotenz-Test (zweifacher Lauf).
+- Dabei sofort einen echten, bis dahin unentdeckten Bug gefunden: `extension.enabled` hatte ueberhaupt keine Migration - jede aeltere Installation waere beim ersten Zugriff auf die Extension-Tabelle abgestuerzt. Migration ergaenzt.
+- Aktuelles Muster (`if column not in cols: ALTER TABLE ...` in `database.py`) bleibt fuer die heutige Groesse die richtige Wahl; Alembic-Umstieg weiterhin nur als Beobachtung fuer den Tag, an dem eine neue Tabelle mit Fremdschluessel-Bezug dazukommt.
 
 Definition of done fuer Phase A:
 
@@ -239,13 +237,13 @@ Reihenfolge ist durch Abhaengigkeiten bestimmt, nicht nur durch Prioritaetsgefue
 
 Abhaengigkeit: keine, kann sofort starten.
 
-- Numbering-Space-Dienst (Phase A.1) - **zuerst**, weil Punkt 3 und spaeter Queues darauf aufbauen
-- Fehler-Isolation der Config-Regenerierung (Phase A.2)
-- Routing-Regressionstests ausbauen (Phase A.3, A.4)
-- CI/Build/Release-Prozess absichern (Phase A.5)
-- IVR-Audio-Upload robust machen (Phase A.6) - klein, unabhaengig, kann parallel
-- UI-Konsistenz fuer Routing, IVR und Rufgruppen (Phase A.7)
-- Migrationskanten schliessen (Phase A.8)
+- ~~Numbering-Space-Dienst (Phase A.1)~~ - erledigt 0.7.65
+- ~~Fehler-Isolation der Config-Regenerierung (Phase A.2)~~ - erledigt 0.7.63
+- ~~Routing-Regressionstests ausbauen (Phase A.3, A.4)~~ - erledigt 0.7.67/0.7.68/0.7.70
+- ~~CI/Build/Release-Prozess absichern (Phase A.5)~~ - erledigt 0.7.64
+- ~~IVR-Audio-Upload robust machen (Phase A.6)~~ - erledigt 0.7.66
+- **UI-Konsistenz fuer Routing, IVR und Rufgruppen (Phase A.7) - einziger noch offener Phase-A-Punkt.** Manuelle Checkliste, kein automatischer Test moeglich (dunkles Theme, Dropdowns, Editing-Flows angleichen).
+- ~~Migrationskanten schliessen (Phase A.8)~~ - erledigt 0.7.70
 
 ### v0.8.x - Betriebsreife
 
@@ -290,13 +288,14 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69) - alle sieben waren hier Ticket 1-7 (bzw. neu hinzugekommen), sind raus.
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69), Migrations-Testabdeckung + Fehlertexte in der UI (0.7.70) - Phase A ist damit bis auf Punkt 7 (UI-Konsistenz, manuelle Checkliste) vollstaendig abgearbeitet.
 
 1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
-2. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
-3. Backup/Restore entwerfen (Secrets-Grundlage aus D8 bereits vorhanden, siehe Phase B Punkt 4)
-4. Telefonbuch-Datenmodell und CRUD bauen
-5. Sprachansagen als wiederverwendbare Objekte einfuehren
+2. UI-Konsistenz-Durchgang (Phase A.7, letzter offener Phase-A-Punkt) - manuelle Checkliste durch alle Dialoge/Dropdowns/Tabellen
+3. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
+4. Backup/Restore entwerfen (Secrets-Grundlage aus D8 bereits vorhanden, siehe Phase B Punkt 4)
+5. Telefonbuch-Datenmodell und CRUD bauen
+6. Sprachansagen als wiederverwendbare Objekte einfuehren
 
 ## 12. Entscheidung
 

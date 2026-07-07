@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Pencil, Trash2, Upload, Volume2, PhoneIncoming } from "lucide-react";
 
 import { type Extension, type RingGroup, type IVRMenu, type IVROption } from "@/types/api";
@@ -132,7 +133,7 @@ function AddIVRDialog({
           options: JSON.stringify(options),
         }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "IVR-Menü konnte nicht angelegt werden."));
       const created: IVRMenu = await resp.json();
 
       // Upload greeting if selected
@@ -149,7 +150,7 @@ function AddIVRDialog({
       toast.success("IVR-Menü angelegt.");
       onClose();
     } catch (error) {
-      toast.error(`Fehler: ${(error as Error).message}`);
+      toast.error(toErrorMessage(error, "Speichern fehlgeschlagen."));
     } finally {
       setSaving(false);
     }
@@ -370,7 +371,7 @@ function EditIVRDialog({
           options: JSON.stringify(options),
         }),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
 
       // Upload greeting if selected
       if (greetingFile) {
@@ -387,7 +388,7 @@ function EditIVRDialog({
       toast.success("IVR-Menü gespeichert.");
       onClose();
     } catch (error) {
-      toast.error(`Fehler: ${(error as Error).message}`);
+      toast.error(toErrorMessage(error, "Speichern fehlgeschlagen."));
     } finally {
       setSaving(false);
     }
@@ -397,8 +398,8 @@ function EditIVRDialog({
     try {
       await fetch(`/api/ivrs/${ivr.id}/greeting`, { method: "DELETE" });
       toast.success("Begrüßung gelöscht.");
-    } catch {
-      toast.error("Begrüßung konnte nicht gelöscht werden.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Begrüßung konnte nicht gelöscht werden."));
     }
   }
 

@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Network, RefreshCw, Save, Wifi, WifiOff, HelpCircle } from "lucide-react";
 
 import { type Trunk, type TrunkStatus } from "@/types/api";
@@ -174,12 +175,12 @@ export default function TrunkPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern. PBX läuft noch?"));
       const updated: Trunk = await resp.json();
       setSaved(updated);
       toast.success("Gespeichert.");
-    } catch {
-      toast.error("Fehler beim Speichern. PBX läuft noch?");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Speichern. PBX läuft noch?"));
     } finally {
       setSaving(false);
     }

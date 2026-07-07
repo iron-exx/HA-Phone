@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import QRCode from "qrcode";
 import { MoreHorizontal, Pencil, Trash2, Plus, Phone, QrCode, Copy } from "lucide-react";
 
@@ -201,15 +202,15 @@ function AddExtensionDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern."));
       const created: Extension = await resp.json();
       await syncRingGroupMemberships(created.number, selectedRingGroupIds, ringGroups);
       await onRingGroupsChanged();
       onCreated(created);
       toast.success("Gespeichert.");
       onClose();
-    } catch {
-      toast.error("Fehler beim Speichern.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Speichern."));
     } finally {
       setSaving(false);
     }
@@ -403,15 +404,15 @@ function EditExtensionDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern."));
       const updated: Extension = await resp.json();
       await syncRingGroupMemberships(updated.number, selectedRingGroupIds, ringGroups);
       await onRingGroupsChanged();
       onUpdated(updated);
       toast.success("Gespeichert.");
       onClose();
-    } catch {
-      toast.error("Fehler beim Speichern.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Speichern."));
     } finally {
       setSaving(false);
     }
@@ -567,12 +568,12 @@ function DeleteExtensionDialog({
     setDeleteLoading(true);
     try {
       const resp = await fetch(`/api/extensions/${extension.id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
       onDeleted(extension.id);
       toast.success("Nebenstelle gelöscht.");
       onClose();
-    } catch {
-      toast.error("Fehler beim Löschen.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
       setDeleteLoading(false);
     }
   }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Trash2 } from "lucide-react";
 
 import {
@@ -54,12 +55,12 @@ function DeleteMessageDialog({
         `/api/voicemail/messages/${extNum}/${filename}`,
         { method: "DELETE" }
       );
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to delete message. Check that the PBX is running and try again."));
       onDeleted(filename);
       toast.success("Message deleted.");
       onClose();
-    } catch {
-      toast.error("Failed to delete message. Check that the PBX is running and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Failed to delete message. Check that the PBX is running and try again."));
       setLoading(false);
     }
   }
@@ -166,12 +167,12 @@ function VoicemailCard({
           body: JSON.stringify({ extension_id: extension.id, ...body }),
         });
       }
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
       const updated: VoicemailSettings = await resp.json();
       onSaved(updated);
       toast.success("Saved.");
-    } catch {
-      toast.error("Failed to save changes. Check that the PBX is running and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
     } finally {
       setSaving(false);
     }
@@ -188,11 +189,11 @@ function VoicemailCard({
         method: "POST",
         body: formData,
       });
-      if (!resp.ok) throw new Error(await resp.text());
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Greeting upload failed. Check that the file is a valid WAV or MP3 and try again."));
       setHasCustomGreeting(true);
       toast.success("Saved.");
-    } catch {
-      toast.error("Greeting upload failed. Check that the file is a valid WAV or MP3 and try again.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Greeting upload failed. Check that the file is a valid WAV or MP3 and try again."));
     } finally {
       setGreetingUploading(false);
       // Reset file input so same file can be re-selected

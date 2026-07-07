@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.70
+
+**Fix (kritisch, per Test gefunden) - Fehlende Migration fuer `extension.enabled` (Roadmap Phase A.8)**
+- Neuer Test simuliert erstmals ein echtes Upgrade von einer alten DB-Struktur (Spalten wie sie vor allen bisherigen Migrationen existierten) auf den aktuellen Stand. Dabei kam sofort ein Fehler zutage: `extension.enabled` hatte **nie** eine Migration - jede Installation, deren Datenbank aelter als dieses Feld ist, waere bei der ersten Abfrage der Extension-Tabelle abgestuerzt (`no such column: extension.enabled`).
+- Migration ergaenzt (`ALTER TABLE extension ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`).
+- Neue Testdatei `test_migrations.py`: baut eine SQLite-Datei mit der historisch aeltesten Spaltenstruktur von Hand, laesst den echten `create_all()` + `run_migrations()`-Pfad darueberlaufen und prueft, dass alle Spalten mit korrekten Defaults entstehen, alte Daten erhalten bleiben, und die ORM-Schicht das Ergebnis lesen kann - inklusive eines Altbestand-Passworts im Klartext (Faellt zurueck auf unveraendert statt Absturz, siehe D8). Zusaetzlicher Test prueft Idempotenz (zweifacher Migrationslauf, z.B. bei einem Neustart mitten im Update).
+
+**UI - Rohe Backend-Fehler durch lesbare Meldungen ersetzt (Roadmap Phase A.3/A.7)**
+- In Routing, Voicemail, Nebenstellen, Trunk und IVR wurde bei fehlgeschlagenen Speichervorgaengen bisher entweder eine generische Meldung ("Fehler beim Speichern.") gezeigt, die die tatsaechliche Backend-Ursache (z.B. "Nummer 70 wird bereits von einer Rufgruppe verwendet") verschluckte, oder in zwei Faellen (Rufgruppen anlegen/bearbeiten) der rohe JSON-Fehlertext direkt im Toast angezeigt.
+- Neue gemeinsame Hilfsfunktion `apiErrorMessage`/`toErrorMessage` (`src/lib/apiError.ts`, mit Tests) extrahiert die echte `detail`-Meldung aus der Backend-Antwort und faellt nur bei Netzwerkfehlern auf eine sinnvolle Standardmeldung zurueck. Konsequent in ca. 20 Speicher-/Loeschvorgaengen angewendet.
+
 ## 0.7.69
 
 **Feature - Secrets-Verschluesselung at rest (loest D8, Roadmap Phase A/B-Uebergang)**
