@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.69
+
+**Feature - Secrets-Verschluesselung at rest (loest D8, Roadmap Phase A/B-Uebergang)**
+- Trunk-Passwort, SMTP-Passwort und SIP-Passwoerter lagen bisher im Klartext in SQLite. Neu: `backend/crypto.py` mit Fernet-Verschluesselung, Schluessel wird beim ersten Start automatisch erzeugt und liegt in `/data/.secret_key` mit `chmod 600`.
+- Transparent per SQLAlchemy-`TypeDecorator` (`EncryptedString`) umgesetzt - kein Aufrufer (Router, Jinja2-Templates, Config-Generierung) musste geaendert werden, die Werte werden beim Lesen automatisch entschluesselt.
+- Alte Klartext-Werte (aus Installationen vor diesem Update) werden beim Lesen erkannt und unveraendert zurueckgegeben statt einen Fehler zu werfen; sie werden erst beim naechsten Speichern verschluesselt. Kein manueller Migrationsschritt noetig.
+- Das schuetzt vor dem haeufigsten realen Risiko (kopierte/geleakte Datenbankdatei, ein spaeteres Backup-Export), nicht vor einem Angreifer mit vollem Root-Zugriff auf denselben Host - dafuer gibt es bei einem rein lokalen Schema keine Loesung. Ein zukuenftiger Backup-Export kann zusaetzlich mit einem nutzereingegebenen Passwort verschluesseln; das ist Aufgabe von Phase B (Backup/Restore existiert noch nicht).
+- 4 neue Tests, u.a. ein direkter Zugriff auf die rohe SQLite-Datei, der beweist, dass dort tatsaechlich kein Klartext mehr steht.
+
+**Fix (kritisch) + Feature - Mehrere Nebenstellen pro Geraet (DECT-Mehrfachbelegung)**
+- Live diagnostiziert: Ein DECT-Mobilteil an einer Gigaset-Basis konnte weder intern noch extern telefonieren, mit sofortigem Besetztzeichen und **null** SIP-Paketen im Log. Ursache: `ProvisionedDevice` konnte bisher nur eine einzige Nebenstelle pro Geraet zuweisen - bei einer Mehrfach-Handset-DECT-Basis blieb jedes weitere Mobilteil ohne eigene SIP-Leitung und konnte technisch gar nicht waehlen.
+- `ProvisionedDevice.extension_id` (einzelne Nummer) ersetzt durch `extension_numbers` (Komma-Liste, analog `RingGroup.extension_numbers`) - ein Geraet kann jetzt mehrere Nebenstellen zugewiesen bekommen.
+- Provisioning-Rendering von einfachem `{{var}}`-String-Replace auf echtes Jinja2 umgestellt, damit Templates ueber `{% for account in accounts %}` mehrere SIP-Konten erzeugen koennen. Bestehende Ein-Konto-Templates (Yealink, Grandstream, Fanvil) funktionieren unveraendert weiter (nutzen weiterhin die Top-Level-Variablen, jetzt auf die erste zugewiesene Nebenstelle gemappt).
+- Eingebautes Gigaset-Template erzeugt jetzt eine `SipProvider`/`Handset`-Zeile pro zugewiesener Nebenstelle, mit Kommentar-Hinweis: welches Mobilteil (IPUI) welche Zeile nutzt, muss weiterhin manuell in der Gigaset-Weboberflaeche (Mobilteile -> SIP-Zuordnung) gesetzt werden - das ist dort nicht per Auto-Provisioning uebertragbar.
+- Provisioning-Seite: Mehrfachauswahl (Checkboxen) statt Einzel-Dropdown fuer Nebenstellen; neue Status-Spalte zeigt je zugewiesener Nebenstelle Online/Offline und die registrierte IP (aus den Live-Diagnosedaten) - vorher gab es dafuer gar keine Anzeige.
+- DB-Migration fuer bestehende Geraete: alte `extension_id`-Werte werden automatisch in `extension_numbers` uebernommen.
+- 5 neue Backend-Tests (Mehrfachzuweisung, unbekannte Nummer abgelehnt, echtes Multi-Account-Rendering, Ein-Konto-Kompatibilitaet).
+
 ## 0.7.68
 
 **Test - Kombinierter Regressionstest fuer alle Routing-Domaenen gleichzeitig (Roadmap Phase A.4)**

@@ -1205,3 +1205,202 @@ def test_all_routing_domains_combined_after_ivr_exists(client, mock_ami, tmp_dat
     regen_status = client.get("/api/diagnostics/config-regeneration").json()
     assert regen_status["ok"] is True
     assert all(step["ok"] for step in regen_status["steps"])
+
+
+# ---- Multi-line device provisioning (DECT base with several handsets) ----
+# A DECT base can register several physical handsets, each needing its own
+# SIP account - sharing one extension across handsets hits the AOR's
+# max_contacts and leaves any handset beyond the limit with no line to dial
+# out on at all (confirmed live: zero SIP traffic from the device, instant
+# local busy tone). ProvisionedDevice.extension_numbers replaces the old
+# single extension_id so a device can be assigned more than one extension.
+
+# Builtin templates are only seeded from main.py's lifespan hook, which the
+# `client` fixture doesn't run - tests create their own templates explicitly
+# instead of depending on that seeding.
+
+def _create_multiline_template(client) -> int:
+    resp = client.post("/api/provisioning/templates", json={
+        "name": "Test Multi-Line DECT",
+        "vendor": "Test",
+        "file_pattern": "{mac}.xml",
+        "content": (
+            "{% for account in accounts %}"
+            'SipProvider.{{ loop.index0 }}.Name={{ account.number }}\n'
+            'Handset.{{ loop.index0 }}.SIP.AuthPassword={{ account.sip_password }}\n'
+            'Handset.{{ loop.index0 }}.SIP.DisplayName={{ account.display_name }}\n'
+            "{% endfor %}"
+        ),
+    })
+    assert resp.status_code == 200
+    return resp.json()["id"]
+
+
+def _create_singleline_template(client) -> int:
+    resp = client.post("/api/provisioning/templates", json={
+        "name": "Test Single-Line Desk Phone",
+        "vendor": "Test",
+        "file_pattern": "{mac}.cfg",
+        "content": "auth_name={{sip_username}}\ndisplay_name={{display_name}}\n",
+    })
+    assert resp.status_code == 200
+    return resp.json()["id"]
+
+
+def test_provisioned_device_accepts_multiple_extensions(client):
+    _ensure_extension(client, 50)
+    _ensure_extension(client, 51)
+    tpl_id = _create_multiline_template(client)
+
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "DECT Basis", "manufacturer": "Gigaset", "model": "N610 IP PRO",
+        "mac": "aabbccddeeff", "extension_numbers": "50,51", "template_id": tpl_id,
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["extension_numbers"] == [50, 51]
+
+
+def test_provisioned_device_rejects_unknown_extension(client):
+    tpl_id = _create_multiline_template(client)
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "DECT Basis", "manufacturer": "Gigaset", "model": "N610 IP PRO",
+        "mac": "aabbccddeeaa", "extension_numbers": "999", "template_id": tpl_id,
+    })
+    assert resp.status_code == 422
+    assert "999" in resp.json()["detail"]
+
+
+def test_provisioning_renders_one_sip_provider_per_extension(client):
+    """The exact live bug: a base with N handsets needs N SipProvider/Handset
+    blocks, not one shared account. Verifies the multi-line template loop."""
+    _ensure_extension(client, 52, "Erster")
+    _ensure_extension(client, 53, "Zweiter")
+    tpl_id = _create_multiline_template(client)
+
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "DECT Basis", "manufacturer": "Gigaset", "model": "N610 IP PRO",
+        "mac": "112233445566", "extension_numbers": "52,53", "template_id": tpl_id,
+    })
+    assert resp.status_code == 200
+
+    resp = client.get("/api/autoprovision/112233445566.xml")
+    assert resp.status_code == 200
+    xml = resp.text
+    assert "SipProvider.0.Name=52" in xml
+    assert "SipProvider.1.Name=53" in xml
+    assert "Handset.0.SIP.AuthPassword=securepass1234567" in xml
+    assert "Handset.1.SIP.DisplayName=Zweiter" in xml
+
+
+def test_provisioning_single_extension_still_works_on_simple_template(client):
+    """Non-looping templates (desk phones) must keep working unchanged via the
+    top-level {{sip_username}} etc. vars mapped to the one assigned extension."""
+    _ensure_extension(client, 54, "Solo")
+    tpl_id = _create_singleline_template(client)
+
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "Desk Phone", "manufacturer": "Yealink", "model": "T54W",
+        "mac": "aa11bb22cc33", "extension_numbers": "54", "template_id": tpl_id,
+    })
+    assert resp.status_code == 200
+
+    resp = client.get("/api/autoprovision/aa11bb22cc33.cfg")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "auth_name=54" in body
+    assert "display_name=Solo" in body
+
+
+# ---- Secrets encryption at rest (D8) ----
+# Trunk password, SMTP password, and SIP passwords used to sit in SQLite as
+# plain text. These tests read the RAW database file directly (bypassing the
+# ORM, which transparently decrypts) to prove the stored bytes are actually
+# encrypted, then confirm the application still gets correct plaintext where
+# it needs it (config generation), and that pre-existing plaintext rows
+# (from before this feature existed) keep working during the transition.
+
+def _raw_db_path(tmp_data_dir):
+    return tmp_data_dir / "db" / "bpx.db"
+
+
+def _raw_sqlite_value(tmp_data_dir, table: str, column: str, row_id: int):
+    import sqlite3
+    conn = sqlite3.connect(str(_raw_db_path(tmp_data_dir)))
+    try:
+        cur = conn.execute(f"SELECT {column} FROM {table} WHERE id = ?", (row_id,))
+        row = cur.fetchone()
+        return row[0] if row else None
+    finally:
+        conn.close()
+
+
+def test_trunk_password_encrypted_at_rest(client, tmp_data_dir):
+    resp = client.post("/api/trunk", json={
+        "registrar_host": "sip.example.com", "port": 5060, "auth_username": "123456789",
+        "password": "supersecrettrunkpw", "phone_number": "049123456789", "reg_refresh": 60,
+    })
+    assert resp.status_code == 200
+    trunk_id = resp.json()["id"]
+
+    raw = _raw_sqlite_value(tmp_data_dir, "trunk", "password", trunk_id)
+    assert raw != "supersecrettrunkpw"
+    assert raw.startswith("gAAAAA")  # Fernet token prefix
+
+    # Config generation must still see the real password (Asterisk needs it).
+    conf_path = tmp_data_dir / "asterisk" / "pjsip_trunk.conf"
+    assert "password = supersecrettrunkpw" in conf_path.read_text()
+
+
+def test_extension_sip_password_encrypted_at_rest(client, tmp_data_dir):
+    resp = client.post("/api/extensions", json={
+        "number": 55, "display_name": "Secret Test", "sip_password": "mysecretsippassword",
+    })
+    assert resp.status_code == 200
+    ext_id = resp.json()["id"]
+
+    raw = _raw_sqlite_value(tmp_data_dir, "extension", "sip_password", ext_id)
+    assert raw != "mysecretsippassword"
+    assert raw.startswith("gAAAAA")
+
+    conf_path = tmp_data_dir / "asterisk" / "pjsip_extensions.conf"
+    assert "password          = mysecretsippassword" in conf_path.read_text()
+
+
+def test_decrypt_secret_falls_back_for_legacy_plaintext():
+    """A value written before encryption existed (plain text, not a Fernet
+    token) must decrypt to itself instead of raising - otherwise every
+    pre-upgrade row would crash the app on first read."""
+    from backend.crypto import decrypt_secret, encrypt_secret
+
+    assert decrypt_secret("plain-old-password") == "plain-old-password"
+    encrypted = encrypt_secret("plain-old-password")
+    assert encrypted != "plain-old-password"
+    assert decrypt_secret(encrypted) == "plain-old-password"
+
+
+def test_legacy_plaintext_trunk_row_readable_without_crashing(client, tmp_data_dir):
+    """Reading a Trunk row whose password column still holds legacy plain
+    text (e.g. a row from before this feature existed) must not crash the
+    ORM read path - EncryptedString.process_result_value falls back via
+    decrypt_secret instead of raising on InvalidToken."""
+    resp = client.post("/api/trunk", json={
+        "registrar_host": "sip.example.com", "port": 5060, "auth_username": "123456789",
+        "password": "placeholder", "phone_number": "049123456789", "reg_refresh": 60,
+    })
+    trunk_id = resp.json()["id"]
+
+    import sqlite3
+    conn = sqlite3.connect(str(_raw_db_path(tmp_data_dir)))
+    conn.execute("UPDATE trunk SET password = ? WHERE id = ?", ("legacy-plaintext-pw", trunk_id))
+    conn.commit()
+    conn.close()
+
+    # Creating an extension triggers _regenerate_routing_conf, which loads
+    # the Trunk row via the ORM (for outbound CLIP) - that SELECT eagerly
+    # decrypts every column of the row, including password, regardless of
+    # whether the caller ever reads that attribute.
+    resp = client.post("/api/extensions", json={
+        "number": 56, "display_name": "Trigger Regen", "sip_password": "irrelevantpassword",
+    })
+    assert resp.status_code == 200

@@ -44,7 +44,7 @@ Diese Liste ist der eigentliche Input fuer Phase A. Eine Roadmap, die nur "Stabi
 | D5 | `ring_groups.py` + `ivr.py` | Zwei fast identische `_validate_*_number`-Funktionen, jede prueft unabhaengig gegen Extension + RingGroup + IVRMenu. `extensions.py` hatte gar keine Cross-Table-Pruefung, `ring_groups.py` prueft nie gegen IVRMenu - zwei zusaetzliche Luecken beim Konsolidieren gefunden. | **behoben in 0.7.65** (`backend/numbering.py`) |
 | D6 | Boot-Skript `10-asterisk-init.sh` | Alle Config-Regenerierungen (Extensions, Voicemail, Routing, Mail, Trunk) liefen in einem einzigen Python-Block ohne Isolation. Ein Fehler in einer Regenerierung (siehe D1) verhinderte stillschweigend auch alle anderen, inklusive Trunk und Mail. | **behoben in 0.7.63** (`regeneration.py`, pro Schritt isoliert + Dashboard-Statusbanner) |
 | D7 | `ivr.py::upload_greeting` | Pruefte nur die Dateiendung `.wav`, validierte/konvertierte aber nicht Samplerate/Kanaele/Codec. Eine aus Audacity oder vom Handy exportierte WAV (z.B. 44.1kHz Stereo) wurde von Asterisk `Background()` nicht sauber abgespielt. | **behoben in 0.7.66** (`_normalize_greeting_wav` via `sox`) |
-| D8 | `models.py` (`Trunk.password`, `SmtpSettings.password`, `Extension.sip_password`) | Alle Zugangsdaten liegen im Klartext in SQLite. Fuer den aktuellen Single-Host-Betrieb tolerierbar, wird aber zum Problem, sobald Backup/Export (Phase B) existiert. | offen -> Entscheidung noetig vor Phase B, Punkt 4 |
+| D8 | `models.py` (`Trunk.password`, `SmtpSettings.password`, `Extension.sip_password`) | Alle Zugangsdaten lagen im Klartext in SQLite. | **behoben in 0.7.69** - Fernet-Verschluesselung at rest (`backend/crypto.py`, `EncryptedString`-Spaltentyp), Schluessel lokal in `/data/.secret_key`. Schuetzt vor kopierter/geleakter DB-Datei, nicht vor Root-Zugriff auf denselben Host. Backup-Export-Verschluesselung mit Nutzerpasswort bleibt Aufgabe von Phase B, sobald Backup/Restore gebaut wird. |
 | D9 | Keine Locking-Strategie um `_regenerate_routing_conf` / Boot-Regenerierung | Zwei gleichzeitige Schreibvorgaenge (zwei Admin-Tabs, oder ein Request waehrend des Boots) koennen die generierten Dateien in unvorhersehbarer Reihenfolge ueberschreiben. `render_conf` selbst schreibt atomar (Temp-Datei + `os.replace`), es gibt aber keine Sperre ueber die gesamte DB-Lese- plus Render-Sequenz. | offen -> Phase A, Beobachtung, kein Blocker |
 | D10 | GitHub Actions `build.yaml` | Baut und pusht das Multi-Arch-Image, fuehrt aber weder Backend-Tests (`pytest`) noch Frontend-Typecheck (`tsc --noEmit`) vorher aus. Ist bereits einmal live eingetreten: der 0.7.42-Build brach im Docker-CI an unbenutzten TS-Imports, die lokal nicht auffielen (siehe 0.7.43-Changelog-Eintrag). | **behoben in 0.7.64** -> Phase A, Punkt 5 |
 | D11 | `config.yaml` (vor 0.7.56) | Kein `image:`-Feld gesetzt. Der Supervisor ignorierte das von der CI bereits gebaute GHCR-Image komplett und kompilierte Asterisk bei jedem Install/Update lokal aus dem Quellcode (`./configure && make`) - mehrere Minuten statt Sekunden. | behoben in 0.7.56 |
@@ -155,10 +155,10 @@ Pflichtpunkte:
 - Feiertage als echte Erweiterung der Zeitbedingungen.
 - Klare Regelprioritaet.
 
-**4. Backup und Restore - inklusive expliziter Secrets-Entscheidung (haengt an D8)**
+**4. Backup und Restore - Secrets-Grundlage aus D8 bereits vorhanden**
 - Export/Import der PBX-Konfiguration, mindestens JSON/ZIP auf Add-on-Ebene.
-- Vor der Umsetzung muss entschieden werden: Secrets (Trunk-Passwort, SMTP-Passwort, SIP-Passwoerter) im Export ein- oder ausschliessen? Wenn eingeschlossen: verschluesselt mit einem vom Nutzer eingegebenen Passwort, nicht im Klartext in der ZIP.
-- *Fertig, wenn:* ein Restore auf einer frischen Instanz eine funktionierende PBX ergibt, und die Entscheidung zu Secrets im Backup dokumentiert und umgesetzt ist (nicht implizit "liegt halt mit drin").
+- Secrets-Entscheidung (D8) ist getroffen und umgesetzt: Passwoerter liegen seit 0.7.69 verschluesselt in der DB (`backend/crypto.py`). Fuer den Export selbst noch zu entscheiden: die verschluesselten Blobs 1:1 mit exportieren (funktioniert nur bei Restore auf denselben Host, da der Schluessel lokal in `/data/.secret_key` bleibt) oder zusaetzlich mit einem vom Nutzer eingegebenen Passwort neu verschluesseln (portabler, aufwendiger).
+- *Fertig, wenn:* ein Restore auf einer frischen Instanz eine funktionierende PBX ergibt, und die Entscheidung zur Portabilitaet der Secrets im Backup dokumentiert und umgesetzt ist.
 
 Definition of done fuer Phase B:
 
@@ -290,11 +290,11 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68) - alle sechs waren hier Ticket 1-6, sind raus.
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69) - alle sieben waren hier Ticket 1-7 (bzw. neu hinzugekommen), sind raus.
 
 1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
 2. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
-3. Secrets-Entscheidung fuer Backup treffen, dann Backup/Restore entwerfen
+3. Backup/Restore entwerfen (Secrets-Grundlage aus D8 bereits vorhanden, siehe Phase B Punkt 4)
 4. Telefonbuch-Datenmodell und CRUD bauen
 5. Sprachansagen als wiederverwendbare Objekte einfuehren
 

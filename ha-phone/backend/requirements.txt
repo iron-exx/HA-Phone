@@ -9,3 +9,4 @@ pytest-asyncio==0.23.8
 python-multipart==0.0.20
 itsdangerous==2.2.0
 bcrypt==5.0.0
+cryptography==41.0.7

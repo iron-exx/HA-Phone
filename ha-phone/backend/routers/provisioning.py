@@ -3,6 +3,7 @@ import socket
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse, Response
+from jinja2 import Environment
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -18,6 +19,34 @@ public_router = APIRouter()
 def _norm_mac(value: str) -> str:
     """Lowercase hex only (strip :, -, ., spaces)."""
     return re.sub(r"[^0-9a-fA-F]", "", value or "").lower()
+
+
+def _parse_extension_numbers(value: str) -> list[int]:
+    if not value or not value.strip():
+        return []
+    try:
+        numbers = [int(n.strip()) for n in value.split(",") if n.strip()]
+    except ValueError:
+        raise HTTPException(status_code=422, detail="extension_numbers must be comma-separated integers")
+    if len(numbers) != len(set(numbers)):
+        raise HTTPException(status_code=422, detail="extension_numbers must not contain duplicates")
+    return numbers
+
+
+def _validate_extension_numbers(value: str, session: Session) -> str:
+    """Parse + verify every number resolves to a real extension. Returns the
+    normalized (deduped-order-preserved) comma-separated string to store."""
+    numbers = _parse_extension_numbers(value)
+    if not numbers:
+        return ""
+    existing = {e.number for e in session.exec(select(Extension)).all()}
+    missing = [n for n in numbers if n not in existing]
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown extension_numbers: {','.join(str(n) for n in missing)}",
+        )
+    return ",".join(str(n) for n in numbers)
 
 
 def _lan_ip() -> str:
@@ -89,26 +118,36 @@ BUILTIN_TEMPLATES = [
         ),
     },
     {
-        "name": "Gigaset N670/N870 IP PRO (DECT)",
+        "name": "Gigaset N510/N610/N670/N870 IP PRO (DECT)",
         "vendor": "Gigaset",
         "file_pattern": "{mac}.xml",
         "content": (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
-            "<!-- HA-Phone auto-provisioning — Gigaset DECT provider profile.\n"
+            "<!-- HA-Phone auto-provisioning — Gigaset DECT provider profiles.\n"
             "     STARTVORLAGE: exakte Parameternamen je nach Firmware anpassen!\n"
+            "     Eine SipProvider-Zeile pro zugeordneter Nebenstelle (Geraet ->\n"
+            "     mehrere Nebenstellen zuweisen, siehe Provisioning-Seite).\n"
+            "     WICHTIG: welches Mobilteil (IPUI) welche Zeile nutzt, wird nicht\n"
+            "     hierueber uebertragen - das bleibt manuell in der Gigaset-Basis\n"
+            "     unter Einstellungen -> Mobilteile -> [Mobilteil bearbeiten] -> SIP\n"
+            "     zuzuordnen (dort auf 'HA-Phone <Nummer>' setzen). Ohne diesen\n"
+            "     Schritt hat das Mobilteil keine Amtsleitung und jeder Anruf\n"
+            "     erzeugt sofort ein Besetztzeichen, ohne dass ein SIP-Paket rausgeht.\n"
             "     Gigaset-Datenserver-URL am Gerät: http://<PBX-IP>/api/autoprovision/[MAC].xml -->\n"
             '<provisioning version="1.1" productID="e2">\n'
             "  <nvm>\n"
-            '    <param name="SipProvider.0.Name" value="HA-Phone"/>\n'
-            '    <param name="SipProvider.0.Domain" value="{{sip_server}}"/>\n'
-            '    <param name="SipProvider.0.RegServer" value="{{sip_server}}"/>\n'
-            '    <param name="SipProvider.0.RegServerPort" value="{{sip_port}}"/>\n'
-            '    <param name="SipProvider.0.ProxyServer" value="{{sip_server}}"/>\n'
-            '    <param name="SipProvider.0.ProxyServerPort" value="{{sip_port}}"/>\n'
-            '    <param name="Handset.0.SIP.UserName" value="{{sip_username}}"/>\n'
-            '    <param name="Handset.0.SIP.AuthName" value="{{sip_username}}"/>\n'
-            '    <param name="Handset.0.SIP.AuthPassword" value="{{sip_password}}"/>\n'
-            '    <param name="Handset.0.SIP.DisplayName" value="{{display_name}}"/>\n'
+            "{% for account in accounts %}"
+            '    <param name="SipProvider.{{ loop.index0 }}.Name" value="HA-Phone {{ account.number }}"/>\n'
+            '    <param name="SipProvider.{{ loop.index0 }}.Domain" value="{{ sip_server }}"/>\n'
+            '    <param name="SipProvider.{{ loop.index0 }}.RegServer" value="{{ sip_server }}"/>\n'
+            '    <param name="SipProvider.{{ loop.index0 }}.RegServerPort" value="{{ sip_port }}"/>\n'
+            '    <param name="SipProvider.{{ loop.index0 }}.ProxyServer" value="{{ sip_server }}"/>\n'
+            '    <param name="SipProvider.{{ loop.index0 }}.ProxyServerPort" value="{{ sip_port }}"/>\n'
+            '    <param name="Handset.{{ loop.index0 }}.SIP.UserName" value="{{ account.sip_username }}"/>\n'
+            '    <param name="Handset.{{ loop.index0 }}.SIP.AuthName" value="{{ account.sip_auth }}"/>\n'
+            '    <param name="Handset.{{ loop.index0 }}.SIP.AuthPassword" value="{{ account.sip_password }}"/>\n'
+            '    <param name="Handset.{{ loop.index0 }}.SIP.DisplayName" value="{{ account.display_name }}"/>\n'
+            "{% endfor %}"
             "  </nvm>\n"
             "</provisioning>\n"
         ),
@@ -129,11 +168,16 @@ def seed_builtin_templates(session: Session) -> bool:
     return seeded
 
 
+_jinja_env = Environment(autoescape=False)
+
+
 def _render(content: str, subs: dict) -> str:
-    out = content
-    for k, v in subs.items():
-        out = out.replace("{{ " + k + " }}", str(v)).replace("{{" + k + "}}", str(v))
-    return out
+    """Render a user-editable provisioning template. Was a flat {{key}} string
+    replace; now real Jinja2 so multi-line devices can loop over `accounts`
+    (see serve_provisioning) while every existing single-account template
+    keeps working unchanged - they only ever used plain {{ var }} substitution,
+    which Jinja2 handles identically."""
+    return _jinja_env.from_string(content).render(**subs)
 
 
 # ── Templates CRUD ───────────────────────────────────────────────────────────
@@ -184,7 +228,7 @@ class DeviceOut(BaseModel):
     manufacturer: str
     model: str
     mac: str
-    extension_id: int
+    extension_numbers: List[int]
     template_id: int
     provisioning_url: str
 
@@ -195,7 +239,7 @@ def _device_out(d: ProvisionedDevice, session: Session, lan_ip: str) -> DeviceOu
     base = f"http://{lan_ip}" if lan_ip else "http://<PBX-IP>"
     return DeviceOut(
         id=d.id, name=d.name, manufacturer=d.manufacturer, model=d.model, mac=d.mac,
-        extension_id=d.extension_id, template_id=d.template_id,
+        extension_numbers=_parse_extension_numbers(d.extension_numbers), template_id=d.template_id,
         provisioning_url=f"{base}/api/autoprovision/{fname}",
     )
 
@@ -212,6 +256,7 @@ def create_device(device: ProvisionedDevice, session: Session = Depends(get_sess
     device.mac = _norm_mac(device.mac)
     if len(device.mac) != 12:
         raise HTTPException(status_code=400, detail="MAC muss 12 Hex-Zeichen haben.")
+    device.extension_numbers = _validate_extension_numbers(device.extension_numbers, session)
     session.add(device)
     session.commit()
     session.refresh(device)
@@ -223,10 +268,12 @@ def update_device(device_id: int, data: ProvisionedDevice, session: Session = De
     existing = session.get(ProvisionedDevice, device_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Device not found")
-    for field in ("name", "manufacturer", "model", "extension_id", "template_id"):
+    for field in ("name", "manufacturer", "model", "extension_numbers", "template_id"):
         val = getattr(data, field, None)
         if val is not None:
             setattr(existing, field, val)
+    if existing.extension_numbers:
+        existing.extension_numbers = _validate_extension_numbers(existing.extension_numbers, session)
     if data.mac:
         existing.mac = _norm_mac(data.mac)
     session.add(existing)
@@ -256,21 +303,41 @@ def serve_provisioning(path: str, session: Session = Depends(get_session)):
     if not device:
         raise HTTPException(status_code=404, detail="Unknown device")
     tpl = session.get(ProvisioningTemplate, device.template_id)
-    ext = session.exec(
-        select(Extension).where(Extension.number == device.extension_id)
-    ).first()
-    if not tpl or not ext:
+    numbers = _parse_extension_numbers(device.extension_numbers)
+    extensions = [
+        e for number in numbers
+        for e in session.exec(select(Extension).where(Extension.number == number)).all()
+    ]
+    if not tpl or not extensions:
         raise HTTPException(status_code=404, detail="Device not fully configured")
+    accounts = [
+        {
+            "number": str(e.number),
+            "display_name": e.display_name,
+            "sip_username": str(e.number),
+            "sip_auth": str(e.number),
+            "sip_password": e.sip_password,
+            "label": e.display_name,
+        }
+        for e in extensions
+    ]
+    first = accounts[0]
     subs = {
         "mac": device.mac,
-        "extension": str(ext.number),
-        "display_name": ext.display_name,
-        "label": ext.display_name,
-        "sip_username": str(ext.number),
-        "sip_auth": str(ext.number),
-        "sip_password": ext.sip_password,
         "sip_server": _lan_ip(),
         "sip_port": "5060",
+        # Multi-line devices (e.g. a DECT base with several handsets) loop
+        # over `accounts` in their template to get one SIP account per
+        # extension. Every pre-multi-line template only used the flat vars
+        # below (mapped to the first/only assigned extension), so they keep
+        # rendering exactly as before without any template changes.
+        "accounts": accounts,
+        "extension": first["number"],
+        "display_name": first["display_name"],
+        "label": first["label"],
+        "sip_username": first["sip_username"],
+        "sip_auth": first["sip_auth"],
+        "sip_password": first["sip_password"],
     }
     body = _render(tpl.content, subs)
     media = "application/xml" if path.lower().endswith(".xml") else "text/plain"

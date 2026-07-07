@@ -1,6 +1,9 @@
 from typing import Optional
 from pydantic import ConfigDict
+from sqlalchemy import Column
 from sqlmodel import SQLModel, Field
+
+from backend.crypto import EncryptedString
 
 
 class Extension(SQLModel, table=True):
@@ -9,7 +12,9 @@ class Extension(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     number: int = Field(ge=10, le=99)
     display_name: str = Field(max_length=64)
-    sip_password: str = Field(default="", min_length=0)  # min enforced in router; default="" triggers auto-gen
+    # min length enforced in router; default="" triggers auto-gen. Encrypted at
+    # rest (D8) - transparent to callers, EncryptedString decrypts on read.
+    sip_password: str = Field(default="", sa_column=Column(EncryptedString()))
     provisioning_token: str = Field(default="", max_length=128)
     enabled: bool = True
     video_capable: bool = False
@@ -63,13 +68,18 @@ class ProvisioningTemplate(SQLModel, table=True):
 
 class ProvisionedDevice(SQLModel, table=True):
     """A physical endpoint (desk phone, DECT base, door station) that fetches its
-    config from HA-Phone by MAC and registers the assigned extension."""
+    config from HA-Phone by MAC and registers the assigned extension(s)."""
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(default="", max_length=96)
     manufacturer: str = Field(default="", max_length=48)
     model: str = Field(default="", max_length=64)
     mac: str = Field(default="", max_length=32)   # normalized: lowercase, no separators
-    extension_id: int = 0                          # Extension.number assigned
+    # Comma-separated Extension.number values, in provisioning order (mirrors
+    # RingGroup.extension_numbers). A multi-line device (DECT base with several
+    # handsets) needs one SIP account per handset, not one shared account -
+    # sharing hits the AOR's max_contacts and the base has no line to dial out
+    # on for any handset beyond the first.
+    extension_numbers: str = ""
     template_id: int = 0
 
 
@@ -80,7 +90,7 @@ class Trunk(SQLModel, table=True):
     transport: str = "udp"  # udp | tcp | tls
     domain: str = ""  # SIP domain — empty = same as registrar_host
     auth_username: str  # SIP account number — NOT the Rufnummer
-    password: str  # stored in SQLite only; never written to conf in plaintext header
+    password: str = Field(sa_column=Column(EncryptedString()))  # encrypted at rest (D8)
     phone_number: str  # CallerID / Rufnummer / DID
     reg_refresh: int = 60
     codecs: str = "ulaw,alaw"  # comma-separated Asterisk codec names, in priority order
@@ -93,7 +103,7 @@ class SmtpSettings(SQLModel, table=True):
     port: int = 587
     encryption: str = Field(default="starttls", max_length=16)  # starttls | ssl | none
     username: str = Field(default="", max_length=128)
-    password: str = Field(default="", max_length=256)
+    password: str = Field(default="", sa_column=Column(EncryptedString()))  # encrypted at rest (D8)
     from_addr: str = Field(default="", max_length=128)
     from_name: str = Field(default="HA-Phone", max_length=64)
     enabled: bool = False

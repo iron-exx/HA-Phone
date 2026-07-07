@@ -75,6 +75,24 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE ringgroup ADD COLUMN number INTEGER NOT NULL DEFAULT 0")
                 )
                 conn.commit()
+        if "provisioneddevice" in tables:
+            cols = [c["name"] for c in inspector.get_columns("provisioneddevice")]
+            if "extension_numbers" not in cols:
+                conn.execute(
+                    text("ALTER TABLE provisioneddevice ADD COLUMN extension_numbers TEXT NOT NULL DEFAULT ''")
+                )
+                conn.commit()
+                # Backfill from the old single extension_id column (stored the
+                # extension's *number*, despite the misleading name) so devices
+                # provisioned before multi-line support keep working unchanged.
+                if "extension_id" in cols:
+                    conn.execute(
+                        text(
+                            "UPDATE provisioneddevice SET extension_numbers = CAST(extension_id AS TEXT) "
+                            "WHERE extension_id IS NOT NULL AND extension_id != 0 AND extension_numbers = ''"
+                        )
+                    )
+                    conn.commit()
 
 
 def init_db() -> Engine:

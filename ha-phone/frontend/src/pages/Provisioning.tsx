@@ -20,9 +20,20 @@ interface Device {
   manufacturer: string;
   model: string;
   mac: string;
-  extension_id: number;
+  extension_numbers: number[];
   template_id: number;
   provisioning_url: string;
+}
+interface ExtensionDiagnostic {
+  number: string;
+  status: "Online" | "Offline";
+  contact_uri: string;
+}
+
+function contactIp(contactUri: string): string {
+  // contact_uri looks like "sip:11@192.168.7.217:51966;ob" - pull just the host.
+  const match = contactUri.match(/@([^:;]+)/);
+  return match ? match[1] : "";
 }
 
 const inputCls = "h-9 font-mono";
@@ -31,6 +42,7 @@ export default function Provisioning() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [extensions, setExtensions] = useState<Extension[]>([]);
+  const [extDiagnostics, setExtDiagnostics] = useState<Record<string, ExtensionDiagnostic>>({});
   const [loading, setLoading] = useState(true);
 
   // add-device form
@@ -38,7 +50,7 @@ export default function Provisioning() {
   const [dManu, setDManu] = useState("");
   const [dModel, setDModel] = useState("");
   const [dMac, setDMac] = useState("");
-  const [dExt, setDExt] = useState<number | "">("");
+  const [dExtNumbers, setDExtNumbers] = useState<number[]>([]);
   const [dTpl, setDTpl] = useState<number | "">("");
   const [savingDev, setSavingDev] = useState(false);
 
@@ -55,11 +67,33 @@ export default function Provisioning() {
       .catch(() => toast.error("Provisioning-Daten konnten nicht geladen werden."))
       .finally(() => setLoading(false));
   }
-  useEffect(loadAll, []);
+  function loadDiagnostics() {
+    fetch("/api/diagnostics/overview")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.extensions) return;
+        const byNumber: Record<string, ExtensionDiagnostic> = {};
+        for (const ext of d.extensions as ExtensionDiagnostic[]) byNumber[ext.number] = ext;
+        setExtDiagnostics(byNumber);
+      })
+      .catch(() => {});
+  }
+  useEffect(() => {
+    loadAll();
+    loadDiagnostics();
+    const interval = setInterval(loadDiagnostics, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function toggleExtNumber(number: number) {
+    setDExtNumbers((prev) =>
+      prev.includes(number) ? prev.filter((n) => n !== number) : [...prev, number]
+    );
+  }
 
   async function addDevice() {
-    if (!dMac.trim() || dExt === "" || dTpl === "") {
-      toast.error("MAC, Nebenstelle und Template sind erforderlich.");
+    if (!dMac.trim() || dExtNumbers.length === 0 || dTpl === "") {
+      toast.error("MAC, mindestens eine Nebenstelle und Template sind erforderlich.");
       return;
     }
     setSavingDev(true);
@@ -69,11 +103,11 @@ export default function Provisioning() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: dName, manufacturer: dManu, model: dModel, mac: dMac,
-          extension_id: Number(dExt), template_id: Number(dTpl),
+          extension_numbers: dExtNumbers.join(","), template_id: Number(dTpl),
         }),
       });
       if (!resp.ok) throw new Error(await resp.text());
-      setDName(""); setDManu(""); setDModel(""); setDMac(""); setDExt(""); setDTpl("");
+      setDName(""); setDManu(""); setDModel(""); setDMac(""); setDExtNumbers([]); setDTpl("");
       loadAll();
       toast.success("Gerät hinzugefügt.");
     } catch (e) {
@@ -145,7 +179,8 @@ export default function Provisioning() {
                   <th className="pb-2 pr-3">Name</th>
                   <th className="pb-2 pr-3">Hersteller / Modell</th>
                   <th className="pb-2 pr-3">MAC</th>
-                  <th className="pb-2 pr-3">Nebenstelle</th>
+                  <th className="pb-2 pr-3">Nebenstellen</th>
+                  <th className="pb-2 pr-3">Status</th>
                   <th className="pb-2 pr-3">Provisioning-URL</th>
                   <th className="pb-2 text-right">Aktion</th>
                 </tr>
@@ -156,7 +191,29 @@ export default function Provisioning() {
                     <td className="py-2 pr-3">{d.name || "—"}</td>
                     <td className="py-2 pr-3">{d.manufacturer} {d.model}</td>
                     <td className="py-2 pr-3 font-mono text-xs">{d.mac}</td>
-                    <td className="py-2 pr-3 font-mono">{d.extension_id}</td>
+                    <td className="py-2 pr-3 font-mono">{d.extension_numbers.join(", ") || "—"}</td>
+                    <td className="py-2 pr-3">
+                      <div className="flex flex-col gap-0.5">
+                        {d.extension_numbers.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                        {d.extension_numbers.map((num) => {
+                          const diag = extDiagnostics[String(num)];
+                          const online = diag?.status === "Online";
+                          const ip = diag ? contactIp(diag.contact_uri) : "";
+                          return (
+                            <span key={num} className="flex items-center gap-1.5 text-xs">
+                              <span
+                                className="inline-block h-1.5 w-1.5 rounded-full"
+                                style={{ background: online ? "#22C55E" : "#64748B" }}
+                              />
+                              <span className="font-mono text-muted-foreground">{num}</span>
+                              <span className={online ? "text-emerald-400" : "text-muted-foreground"}>
+                                {online ? (ip || "Online") : "Offline"}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </td>
                     <td className="py-2 pr-3">
                       <button onClick={() => copy(d.provisioning_url)}
                         className="inline-flex items-center gap-1 font-mono text-xs text-violet-300 hover:text-violet-200">
@@ -182,12 +239,25 @@ export default function Provisioning() {
                   </td>
                   <td className="py-2 pr-3"><Input value={dMac} onChange={(e) => setDMac(e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" className={inputCls} /></td>
                   <td className="py-2 pr-3">
-                    <select value={dExt} onChange={(e) => setDExt(e.target.value ? Number(e.target.value) : "")}
-                      className="h-9 w-full rounded-md border border-input bg-[#0b0e1a] px-2 text-sm text-slate-200 [color-scheme:dark]">
-                      <option value="">—</option>
-                      {extensions.map((x) => <option key={x.id} value={x.number}>{x.number} ({x.display_name})</option>)}
-                    </select>
+                    <div
+                      className="max-h-24 w-36 space-y-1 overflow-y-auto rounded-md border border-input bg-[#0b0e1a] p-2"
+                      title="Mehrere Nebenstellen moeglich - je Mobilteil/Leitung eine (z.B. DECT-Basis)."
+                    >
+                      {extensions.length === 0 && <span className="text-xs text-muted-foreground">Keine Nebenstellen</span>}
+                      {extensions.map((x) => (
+                        <label key={x.id} className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-200">
+                          <input
+                            type="checkbox"
+                            checked={dExtNumbers.includes(x.number)}
+                            onChange={() => toggleExtNumber(x.number)}
+                            className="cursor-pointer"
+                          />
+                          {x.number} ({x.display_name})
+                        </label>
+                      ))}
+                    </div>
                   </td>
+                  <td className="py-2 pr-3" />
                   <td className="py-2 pr-3">
                     <select value={dTpl} onChange={(e) => setDTpl(e.target.value ? Number(e.target.value) : "")}
                       className="h-9 w-full rounded-md border border-input bg-[#0b0e1a] px-2 text-sm text-slate-200 [color-scheme:dark]">
