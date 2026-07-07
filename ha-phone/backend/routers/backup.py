@@ -30,6 +30,7 @@ from sqlmodel import Session, select
 from backend.database import get_session
 from backend.models import (
     Extension,
+    Holiday,
     IVRMenu,
     OutboundRule,
     ProvisionedDevice,
@@ -68,6 +69,7 @@ _MODELS_IN_DEPENDENCY_ORDER: list[type] = [
     TimeCondition,
     VoicemailSettings,
     ProvisionedDevice,
+    Holiday,
 ]
 
 

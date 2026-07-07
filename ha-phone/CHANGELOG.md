@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.72
+
+**Feature - Feiertage fuer Zeitbedingungen (Roadmap Phase B.3)**
+- Neue Sektion "Feiertage" auf der Routing-Seite: einmal ein Datum (Monat/Tag) hinterlegen, gilt automatisch fuer **alle** Zeitbedingungen als "geschlossen" - unabhaengig von den dort eingestellten Oeffnungszeiten. Wiederholt sich jedes Jahr (bewegliche Feiertage wie Ostern muessen weiterhin manuell als einmalige Zeitbedingung gepflegt werden - bewusste Vereinfachung fuer eine "einfache Business-Hours-Oberflaeche").
+- Klare Regelprioritaet im generierten Dialplan: der Feiertags-Check steht immer VOR der normalen Oeffnungszeiten-Pruefung und gewinnt daher immer.
+- Feiertage sind Teil des Backups (0.7.71) und werden entsprechend mit exportiert/wiederhergestellt.
+- Dabei eine bekannte SQLModel-Eigenheit erneut bestaetigt gefunden (vgl. D5): `Field(ge=, le=)`-Grenzen werden bei `table=True`-Modellen NICHT automatisch bei der Konstruktion geprueft. Monat/Tag werden daher explizit im Router validiert, nicht nur ueber die Modell-Feldgrenzen.
+- 6 neue Backend-Tests (CRUD, Validierung, Dialplan-Reihenfolge, Verhalten ohne Feiertage, Backup-Rundlauf).
+
 ## 0.7.71
 
 **Feature - Backup und Wiederherstellung (Roadmap Phase B.4)**

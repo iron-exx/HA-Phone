@@ -6,13 +6,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, Trunk, IVRMenu
+from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, Trunk, IVRMenu, Holiday
 from backend.conf_generator import render_conf
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.trunk import _to_e164
 from backend import ami
 
 router = APIRouter()
+
+# Asterisk GotoIfTime() month field wants a 3-letter lowercase name, not a number.
+_ASTERISK_MONTH_NAMES = [
+    "jan", "feb", "mar", "apr", "may", "jun",
+    "jul", "aug", "sep", "oct", "nov", "dec",
+]
 
 
 def _data_dir() -> Path:
@@ -96,6 +102,13 @@ def _regenerate_routing_conf(session: Session) -> None:
             ivr_number_to_id[ivr.number] = ivr.id
     # dial-all-extensions string for the no-route inbound fallback
     all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions if e.enabled)
+    # Holidays (Roadmap Phase B.3): checked BEFORE the normal open_hours/open_days
+    # GotoIfTime for every time condition, so a holiday always wins regardless of
+    # what hours/days are configured ("klare Regelprioritaet").
+    holidays = [
+        {"name": h.name, "day": h.day, "month_name": _ASTERISK_MONTH_NAMES[h.month - 1]}
+        for h in session.exec(select(Holiday)).all()
+    ]
     # Outbound caller ID (E.164) — set on outbound calls so the callee sees the
     # trunk's number (CLIP), independent of the calling extension's caller ID.
     trunk = session.exec(select(Trunk)).first()
@@ -118,6 +131,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "ivr_menus": ivr_menus,
             "ivr_number_to_id": ivr_number_to_id,
             "ivr_sounds_dir": ivr_sounds_dir,
+            "holidays": holidays,
         },
         output_path,
     )

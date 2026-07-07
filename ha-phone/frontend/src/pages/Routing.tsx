@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Check, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 
-import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu } from "@/types/api";
+import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu, type Holiday } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -1130,6 +1130,138 @@ function OutboundRulesSection() {
   );
 }
 
+const MONTH_NAMES = [
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember",
+];
+
+function HolidaysSection() {
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [month, setMonth] = useState("1");
+  const [day, setDay] = useState("1");
+  const [saving, setSaving] = useState(false);
+
+  function load() {
+    fetch("/api/holidays")
+      .then((r) => r.json())
+      .then((data: Holiday[]) => setHolidays(data))
+      .catch(() => toast.error("Feiertage konnten nicht geladen werden."))
+      .finally(() => setLoading(false));
+  }
+  useEffect(load, []);
+
+  async function addHoliday() {
+    if (!name.trim()) {
+      toast.error("Name ist erforderlich.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const resp = await fetch("/api/holidays", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), month: Number(month), day: Number(day) }),
+      });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern."));
+      setName(""); setMonth("1"); setDay("1");
+      load();
+      toast.success("Feiertag hinzugefügt.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Speichern."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteHoliday(id: number) {
+    try {
+      const resp = await fetch(`/api/holidays/${id}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      setHolidays((hs) => hs.filter((h) => h.id !== id));
+      toast.success("Feiertag gelöscht.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
+    }
+  }
+
+  return (
+    <>
+      <Separator className="my-8" />
+      <div className="mb-2">
+        <h2 className="text-xl font-semibold">Feiertage</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          An diesen Tagen gilt für <strong>alle</strong> Zeitbedingungen automatisch "geschlossen",
+          unabhängig von den eingestellten Öffnungszeiten. Wiederholt sich jedes Jahr am gleichen
+          Datum. Bewegliche Feiertage (z.B. Ostern) müssen manuell nachgepflegt werden.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Datum</TableHead>
+              <TableHead className="text-right">Aktionen</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {holidays.map((h) => (
+              <TableRow key={h.id}>
+                <TableCell>{h.name}</TableCell>
+                <TableCell className="font-mono">{h.day}. {MONTH_NAMES[h.month - 1]}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    aria-label={`Feiertag ${h.name} löschen`}
+                    onClick={() => deleteHoliday(h.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {/* Inline add row */}
+            <TableRow>
+              <TableCell>
+                <Input value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder="z.B. Weihnachten" className="h-9" />
+              </TableCell>
+              <TableCell>
+                <div className="flex gap-1.5">
+                  <select value={day} onChange={(e) => setDay(e.target.value)}
+                    className="h-9 w-16 rounded-md border border-input bg-[#0b0e1a] px-1 text-sm text-slate-200 [color-scheme:dark]">
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                  <select value={month} onChange={(e) => setMonth(e.target.value)}
+                    className="h-9 flex-1 rounded-md border border-input bg-[#0b0e1a] px-2 text-sm text-slate-200 [color-scheme:dark]">
+                    {MONTH_NAMES.map((m, i) => (
+                      <option key={m} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" onClick={addHoliday} disabled={saving}>
+                  {saving ? "…" : "Hinzufügen"}
+                </Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      )}
+    </>
+  );
+}
+
 // ---- Main page ----
 export default function Routing() {
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -1337,6 +1469,9 @@ export default function Routing() {
           </TableBody>
         </Table>
       )}
+
+      {/* ─── Holidays section ────────────────────────────────────────────── */}
+      <HolidaysSection />
 
       {/* Add Route Dialog */}
       {dialogOpen && (

@@ -163,6 +163,18 @@ class TimeCondition(SQLModel, table=True):
     closed_destination: int = 0  # 0 = voicemail
 
 
+class Holiday(SQLModel, table=True):
+    """A recurring closure day (Roadmap Phase B.3) applied to every
+    TimeCondition: on this month/day, calls are routed to closed_destination
+    regardless of open_hours/open_days. Fixed month/day only (no lunar/movable
+    holidays like Easter) - those still need a one-off manual TimeCondition
+    override, kept simple on purpose ("einfache Business-Hours-Oberflaeche")."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=64)
+    month: int = Field(ge=1, le=12)
+    day: int = Field(ge=1, le=31)
+
+
 class VoicemailSettings(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     extension_id: int

@@ -1540,3 +1540,103 @@ def test_backup_restore_resolves_custom_provisioning_template_by_name(client, mo
     templates = client.get("/api/provisioning/templates").json()
     restored_tpl = next(t for t in templates if t["name"] == "Custom Backup Template")
     assert restored["template_id"] == restored_tpl["id"]
+
+
+# ---- Holidays (Roadmap Phase B.3: Business Hours + Feiertage) ----
+# A holiday is a recurring month/day override applied to every TimeCondition:
+# on that date, calls go to closed_destination no matter what open_hours/
+# open_days say ("klare Regelprioritaet" - holiday always wins).
+
+def test_holiday_crud(client, mock_ami):
+    resp = client.post("/api/holidays", json={"name": "Weihnachten", "month": 12, "day": 25})
+    assert resp.status_code == 200
+    holiday = resp.json()
+    assert holiday["month"] == 12
+    assert holiday["day"] == 25
+    holiday_id = holiday["id"]
+
+    resp = client.get("/api/holidays")
+    assert resp.status_code == 200
+    assert any(h["id"] == holiday_id for h in resp.json())
+
+    resp = client.patch(f"/api/holidays/{holiday_id}", json={"name": "1. Weihnachtstag"})
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "1. Weihnachtstag"
+
+    resp = client.delete(f"/api/holidays/{holiday_id}")
+    assert resp.status_code == 200
+    assert client.get("/api/holidays").json() == []
+
+
+def test_holiday_rejects_invalid_month_or_day(client):
+    resp = client.post("/api/holidays", json={"name": "Bad", "month": 13, "day": 1})
+    assert resp.status_code == 422
+    resp = client.post("/api/holidays", json={"name": "Bad", "month": 1, "day": 32})
+    assert resp.status_code == 422
+
+
+def test_holiday_takes_priority_over_open_hours_in_dialplan(client, mock_ami, tmp_data_dir):
+    """The exact 'klare Regelprioritaet' requirement: the holiday GotoIfTime
+    check must render BEFORE the normal open_hours/open_days check, so it
+    always wins regardless of what the business hours say."""
+    resp = client.post("/api/holidays", json={"name": "Neujahr", "month": 1, "day": 1})
+    assert resp.status_code == 200
+    holiday_id = resp.json()["id"]
+
+    resp = client.post("/api/time-conditions", json={
+        "name": "Hours", "did": "+4977777777",
+        "open_hours_start": "00:00", "open_hours_end": "23:59", "open_days": "mon-sun",
+        "open_destination": 10, "closed_destination": 10,
+    })
+    assert resp.status_code == 200
+    tc_id = resp.json()["id"]
+
+    try:
+        content = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
+        assert f"exten => +4977777777,1,NoOp(Inbound (time): +4977777777)" in content
+
+        holiday_line = f"GotoIfTime(*|*|1|jan?closed-{tc_id},1,1)"
+        hours_line = f"GotoIfTime(00:00-23:59|*|*|mon-sun?open-{tc_id},1,1:closed-{tc_id},1,1)"
+        assert holiday_line in content
+        assert hours_line in content
+        # Order matters: the holiday check must come first in the same extension.
+        assert content.index(holiday_line) < content.index(hours_line)
+    finally:
+        # This holiday would otherwise leak into every other test's generated
+        # dialplan (holidays apply globally to every time condition).
+        client.delete(f"/api/holidays/{holiday_id}")
+        client.delete(f"/api/time-conditions/{tc_id}")
+
+
+def test_holiday_absent_from_dialplan_when_none_configured(client, mock_ami, tmp_data_dir):
+    resp = client.post("/api/time-conditions", json={
+        "name": "Hours", "did": "+4988888888",
+        "open_hours_start": "09:00", "open_hours_end": "18:00", "open_days": "mon-fri",
+        "open_destination": 10, "closed_destination": 10,
+    })
+    assert resp.status_code == 200
+    content = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
+    assert "GotoIfTime(*|*|" not in content
+
+
+def test_holiday_included_in_backup_restore(client, mock_ami):
+    resp = client.post("/api/holidays", json={"name": "Tag der Arbeit", "month": 5, "day": 1})
+    assert resp.status_code == 200
+    holiday_id = resp.json()["id"]
+
+    export_resp = client.post("/api/backup/export", data={"password": "correcthorsebattery"})
+    assert export_resp.status_code == 200
+
+    client.delete(f"/api/holidays/{holiday_id}")
+    assert client.get("/api/holidays").json() == []
+
+    import_resp = client.post(
+        "/api/backup/import",
+        data={"password": "correcthorsebattery"},
+        files={"file": ("backup.zip", export_resp.content, "application/zip")},
+    )
+    assert import_resp.status_code == 200
+    assert import_resp.json()["restored"]["holiday"] == 1
+
+    holidays = client.get("/api/holidays").json()
+    assert any(h["name"] == "Tag der Arbeit" and h["month"] == 5 and h["day"] == 1 for h in holidays)

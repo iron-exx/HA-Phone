@@ -133,6 +133,10 @@ exten => {{ did }},1,NoOp(Inbound {{ did }} -> {{ route.destination_type }}:{{ r
 {% endfor %}
 {% for condition in time_conditions %}
 exten => {{ condition.did }},1,NoOp(Inbound (time): {{ condition.did }})
+{% for holiday in holidays %}
+; Holiday '{{ holiday.name }}' always wins over open_hours/open_days below.
+ same => n,GotoIfTime(*|*|{{ holiday.day }}|{{ holiday.month_name }}?closed-{{ condition.id }},1,1)
+{% endfor %}
  same => n,GotoIfTime({{ condition.open_hours_start }}-{{ condition.open_hours_end }}|*|*|{{ condition.open_days }}?open-{{ condition.id }},1,1:closed-{{ condition.id }},1,1)
 {% endfor %}
 {% if not routes and not time_conditions %}

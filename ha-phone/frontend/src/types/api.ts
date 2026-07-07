@@ -154,3 +154,10 @@ export interface TimeCondition {
   open_destination: number; // extension number
   closed_destination: number; // extension number
 }
+
+export interface Holiday {
+  id: number;
+  name: string;
+  month: number; // 1-12
+  day: number;   // 1-31, recurring every year
+}
