@@ -1150,3 +1150,58 @@ def test_extension_update_number_conflicts_across_types(client, mock_ami, tmp_da
     resp = client.patch(f"/api/extensions/{ext['id']}", json={"number": 85})
     assert resp.status_code == 422
     assert "IVR menu" in resp.json()["detail"]
+
+
+def test_all_routing_domains_combined_after_ivr_exists(client, mock_ami, tmp_data_dir):
+    """Roadmap Phase A.4 'Fertig, wenn': re-creates the exact combination that
+    caused D1 (IVR existing, then creating an extension/ring group/route
+    cascades _regenerate_routing_conf for everyone) plus every other routing
+    domain in one pass, and asserts the final dialplan actually contains all
+    of it - not just that no request 500'd."""
+    resp = client.post("/api/ivrs", json={
+        "number": 90, "name": "Hauptmenu", "timeout": 8, "max_invalid_tries": 2,
+        "options": '[{"key":"9","action":"hangup"}]',
+    })
+    assert resp.status_code == 200
+
+    ext = _ensure_extension(client, 40, "Kombitest")
+    _ensure_extension(client, 41)
+
+    resp = client.post("/api/ring-groups", json={
+        "number": 91, "name": "Kombi-Gruppe", "extension_numbers": "40,41", "ring_timeout": 20
+    })
+    assert resp.status_code == 200
+    rg_id = resp.json()["id"]
+
+    resp = client.post("/api/outbound-rules", json={
+        "pattern": "9.", "strip": 1, "prepend": "+49", "priority": 5,
+    })
+    assert resp.status_code == 200
+
+    resp = client.post("/api/routes", json={
+        "did": "+4955555555", "destination_type": "ring_group", "destination_id": rg_id,
+    })
+    assert resp.status_code == 200
+
+    resp = client.post("/api/time-conditions", json={
+        "name": "Kombi-Zeiten", "did": "+4966666666",
+        "open_hours_start": "08:00", "open_hours_end": "18:00", "open_days": "mon-fri",
+        "open_destination": 40, "closed_destination": 41,
+    })
+    assert resp.status_code == 200
+
+    # The scenario that actually broke in D1: updating the extension after
+    # everything else exists re-triggers the full regeneration bundle again.
+    resp = client.patch(f"/api/extensions/{ext['id']}", json={"display_name": "Kombitest Renamed"})
+    assert resp.status_code == 200
+
+    content = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
+    assert "[ivr-1]" in content
+    assert "exten => 91,1,NoOp(Internal ring group Kombi-Gruppe)" in content
+    assert "exten => _9.,1,NoOp(Outbound rule '9.' strip 1 prepend '+49': ${EXTEN})" in content
+    assert "+4955555555" in content
+    assert "+4966666666" in content
+
+    regen_status = client.get("/api/diagnostics/config-regeneration").json()
+    assert regen_status["ok"] is True
+    assert all(step["ok"] for step in regen_status["steps"])

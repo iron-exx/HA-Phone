@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.68
+
+**Test - Kombinierter Regressionstest fuer alle Routing-Domaenen gleichzeitig (Roadmap Phase A.4)**
+- Neuer Test stellt exakt die Kombination nach, die D1 verursacht hat: IVR-Menue existiert bereits, dann werden Extension, Rufgruppe, Ausgehende Regel, eingehende Route und Zeitbedingung angelegt, danach die Extension nochmal aktualisiert (loest die volle Regenerierung erneut aus).
+- Prueft nicht nur "kein 500", sondern dass der finale generierte Dialplan tatsaechlich alle Teile enthaelt und der Regenerierungs-Status (`/api/diagnostics/config-regeneration`) fuer jeden Schritt `ok: true` meldet.
+- Kein Code-Fix - reiner Regressionsschutz, damit ein zukuenftiger D1-artiger Bug in CI auffliegt statt live beim Nutzer.
+
 ## 0.7.67
 
 **Feature - Referenzielle Integritaet beim Loeschen von Rufgruppen/IVR-Menues (Roadmap Phase A.3)**
