@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.67
+
+**Feature - Referenzielle Integritaet beim Loeschen von Rufgruppen/IVR-Menues (Roadmap Phase A.3)**
+- Bisher konnte eine Rufgruppe oder ein IVR-Menue geloescht werden, auch wenn eine eingehende Route noch darauf zeigte. Die Route blieb bestehen und zeigte danach still ins Leere - im Dialplan fiel das bei Rufgruppen auf `Congestion()` zurueck (Anrufer hoert Besetztzeichen, ohne dass irgendwo im UI ein Hinweis erscheint), bei IVR-Menues auf ein `Goto()` in einen nicht mehr existierenden Kontext.
+- Loeschen einer Rufgruppe oder eines IVR-Menues wird jetzt mit `409` abgelehnt, wenn noch eine eingehende Route darauf zeigt - die Fehlermeldung nennt die betroffene(n) Rufnummer(n).
+- Zusaetzlich gefunden: Ein IVR-Menue liess sich auch loeschen, wenn ein anderes Menue es per Untermenue-Option referenzierte (nur bei Anlegen/Bearbeiten geprueft, nie beim Loeschen). Jetzt ebenfalls blockiert, mit Namen des referenzierenden Menues in der Fehlermeldung.
+- Frontend zeigt jetzt die konkrete Backend-Fehlermeldung im Toast an, statt nur "Fehler beim Löschen." ohne Grund.
+- 3 neue Regressionstests.
+
 ## 0.7.66
 
 **Feature - IVR-Audio-Upload normalisiert jetzt auf das von Asterisk erwartete Format (loest D7, Roadmap Phase A.6)**

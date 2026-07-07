@@ -98,8 +98,8 @@ Pflichtpunkte, jeweils mit Fertig-Kriterium:
 **3. Routing-Modell konsistent validieren**
 - Ziele fuer Route, Rufgruppe, IVR und Zeitbedingung muessen im Backend konsistent validiert werden (baut auf Punkt 1 auf).
 - Fehlertexte muessen fuer Admins klar lesbar sein (keine rohen Pydantic/SQLAlchemy-Fehler in der UI).
-- Delete- und Aenderungsfaelle muessen sauber behandelt werden (was passiert mit Routen, die auf eine geloeschte Rufgruppe zeigen? Aktuell: nichts, die Route bleibt und referenziert eine tote ID - muss entweder blockiert oder mit Warnung erlaubt werden).
-- *Fertig, wenn:* Loeschen einer referenzierten Rufgruppe/IVR entweder verhindert wird oder abhaengige Routen sichtbar als "Ziel fehlt" markiert werden, statt still ins Leere zu zeigen.
+- ~~Delete- und Aenderungsfaelle muessen sauber behandelt werden~~ - **Delete-Teil erledigt in 0.7.67:** Loeschen einer Rufgruppe/eines IVR-Menues wird mit `409` abgelehnt, solange eine Route oder (bei IVR) ein Untermenue-Verweis darauf zeigt; Frontend zeigt die konkrete Fehlermeldung statt generischem "Fehler beim Loeschen". Noch offen: Aenderungsfaelle (z.B. eine Rufgruppen-Nummer aendern, waehrend eine Route per ID darauf zeigt - referenziert weiterhin korrekt per ID, aber noch nicht explizit getestet) und die breitere Frage roher Backend-Fehler in Zeitbedingungen/anderen Formularen.
+- *Fertig, wenn (Rest):* keine rohen Pydantic/SQLAlchemy-Fehlertexte mehr in einem der Routing-Formulare sichtbar sind.
 
 **4. Dialplan-Generierung absichern**
 - Zentrale Tests fuer `extensions_routing.conf`, mindestens ein Regressionstest pro Konfigurationspfad: Extension, Rufgruppe, IVR, Zeitbedingung, Outbound-Regeln, und die Kombination aus allen gleichzeitig (das genaue Szenario, das D1 aufgedeckt hat).
@@ -289,15 +289,14 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66) - alle vier waren hier Ticket 1-4, sind raus.
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67) - alle fuenf waren hier Ticket 1-5, sind raus.
 
 1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
 2. Routing-Regressionstests erweitern, insbesondere: IVR + gleichzeitiges Anlegen von Extension/Rufgruppe/Route (genau das Szenario aus D1) - Grundstock existiert bereits (`test_api.py`), Matrix noch nicht vollstaendig
-3. Referenzielle Integritaet bei Loeschungen klaeren (Route zeigt auf geloeschte Rufgruppe/IVR)
-4. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
-5. Secrets-Entscheidung fuer Backup treffen, dann Backup/Restore entwerfen
-6. Telefonbuch-Datenmodell und CRUD bauen
-7. Sprachansagen als wiederverwendbare Objekte einfuehren
+3. Zeitbedingungen in Business Hours + Feiertage ueberfuehren
+4. Secrets-Entscheidung fuer Backup treffen, dann Backup/Restore entwerfen
+5. Telefonbuch-Datenmodell und CRUD bauen
+6. Sprachansagen als wiederverwendbare Objekte einfuehren
 
 ## 12. Entscheidung
 

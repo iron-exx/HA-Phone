@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import Extension, RingGroup
+from backend.models import Extension, RingGroup, Route
 from backend.numbering import validate_number
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 # Use the canonical routing regen (includes inbound routes, outbound rules, CLIP).
@@ -108,6 +108,22 @@ async def delete_ring_group(rg_id: int, session: Session = Depends(get_session))
     existing = session.get(RingGroup, rg_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Ring group not found")
+    # Referential integrity (Roadmap Phase A.3): a Route pointing at this ring
+    # group's now-deleted id previously fell back to Congestion() in the
+    # dialplan (extensions_routing.conf.j2) with no indication anywhere in the
+    # UI that the DID was silently dead. Block the delete instead.
+    blocking_routes = session.exec(
+        select(Route).where(
+            Route.destination_type == "ring_group",
+            Route.destination_id == rg_id,
+        )
+    ).all()
+    if blocking_routes:
+        dids = ", ".join(route.did for route in blocking_routes)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Ring group is still used by inbound route(s): {dids}",
+        )
     session.delete(existing)
     session.commit()
     summary = run_single_regeneration_step(

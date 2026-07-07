@@ -857,12 +857,15 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
   async function deleteGroup(id: number) {
     try {
       const resp = await fetch(`/api/ring-groups/${id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error();
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => null);
+        throw new Error(body?.detail || "Fehler beim Löschen.");
+      }
       setGroups((gs) => gs.filter((g) => g.id !== id));
       onChanged();
       toast.success("Rufgruppe gelöscht.");
-    } catch {
-      toast.error("Fehler beim Löschen.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fehler beim Löschen.");
     }
   }
 

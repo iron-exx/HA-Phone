@@ -925,6 +925,77 @@ def test_ivr_greeting_upload_rejects_empty_file(client):
     assert resp.status_code == 422
 
 
+# ---- Referential integrity on delete (Roadmap Phase A.3) ----
+# Deleting a ring group or IVR menu that's still referenced by an inbound
+# route (or, for IVR, by another menu's submenu option) used to succeed
+# silently - the route/option was left pointing at a dead id, which the
+# dialplan either quietly Congestion()'d (ring group) or could Goto() into an
+# invalid context (IVR). Both are now blocked with a 409 naming what's still
+# using it.
+
+def test_ring_group_delete_blocked_by_route(client, mock_ami):
+    for number in (10, 11):
+        _ensure_extension(client, number)
+    resp = client.post("/api/ring-groups", json={
+        "number": 63, "name": "Support", "extension_numbers": "10,11", "ring_timeout": 30
+    })
+    assert resp.status_code == 200
+    rg_id = resp.json()["id"]
+
+    resp = client.post("/api/routes", json={
+        "did": "+4933333333", "destination_type": "ring_group", "destination_id": rg_id,
+    })
+    assert resp.status_code == 200
+    route_id = resp.json()["id"]
+
+    resp = client.delete(f"/api/ring-groups/{rg_id}")
+    assert resp.status_code == 409
+    assert "+4933333333" in resp.json()["detail"]
+
+    # Cleanup path still works once the blocking route is gone.
+    assert client.delete(f"/api/routes/{route_id}").status_code == 200
+    assert client.delete(f"/api/ring-groups/{rg_id}").status_code == 200
+
+
+def test_ivr_delete_blocked_by_route(client, tmp_data_dir):
+    resp = client.post("/api/ivrs", json={
+        "number": 64, "name": "Empfang", "timeout": 10, "max_invalid_tries": 3, "options": "[]",
+    })
+    assert resp.status_code == 200
+    ivr_id = resp.json()["id"]
+
+    resp = client.post("/api/routes", json={
+        "did": "+4944444444", "destination_type": "ivr", "destination_id": ivr_id,
+    })
+    assert resp.status_code == 200
+    route_id = resp.json()["id"]
+
+    resp = client.delete(f"/api/ivrs/{ivr_id}")
+    assert resp.status_code == 409
+    assert "+4944444444" in resp.json()["detail"]
+
+    assert client.delete(f"/api/routes/{route_id}").status_code == 200
+    assert client.delete(f"/api/ivrs/{ivr_id}").status_code == 200
+
+
+def test_ivr_delete_blocked_by_submenu_reference(client, tmp_data_dir):
+    resp = client.post("/api/ivrs", json={
+        "number": 65, "name": "Zielmenu", "timeout": 10, "max_invalid_tries": 3, "options": "[]",
+    })
+    assert resp.status_code == 200
+    target_id = resp.json()["id"]
+
+    resp = client.post("/api/ivrs", json={
+        "number": 66, "name": "Hauptmenu", "timeout": 10, "max_invalid_tries": 3,
+        "options": '[{"key":"1","action":"ivr","target":65}]',
+    })
+    assert resp.status_code == 200
+
+    resp = client.delete(f"/api/ivrs/{target_id}")
+    assert resp.status_code == 409
+    assert "Hauptmenu" in resp.json()["detail"]
+
+
 # ── GAP-INGRESS regression tests (06-04) ───────────────────────────────────────
 # These exercise the SPA catch-all injection against a REAL index.html fixture
 # (via BPX_DIST_DIR / _dist_index), NOT the "Frontend not built" stub. They prove:

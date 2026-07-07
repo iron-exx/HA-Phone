@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import IVRMenu, Extension, RingGroup
+from backend.models import IVRMenu, Extension, RingGroup, Route
 from backend.numbering import validate_number
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
@@ -72,6 +72,19 @@ async def _normalize_greeting_wav(raw_bytes: bytes, dest_path: Path) -> None:
 
 def _validate_ivr_number(ivr: IVRMenu, session: Session, existing_id: int | None = None) -> None:
     validate_number(session, ivr.number, kind="ivr", exclude_id=existing_id)
+
+
+def _parse_options_safe(options_str: str) -> list[dict]:
+    """Parse already-stored options JSON for read-only inspection (e.g. checking
+    submenu references before a delete). Never raises - a stored menu's options
+    already passed _validate_options once, this is just defensive."""
+    if not options_str or not options_str.strip():
+        return []
+    try:
+        options = json.loads(options_str)
+    except json.JSONDecodeError:
+        return []
+    return options if isinstance(options, list) else []
 
 
 def _validate_options(options_str: str) -> list[dict]:
@@ -192,6 +205,36 @@ async def delete_ivr(ivr_id: int, session: Session = Depends(get_session)):
     existing = session.get(IVRMenu, ivr_id)
     if not existing:
         raise HTTPException(status_code=404, detail="IVR menu not found")
+    # Referential integrity (Roadmap Phase A.3): a Route pointing at a deleted
+    # IVR's id makes the dialplan Goto() an invalid context/id (crashes that
+    # call leg), and another IVR's "ivr" submenu option pointing at a deleted
+    # menu's number silently dead-ends (validated only at create/update time,
+    # never re-checked on delete). Block the delete instead of leaving either
+    # dangling.
+    blocking_routes = session.exec(
+        select(Route).where(
+            Route.destination_type == "ivr",
+            Route.destination_id == ivr_id,
+        )
+    ).all()
+    if blocking_routes:
+        dids = ", ".join(route.did for route in blocking_routes)
+        raise HTTPException(
+            status_code=409,
+            detail=f"IVR menu is still used by inbound route(s): {dids}",
+        )
+    referencing_menus = []
+    for menu in session.exec(select(IVRMenu).where(IVRMenu.id != ivr_id)).all():
+        for opt in _parse_options_safe(menu.options):
+            if opt.get("action") == "ivr" and opt.get("target") == existing.number:
+                referencing_menus.append(menu.name)
+                break
+    if referencing_menus:
+        names = ", ".join(referencing_menus)
+        raise HTTPException(
+            status_code=409,
+            detail=f"IVR menu is still used as a submenu target by: {names}",
+        )
     # Remove greeting file if exists
     if existing.greeting_file:
         greeting_path = _ivr_dir() / existing.greeting_file

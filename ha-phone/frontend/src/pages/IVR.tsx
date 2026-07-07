@@ -594,11 +594,14 @@ export default function IVR() {
     if (!deleteTarget) return;
     try {
       const resp = await fetch(`/api/ivrs/${deleteTarget.id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error();
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => null);
+        throw new Error(body?.detail || "Fehler beim Löschen.");
+      }
       setIvrs((prev) => prev.filter((i) => i.id !== deleteTarget.id));
       toast.success("IVR-Menü gelöscht.");
-    } catch {
-      toast.error("Fehler beim Löschen.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fehler beim Löschen.");
     }
     setDeleteTarget(null);
   }
