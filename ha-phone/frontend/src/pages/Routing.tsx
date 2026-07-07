@@ -7,6 +7,7 @@ import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Check, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
 
 import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu, type Holiday } from "@/types/api";
+import { WEEKDAYS, WEEKDAY_LABELS, formatDays, formatDaysReadable, parseDays, type Weekday } from "@/lib/weekdays";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -454,6 +455,45 @@ function DeleteRouteDialog({
   );
 }
 
+// ---- Weekday picker (Business Hours UI, Roadmap Phase B.3) ----
+// Replaces the free-text "mon-fri" input with toggle buttons. Converts to/
+// from the same Asterisk GotoIfTime day format the backend already stores,
+// so no API/model change was needed - a hand-typed value from before this
+// existed still parses fine (unknown tokens are just ignored).
+function WeekdayPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const selected = parseDays(value);
+
+  function toggle(day: Weekday) {
+    const next = new Set(selected);
+    if (next.has(day)) next.delete(day);
+    else next.add(day);
+    onChange(formatDays(next));
+  }
+
+  return (
+    <div className="flex gap-1.5">
+      {WEEKDAYS.map((day) => {
+        const active = selected.has(day);
+        return (
+          <button
+            key={day}
+            type="button"
+            onClick={() => toggle(day)}
+            aria-pressed={active}
+            className={`h-9 flex-1 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
+              active
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-input bg-[#0b0e1a] text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            {WEEKDAY_LABELS[day]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ---- Add Time Condition Dialog ----
 function AddTimeConditionDialog({
   open,
@@ -537,7 +577,7 @@ function AddTimeConditionDialog({
             <FormField control={form.control} name="open_days" render={({ field }) => (
               <FormItem>
                 <FormLabel>Open Days</FormLabel>
-                <FormControl><Input placeholder="mon-sun" {...field} /></FormControl>
+                <FormControl><WeekdayPicker value={field.value} onChange={field.onChange} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -649,7 +689,7 @@ function EditTimeConditionDialog({
             <FormField control={form.control} name="open_days" render={({ field }) => (
               <FormItem>
                 <FormLabel>Open Days</FormLabel>
-                <FormControl><Input placeholder="mon-sun" {...field} /></FormControl>
+                <FormControl><WeekdayPicker value={field.value} onChange={field.onChange} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -1430,7 +1470,7 @@ export default function Routing() {
               <TableRow key={tc.id}>
                 <TableCell className="font-medium">{tc.did}</TableCell>
                 <TableCell>{tc.open_hours_start} – {tc.open_hours_end}</TableCell>
-                <TableCell>{tc.open_days}</TableCell>
+                <TableCell>{formatDaysReadable(tc.open_days)}</TableCell>
                 <TableCell>ext {tc.open_destination}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>

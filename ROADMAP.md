@@ -148,11 +148,11 @@ Pflichtpunkte:
 - Anzeige von Zuordnung zu Rufgruppen und IVR-Zielen.
 - Sauberer Umgang mit deaktivierten Nebenstellen.
 
-**3. Zeitsteuerung alltagstauglich machen - Feiertage ERLEDIGT in 0.7.72**
-- Neues `Holiday`-Modell (Monat/Tag, jaehrlich wiederkehrend) gilt automatisch fuer alle Zeitbedingungen als "geschlossen".
+**3. Zeitsteuerung alltagstauglich machen - ERLEDIGT in 0.7.72/0.7.73**
+- Neues `Holiday`-Modell (Monat/Tag, jaehrlich wiederkehrend) gilt automatisch fuer alle Zeitbedingungen als "geschlossen" (0.7.72).
 - Klare Regelprioritaet: Feiertags-Check steht im generierten Dialplan immer vor der normalen Oeffnungszeiten-Pruefung.
 - Bewusste Einschraenkung: keine beweglichen Feiertage (Ostern etc.) - dafuer bleibt die manuelle Zeitbedingung.
-- Noch offen (kleinerer Rest): eine eigentliche "Business-Hours"-Oberflaeche im Sinne von Wochentag-Zeitraster-UI statt der bestehenden Freitext-Felder (`open_days`, `open_hours_start/end`) - aktuell weiterhin funktional, aber technisch statt visuell gedacht.
+- Wochentag-Toggle-Buttons (Mo-So) ersetzen das rohe Asterisk-Format-Freitextfeld bei "Open Days" (0.7.73) - `src/lib/weekdays.ts` konvertiert transparent, keine Backend-Aenderung noetig.
 
 **4. Backup und Restore - ERLEDIGT in 0.7.71**
 - Neue Seite "Backup": Export/Import der kompletten PBX-Konfiguration als ZIP (`backend/routers/backup.py`).
@@ -291,13 +291,12 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69), Migrations-Testabdeckung + Fehlertexte in der UI (0.7.70), Backup/Restore (0.7.71), Feiertage (0.7.72) - Phase A ist bis auf Punkt 7 (UI-Konsistenz, manuelle Checkliste) fertig, Phase B kommt gut voran.
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69), Migrations-Testabdeckung + Fehlertexte in der UI (0.7.70), Backup/Restore (0.7.71), Feiertage + Business-Hours-UI (0.7.72/0.7.73) - Phase A ist bis auf Punkt 7 (UI-Konsistenz, manuelle Checkliste) fertig, Phase B.3 (Zeitsteuerung) ist komplett.
 
 1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
 2. UI-Konsistenz-Durchgang (Phase A.7, letzter offener Phase-A-Punkt) - manuelle Checkliste durch alle Dialoge/Dropdowns/Tabellen
-3. Business-Hours-Oberflaeche (Wochentag-Zeitraster statt Freitext) - kleinerer Rest von Phase B.3
-4. Telefonbuch-Datenmodell und CRUD bauen
-5. Sprachansagen als wiederverwendbare Objekte einfuehren
+3. Telefonbuch-Datenmodell und CRUD bauen
+4. Sprachansagen als wiederverwendbare Objekte einfuehren
 
 ## 12. Entscheidung
 

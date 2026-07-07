@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.73
+
+**UI - Wochentag-Picker statt Freitext fuer Zeitbedingungen (Roadmap Phase B.3, Rest)**
+- "Open Days" bei Zeitbedingungen war bisher ein Freitext-Feld, in das man den rohen Asterisk-Format-String (z.B. `mon-fri`) selbst eintippen musste - technisch statt administrativ gedacht.
+- Neue Wochentag-Toggle-Buttons (Mo-So) ersetzen das Freitext-Feld in Anlegen- und Bearbeiten-Dialog. Wandelt transparent in das bestehende Asterisk-GotoIfTime-Format um und zurueck - keine Backend-/Datenmodell-Aenderung noetig, ein von Hand eingetragener alter Wert bleibt beim Bearbeiten kompatibel.
+- Tabellenansicht zeigt jetzt "Mo-Fr" statt "mon-fri".
+- Neues `src/lib/weekdays.ts` (mit Tests) fuer die Umwandlung, inkl. Rundlauf-Test, der jedes erzeugte Format wieder korrekt einliest.
+
 ## 0.7.72
 
 **Feature - Feiertage fuer Zeitbedingungen (Roadmap Phase B.3)**
