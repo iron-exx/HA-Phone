@@ -12,6 +12,7 @@ import {
   LogOut,
   PhoneIncoming,
   DatabaseBackup,
+  BookUser,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/provisioning", label: "Provisioning", icon: Router, end: false },
   { to: "/trunk", label: "Trunk", icon: Network, end: false },
   { to: "/routing", label: "Routing", icon: GitBranch, end: false },
+  { to: "/phonebook", label: "Telefonbuch", icon: BookUser, end: false },
   { to: "/voicemail", label: "Voicemail", icon: Voicemail, end: false },
   { to: "/settings/public-ip", label: "Settings", icon: Settings, end: false },
   { to: "/backup", label: "Backup", icon: DatabaseBackup, end: false },

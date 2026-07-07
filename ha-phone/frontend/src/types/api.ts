@@ -161,3 +161,10 @@ export interface Holiday {
   month: number; // 1-12
   day: number;   // 1-31, recurring every year
 }
+
+export interface PhonebookEntry {
+  id: number;
+  name: string;
+  number: string;
+  notes: string;
+}

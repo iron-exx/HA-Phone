@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.74
+
+**Feature - Telefonbuch mit CSV-Import/Export**
+- Neue Seite "Telefonbuch": gemeinsame Kontaktliste (Name, Nummer, Notiz), unabhaengig von Nebenstellen. Suche, Anlegen/Bearbeiten/Loeschen, CSV-Export und -Import.
+- CSV-Import ordnet Zeilen per Nummer zu bestehenden Eintraegen zu (Upsert) statt bei erneutem Import Duplikate anzulegen; Zeilen ohne Name/Nummer werden uebersprungen und in der Rueckmeldung gezaehlt statt den ganzen Import abzubrechen.
+- Telefonbuch-Eintraege sind Teil von Backup/Restore (0.7.71).
+- Noch nicht enthalten (bewusst ausserhalb des Ticket-Scopes "Datenmodell und CRUD"): automatischer CallerID-Namensabgleich fuer eingehende Anrufe anhand des Telefonbuchs - naheliegende Folge-Erweiterung, aber ein eigenes Stueck Dialplan-Arbeit.
+- 7 neue Backend-Tests (CRUD, Pflichtfelder, CSV-Export-Format, Import mit Neuanlage+Update, Validierung fehlender Spalten, Ueberspringen unvollstaendiger Zeilen, Backup-Einbindung).
+
 ## 0.7.73
 
 **UI - Wochentag-Picker statt Freitext fuer Zeitbedingungen (Roadmap Phase B.3, Rest)**

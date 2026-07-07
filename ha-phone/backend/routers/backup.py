@@ -33,6 +33,7 @@ from backend.models import (
     Holiday,
     IVRMenu,
     OutboundRule,
+    PhonebookEntry,
     ProvisionedDevice,
     ProvisioningTemplate,
     RingGroup,
@@ -70,6 +71,7 @@ _MODELS_IN_DEPENDENCY_ORDER: list[type] = [
     VoicemailSettings,
     ProvisionedDevice,
     Holiday,
+    PhonebookEntry,
 ]
 
 

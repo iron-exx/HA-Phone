@@ -171,8 +171,8 @@ Diese Features sind sinnvoll, aber erst nach Phase A und B.
 
 ### Prioritaet Hoch
 
-- Telefonbuch mit CSV-Import/Export
-- Feiertage und erweiterte Geschaeftszeiten
+- ~~Telefonbuch mit CSV-Import/Export~~ - erledigt 0.7.74 (CallerID-Namensabgleich fuer eingehende Anrufe als natuerliche Folge-Erweiterung noch offen)
+- ~~Feiertage und erweiterte Geschaeftszeiten~~ - erledigt 0.7.72/0.7.73
 - Sprachansagen-Manager fuer IVR und Zeitziele
 - Blacklist / Whitelist fuer eingehende Anrufe
 - **Warteschlangen / Queues** und **Konferenzraeume** - siehe gesonderte Anmerkung unten. Beide brauchen den Numbering-Service aus Phase A Punkt 1.
@@ -291,11 +291,11 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 
 ## 11. Konkrete naechste Tickets
 
-Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69), Migrations-Testabdeckung + Fehlertexte in der UI (0.7.70), Backup/Restore (0.7.71), Feiertage + Business-Hours-UI (0.7.72/0.7.73) - Phase A ist bis auf Punkt 7 (UI-Konsistenz, manuelle Checkliste) fertig, Phase B.3 (Zeitsteuerung) ist komplett.
+Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69), Migrations-Testabdeckung + Fehlertexte in der UI (0.7.70), Backup/Restore (0.7.71), Feiertage + Business-Hours-UI (0.7.72/0.7.73), Telefonbuch (0.7.74) - Phase A ist bis auf Punkt 7 (UI-Konsistenz, manuelle Checkliste) fertig, Phase B ist praktisch durch, und das erste "Prioritaet Hoch"-Feature (Telefonbuch) ist live.
 
 1. **Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)** - noch nicht per Trace verifiziert, aber aktiv beim Nutzer aufgetreten. Naechster Schritt vor allem anderen, weil live kaputt.
 2. UI-Konsistenz-Durchgang (Phase A.7, letzter offener Phase-A-Punkt) - manuelle Checkliste durch alle Dialoge/Dropdowns/Tabellen
-3. Telefonbuch-Datenmodell und CRUD bauen
+3. Telefonbuch-CallerID-Abgleich fuer eingehende Anrufe (natuerliche Folge-Erweiterung aus 0.7.74)
 4. Sprachansagen als wiederverwendbare Objekte einfuehren
 
 ## 12. Entscheidung

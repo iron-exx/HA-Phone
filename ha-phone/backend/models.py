@@ -175,6 +175,17 @@ class Holiday(SQLModel, table=True):
     day: int = Field(ge=1, le=31)
 
 
+class PhonebookEntry(SQLModel, table=True):
+    """Company/personal directory entry (Roadmap 'Prioritaet Hoch': Telefonbuch
+    mit CSV-Import/Export). Not yet wired into the dialplan for inbound
+    CallerID-name lookup - CRUD + CSV first, per the roadmap's own ticket
+    scope; that enrichment is a natural follow-up, not done here."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=96)
+    number: str = Field(max_length=32)
+    notes: str = Field(default="", max_length=256)
+
+
 class VoicemailSettings(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     extension_id: int

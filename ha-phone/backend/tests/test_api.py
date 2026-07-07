@@ -1640,3 +1640,123 @@ def test_holiday_included_in_backup_restore(client, mock_ami):
 
     holidays = client.get("/api/holidays").json()
     assert any(h["name"] == "Tag der Arbeit" and h["month"] == 5 and h["day"] == 1 for h in holidays)
+
+
+# ---- Phonebook (Roadmap: Telefonbuch mit CSV-Import/Export) ----
+
+def test_phonebook_crud(client):
+    resp = client.post("/api/phonebook", json={"name": "Pizza Service", "number": "+4933334444", "notes": "Lieferung"})
+    assert resp.status_code == 200
+    entry = resp.json()
+    assert entry["name"] == "Pizza Service"
+    entry_id = entry["id"]
+
+    resp = client.get("/api/phonebook")
+    assert resp.status_code == 200
+    assert any(e["id"] == entry_id for e in resp.json())
+
+    resp = client.patch(f"/api/phonebook/{entry_id}", json={"notes": "Lieferung + Abholung"})
+    assert resp.status_code == 200
+    assert resp.json()["notes"] == "Lieferung + Abholung"
+
+    resp = client.delete(f"/api/phonebook/{entry_id}")
+    assert resp.status_code == 200
+    assert client.get("/api/phonebook").json() == []
+
+
+def test_phonebook_requires_name_and_number(client):
+    resp = client.post("/api/phonebook", json={"name": "", "number": "+491234"})
+    assert resp.status_code == 422
+    resp = client.post("/api/phonebook", json={"name": "Nobody", "number": ""})
+    assert resp.status_code == 422
+
+
+def test_phonebook_export_csv(client):
+    client.post("/api/phonebook", json={"name": "Taxi Zentrale", "number": "+4933335555", "notes": "24h"})
+    resp = client.get("/api/phonebook/export")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    body = resp.text
+    assert "name,number,notes" in body
+    assert "Taxi Zentrale,+4933335555,24h" in body
+
+
+def test_phonebook_import_creates_and_updates(client):
+    import io
+
+    csv_content = "name,number,notes\nApotheke,+4933336666,Notdienst\n"
+    resp = client.post(
+        "/api/phonebook/import",
+        files={"file": ("contacts.csv", io.BytesIO(csv_content.encode()), "text/csv")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["created"] == 1
+    assert body["updated"] == 0
+
+    entries = client.get("/api/phonebook").json()
+    apotheke = next(e for e in entries if e["number"] == "+4933336666")
+    assert apotheke["name"] == "Apotheke"
+
+    # Re-importing the same number with a changed name updates instead of duplicating.
+    csv_content_2 = "name,number,notes\nApotheke am Markt,+4933336666,Notdienst 24h\n"
+    resp = client.post(
+        "/api/phonebook/import",
+        files={"file": ("contacts.csv", io.BytesIO(csv_content_2.encode()), "text/csv")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["created"] == 0
+    assert body["updated"] == 1
+
+    entries = client.get("/api/phonebook").json()
+    matching = [e for e in entries if e["number"] == "+4933336666"]
+    assert len(matching) == 1
+    assert matching[0]["name"] == "Apotheke am Markt"
+
+
+def test_phonebook_import_rejects_missing_columns(client):
+    import io
+
+    resp = client.post(
+        "/api/phonebook/import",
+        files={"file": ("bad.csv", io.BytesIO(b"foo,bar\n1,2\n"), "text/csv")},
+    )
+    assert resp.status_code == 422
+
+
+def test_phonebook_import_skips_rows_missing_required_fields(client):
+    import io
+
+    csv_content = "name,number,notes\n,+4900000000,missing name\nValid Entry,+4911112222,ok\n"
+    resp = client.post(
+        "/api/phonebook/import",
+        files={"file": ("contacts.csv", io.BytesIO(csv_content.encode()), "text/csv")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["created"] == 1
+    assert body["skipped"] == 1
+
+
+def test_phonebook_included_in_backup_restore(client):
+    resp = client.post("/api/phonebook", json={"name": "Backup Contact", "number": "+4922223333", "notes": ""})
+    assert resp.status_code == 200
+    entry_id = resp.json()["id"]
+
+    export_resp = client.post("/api/backup/export", data={"password": "correcthorsebattery"})
+    assert export_resp.status_code == 200
+
+    client.delete(f"/api/phonebook/{entry_id}")
+    assert not any(e["name"] == "Backup Contact" for e in client.get("/api/phonebook").json())
+
+    import_resp = client.post(
+        "/api/backup/import",
+        data={"password": "correcthorsebattery"},
+        files={"file": ("backup.zip", export_resp.content, "application/zip")},
+    )
+    assert import_resp.status_code == 200
+    assert import_resp.json()["restored"]["phonebookentry"] >= 1
+
+    entries = client.get("/api/phonebook").json()
+    assert any(e["name"] == "Backup Contact" for e in entries)
