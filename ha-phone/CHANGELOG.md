@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.79
+
+**Fix - CI-Testfehler behoben, der 0.7.78 komplett am Ausliefern gehindert hat**
+- Ursache der "nur Fehler"-Symptome: `test_provisioned_device_rejects_short_mac` (neu in 0.7.78) legte eine Testnebenstelle mit Nummer 60 an, die im gemeinsamen 10-99-Nummernraum (Extension/RingGroup/IVR teilen sich einen Pool) bereits von einem IVR-Test belegt war. Der CI-Job "test" ist dadurch fehlgeschlagen, und da der Docker-Image-Build von "test" abhaengt, wurde fuer 0.7.78 **nie ein Image nach GHCR gebaut/veroeffentlicht** - Home Assistant konnte beim Update also nur einen Pull-Fehler zeigen, der eigentliche Provisioning-Code war nie das Problem.
+- Testnummer auf eine freie (67) geaendert. Keine funktionalen Code-Aenderungen gegenueber 0.7.78 - reiner CI-Fix, damit das Image tatsaechlich gebaut wird.
+
 ## 0.7.78
 
 **Fix - Provisioning-Geraete lassen sich wieder sauber speichern**

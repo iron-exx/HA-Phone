@@ -1277,11 +1277,11 @@ def test_provisioned_device_rejects_empty_extension_assignment(client):
 
 
 def test_provisioned_device_rejects_short_mac(client):
-    _ensure_extension(client, 60, "Kurz")
+    _ensure_extension(client, 67, "Kurz")
     tpl_id = _create_multiline_template(client)
     resp = client.post("/api/provisioning/devices", json={
         "name": "Bad MAC", "manufacturer": "Gigaset", "model": "N510 IP PRO",
-        "mac": "7C:2F:80", "extension_numbers": "60", "template_id": tpl_id,
+        "mac": "7C:2F:80", "extension_numbers": "67", "template_id": tpl_id,
     })
     assert resp.status_code == 400
     assert resp.json()["detail"] == "MAC muss 12 Hex-Zeichen haben."
