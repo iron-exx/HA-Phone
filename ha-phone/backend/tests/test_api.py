@@ -1350,7 +1350,7 @@ def test_builtin_gigaset_n510_providerframe_template_renders_assigned_and_empty_
     xml = resp.text
     assert '<?xml version="1.0" encoding="ISO-8859-1"?>' in xml
     assert "<ProviderFrame" in xml
-    assert 'BS_IP_Data1.aucS_SIP_ACCOUNT_NAME' in xml
+    assert 'BS_IP_Data1.aucS_SIP_ACCOUNT_NAME"' in xml
     assert 'value=\'"68"\'' in xml
     assert 'BS_IP_Data1.aucS_SIP_ACCOUNT_NAME_2' in xml
     assert 'value=\'"69"\'' in xml
@@ -1360,6 +1360,70 @@ def test_builtin_gigaset_n510_providerframe_template_renders_assigned_and_empty_
     assert 'BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE_3' in xml
     assert 'value="0x0"' in xml
     assert 'BS_AE_Subscriber.stMtDat[0].aucTlnName[0]' in xml
+    # Regression coverage for the 0.7.77-0.7.80 bug: account 1's "is active"
+    # flag must be numbered "_1" (per Yeastar's real reference template),
+    # even though every OTHER field for account 1 has no suffix at all. The
+    # old bug used a bare, unsuffixed field name here that the device never
+    # recognized, so account 1 (and any single-line device) never activated.
+    assert 'BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE_1" class="symb_item" value="0x1"' in xml
+    assert 'BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE"' not in xml
+    assert 'BS_IP_Data1.ucI_SIP_PROVIDER_ID" class="symb_item" value="0"' in xml
+
+
+def test_repair_broken_builtin_templates_fixes_unedited_n510_content(client):
+    from sqlmodel import Session, select
+
+    from backend.database import get_engine
+    from backend.models import ProvisioningTemplate
+    from backend.routers.provisioning import (
+        _N510_PROVIDERFRAME_BROKEN_CONTENT,
+        _N510_PROVIDERFRAME_NAME,
+        BUILTIN_TEMPLATES,
+        repair_broken_builtin_templates,
+        seed_builtin_templates,
+    )
+
+    with Session(get_engine()) as session:
+        seed_builtin_templates(session)
+        tpl = session.exec(
+            select(ProvisioningTemplate).where(ProvisioningTemplate.name == _N510_PROVIDERFRAME_NAME)
+        ).first()
+        tpl.content = _N510_PROVIDERFRAME_BROKEN_CONTENT
+        session.add(tpl)
+        session.commit()
+
+        assert repair_broken_builtin_templates(session) is True
+
+        session.refresh(tpl)
+        fixed_content = next(t for t in BUILTIN_TEMPLATES if t["name"] == _N510_PROVIDERFRAME_NAME)["content"]
+        assert tpl.content == fixed_content
+        assert 'ucB_SIP_ACCOUNT_IS_ACTIVE{{ slot.active_suffix }}' in tpl.content
+
+
+def test_repair_broken_builtin_templates_leaves_user_edits_alone(client):
+    from sqlmodel import Session, select
+
+    from backend.database import get_engine
+    from backend.models import ProvisioningTemplate
+    from backend.routers.provisioning import (
+        _N510_PROVIDERFRAME_NAME,
+        repair_broken_builtin_templates,
+        seed_builtin_templates,
+    )
+
+    with Session(get_engine()) as session:
+        seed_builtin_templates(session)
+        tpl = session.exec(
+            select(ProvisioningTemplate).where(ProvisioningTemplate.name == _N510_PROVIDERFRAME_NAME)
+        ).first()
+        tpl.content = "<!-- user customized this -->"
+        session.add(tpl)
+        session.commit()
+
+        assert repair_broken_builtin_templates(session) is False
+
+        session.refresh(tpl)
+        assert tpl.content == "<!-- user customized this -->"
 
 
 def test_provisioning_single_extension_still_works_on_simple_template(client):

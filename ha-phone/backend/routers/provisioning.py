@@ -67,16 +67,28 @@ def _lan_ip() -> str:
 
 
 def _gigaset_slots(accounts: list[dict], max_slots: int = 6) -> list[dict[str, str | int]]:
-    """Return all fixed Gigaset DECT account slots, including empty ones."""
+    """Return all fixed Gigaset DECT account slots, including empty ones.
+
+    Field-name suffix scheme confirmed against Yeastar's official Gigaset
+    N510 IP PRO ProviderFrame template: most per-account SYMB_ITEM IDs carry
+    NO suffix for account 1 (e.g. 'aucS_SIP_ACCOUNT_NAME') and '_2'.."_6" for
+    accounts 2-6 - EXCEPT 'ucB_SIP_ACCOUNT_IS_ACTIVE', which is always
+    numbered '_1'.."_6", including for account 1. The original 0.7.77
+    template used one uniform suffix for every field including the active
+    flag, so 'ucB_SIP_ACCOUNT_IS_ACTIVE' (missing '_1') was never a field
+    the base recognized - account 1 (and therefore every device using only
+    one line) silently failed to activate."""
     slots: list[dict[str, str | int]] = []
     for idx in range(max_slots):
         account = accounts[idx] if idx < len(accounts) else None
         suffix = "" if idx == 0 else f"_{idx + 1}"
+        active_suffix = f"_{idx + 1}"
         mask = f"0x{1 << idx:x}" if account else "0x0"
         slots.append(
             {
                 "index0": idx,
                 "suffix": suffix,
+                "active_suffix": active_suffix,
                 "account_name": account["number"] if account else "",
                 "display_name": account["display_name"] if account else "",
                 "sip_username": account["sip_username"] if account else "",
@@ -192,17 +204,19 @@ BUILTIN_TEMPLATES = [
             'xsi:noNamespaceSchemaLocation="profile.xsd">\n'
             "  <Provider>\n"
             "    <!-- HA-Phone auto-provisioning - Gigaset N510 IP PRO.\n"
-            "         Yeastar-style ProviderFrame adapted to HA-Phone's multi-line\n"
-            "         provisioning. Data server URL on the base:\n"
+            "         Field names verified against Yeastar's official Gigaset N510\n"
+            "         IP PRO ProviderFrame template (a real PBX vendor's reference,\n"
+            "         not a guess). Data server URL on the base:\n"
             "         http://<PBX-IP>/api/autoprovision/[MAC].xml\n"
             "         One SIP account per assigned extension, max. 6. Unused slots\n"
             "         are explicitly cleared so old assignments do not linger. -->\n"
             '    <PROFILE_NAME class="string" value="HA-Phone"/>\n'
-            '    <PROFILE_VERSION class="string" value="1"/>\n'
+            '    <PROFILE_VERSION class="string" value=""/>\n'
             '    <REBOOT value="true"/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.ucB_ACCEPT_FOREIGN_SUBNET" class="symb_item" value="0x1"/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data.ucB_AUTO_UPDATE_PROFILE" class="symb_item" value="0x1"/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data3.ucI_ONESHOT_PROVISIONING_MODE_1" class="symb_item" value="0x1"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.ucI_SIP_PROVIDER_ID" class="symb_item" value="0"/>\n'
             "{% for slot in gigaset_slots %}"
             '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].aucAccountName[0]" class="symb_item" value=\'"{{ slot.account_name }}"\'/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_ACCOUNT_NAME{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.account_name }}"\'/>\n'
@@ -213,13 +227,13 @@ BUILTIN_TEMPLATES = [
             '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_DOMAIN{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_SERVER{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_REGISTRAR{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
-            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_PROVIDER_NAME{{ slot.suffix }}" class="symb_item" value=\'"HA-Phone"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_PROVIDER_NAME{{ slot.suffix }}" class="symb_item" value=\'"PBX"\'/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.uiI_SIP_SERVER_PORT{{ slot.suffix }}" class="symb_item" value="{{ gigaset_sip_port_hex }}"/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.uiI_SIP_REGISTRAR_PORT{{ slot.suffix }}" class="symb_item" value="{{ gigaset_sip_port_hex }}"/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.ucB_SIP_USE_STUN{{ slot.suffix }}" class="symb_item" value="0x0"/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.ucI_OUTBOUND_PROXY_MODE{{ slot.suffix }}" class="symb_item" value="0x0"/>\n'
             '    <SYMB_ITEM ID="BS_IP_Data1.ucI_SIP_PREFERRED_VOCODER{{ slot.suffix }}" class="symb_item" value="0x05,0x01,0x00,0x02,0x03"/>\n'
-            '    <SYMB_ITEM ID="BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE{{ slot.suffix }}" class="symb_item" value="{{ slot.active_hex }}"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE{{ slot.active_suffix }}" class="symb_item" value="{{ slot.active_hex }}"/>\n'
             '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].uiSendMask" class="symb_item" value="{{ slot.send_mask }}"/>\n'
             '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].uiReceiveMask" class="symb_item" value="{{ slot.receive_mask }}"/>\n'
             '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].ucState" class="symb_item" value="{{ slot.state_hex }}"/>\n'
@@ -231,6 +245,79 @@ BUILTIN_TEMPLATES = [
         ),
     },
 ]
+
+# The exact (broken) content shipped in 0.7.77-0.7.80: every per-account
+# SYMB_ITEM ID used one uniform suffix, but the real device firmware (per
+# Yeastar's official reference template) numbers 'ucB_SIP_ACCOUNT_IS_ACTIVE'
+# starting at '_1' even for account 1, while every other account-1 field has
+# NO suffix. That mismatch meant account 1 (and so every single-line device)
+# never activated. Used below to repair already-seeded installs without
+# touching a template a user has since edited themselves.
+_N510_PROVIDERFRAME_NAME = "Gigaset N510 IP PRO (Yeastar ProviderFrame)"
+_N510_PROVIDERFRAME_BROKEN_CONTENT = (
+    '<?xml version="1.0" encoding="ISO-8859-1"?>\n'
+    '<ProviderFrame xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+    'xsi:noNamespaceSchemaLocation="profile.xsd">\n'
+    "  <Provider>\n"
+    "    <!-- HA-Phone auto-provisioning - Gigaset N510 IP PRO.\n"
+    "         Yeastar-style ProviderFrame adapted to HA-Phone's multi-line\n"
+    "         provisioning. Data server URL on the base:\n"
+    "         http://<PBX-IP>/api/autoprovision/[MAC].xml\n"
+    "         One SIP account per assigned extension, max. 6. Unused slots\n"
+    "         are explicitly cleared so old assignments do not linger. -->\n"
+    '    <PROFILE_NAME class="string" value="HA-Phone"/>\n'
+    '    <PROFILE_VERSION class="string" value="1"/>\n'
+    '    <REBOOT value="true"/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.ucB_ACCEPT_FOREIGN_SUBNET" class="symb_item" value="0x1"/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data.ucB_AUTO_UPDATE_PROFILE" class="symb_item" value="0x1"/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data3.ucI_ONESHOT_PROVISIONING_MODE_1" class="symb_item" value="0x1"/>\n'
+    "{% for slot in gigaset_slots %}"
+    '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].aucAccountName[0]" class="symb_item" value=\'"{{ slot.account_name }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_ACCOUNT_NAME{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.account_name }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_DISPLAYNAME{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.display_name }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data3.aucS_SIP_LOGIN_ID{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.sip_auth }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_PASSWORD{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.sip_password }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_USER_ID{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.sip_username }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_DOMAIN{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_SERVER{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_REGISTRAR{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_PROVIDER_NAME{{ slot.suffix }}" class="symb_item" value=\'"HA-Phone"\'/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.uiI_SIP_SERVER_PORT{{ slot.suffix }}" class="symb_item" value="{{ gigaset_sip_port_hex }}"/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.uiI_SIP_REGISTRAR_PORT{{ slot.suffix }}" class="symb_item" value="{{ gigaset_sip_port_hex }}"/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.ucB_SIP_USE_STUN{{ slot.suffix }}" class="symb_item" value="0x0"/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.ucI_OUTBOUND_PROXY_MODE{{ slot.suffix }}" class="symb_item" value="0x0"/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.ucI_SIP_PREFERRED_VOCODER{{ slot.suffix }}" class="symb_item" value="0x05,0x01,0x00,0x02,0x03"/>\n'
+    '    <SYMB_ITEM ID="BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE{{ slot.suffix }}" class="symb_item" value="{{ slot.active_hex }}"/>\n'
+    '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].uiSendMask" class="symb_item" value="{{ slot.send_mask }}"/>\n'
+    '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].uiReceiveMask" class="symb_item" value="{{ slot.receive_mask }}"/>\n'
+    '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].ucState" class="symb_item" value="{{ slot.state_hex }}"/>\n'
+    '    <SYMB_ITEM ID="BS_AE_Subscriber.stMtDat[{{ slot.index0 }}].aucTlnName[0]" class="symb_item" value=\'"{{ slot.account_name }}"\'/>\n'
+    "{% endfor %}"
+    '    <SYMB_ITEM ID="BS_LM_AppCfg.bit.bHasIdleTextInternalName" class="symb_item" value="1"/>\n'
+    "  </Provider>\n"
+    "</ProviderFrame>\n"
+)
+
+
+def repair_broken_builtin_templates(session: Session) -> bool:
+    """One-time content repair for the N510 ProviderFrame template shipped
+    broken in 0.7.77-0.7.80. Only touches the row if its content still
+    EXACTLY matches the known-broken text, so a user's own edits to this
+    builtin template (explicitly supported - see BUILTIN_TEMPLATES comment)
+    are never overwritten."""
+    tpl = session.exec(
+        select(ProvisioningTemplate).where(
+            ProvisioningTemplate.name == _N510_PROVIDERFRAME_NAME,
+            ProvisioningTemplate.builtin == True,  # noqa: E712
+        )
+    ).first()
+    if tpl and tpl.content == _N510_PROVIDERFRAME_BROKEN_CONTENT:
+        fixed = next(t for t in BUILTIN_TEMPLATES if t["name"] == _N510_PROVIDERFRAME_NAME)
+        tpl.content = fixed["content"]
+        session.add(tpl)
+        session.commit()
+        return True
+    return False
 
 
 def seed_builtin_templates(session: Session) -> bool:

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.81
+
+**Fix - Gigaset N510 IP PRO Auto-Provisioning aktivierte Account 1 nie**
+- Ursache: das in 0.7.77 hinzugefuegte "Yeastar ProviderFrame"-Template verwendete fuer JEDES Feld eines Accounts dasselbe Suffix-Schema. Laut Yeastars offiziellem Referenz-Template fuer genau dieses Geraet tragen bei Account 1 fast alle Felder GAR KEIN Suffix (z.B. `aucS_SIP_ACCOUNT_NAME`) - AUSSER dem Aktiv-Flag `ucB_SIP_ACCOUNT_IS_ACTIVE`, das immer durchnummeriert ist (`_1` bis `_6`, auch fuer Account 1). Dadurch hiess das Aktivierungsfeld bei Account 1 versehentlich `ucB_SIP_ACCOUNT_IS_ACTIVE` ohne Suffix - ein Feldname, den die Basis nicht kennt. Ergebnis: Account 1 (und damit jedes Geraet mit nur einer zugewiesenen Nebenstelle) wurde nie aktiv, unabhaengig davon, was sonst im Formular stand.
+- Zusaetzlich ergaenzt: das globale Feld `ucI_SIP_PROVIDER_ID`, das im echten Referenz-Template vorhanden, in unserer Version aber gefehlt hatte.
+- Migration: bereits ausgelieferte, unveraenderte Installationen dieses eingebauten Templates werden beim naechsten Start automatisch auf den korrigierten Inhalt aktualisiert - nur wenn der Inhalt exakt dem bekannten fehlerhaften Text entspricht, damit eigene Anpassungen am Template (ausdruecklich unterstuetzt) nicht ueberschrieben werden.
+- 3 neue/angepasste Backend-Tests (Regressionstest fuer das `_1`-Suffix, Migrationstest fuer unveraenderten vs. individuell angepassten Template-Inhalt). 97/97 Backend-Tests.
+
 ## 0.7.80
 
 **Fix - Geraet anlegen schlug auf bestehenden Installationen mit 500-Fehler fehl**
