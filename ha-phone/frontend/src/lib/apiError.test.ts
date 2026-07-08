@@ -30,6 +30,11 @@ describe("apiErrorMessage", () => {
     const resp = new Response("<html>502 Bad Gateway</html>");
     expect(await apiErrorMessage(resp, "fallback")).toBe("fallback");
   });
+
+  it("returns a plain-text backend error unchanged", async () => {
+    const resp = new Response("MAC muss 12 Hex-Zeichen haben.");
+    expect(await apiErrorMessage(resp, "fallback")).toBe("MAC muss 12 Hex-Zeichen haben.");
+  });
 });
 
 describe("toErrorMessage", () => {

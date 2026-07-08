@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.78
+
+**Fix - Provisioning-Geraete lassen sich wieder sauber speichern**
+- Backend validiert Provisioning-Geraete jetzt strenger und nachvollziehbarer: mindestens eine Nebenstelle ist Pflicht, `template_id` muss auf ein vorhandenes Template zeigen, und MAC-Adressen muessen auf genau 12 Hex-Zeichen normalisiert werden.
+- PATCH fuer Provisioning-Geraete verwendet jetzt ein eigenes Update-Modell statt das komplette SQLModel. Dadurch bleibt z.B. `template_id` bei einer reinen Nebenstellen-Umschaltung erhalten, statt versehentlich mitgeleert oder inkonsistent zu werden.
+- Frontend prueft MAC-Adressen schon vor dem Absenden und zeigt die echte Fehlermeldung des Backends jetzt auch dann an, wenn die Antwort nur als Klartext zurueckkommt.
+- Der Provisioning-Link-Kopierknopf meldet jetzt auch ehrlich, wenn der Browser das Kopieren im Ingress-Kontext blockiert.
+
+**Test - Regressionen fuer heutige Provisioning-Bugs**
+- Neue Backend-Tests decken die beiden Live-Fehler explizit ab: leere Nebenstellen-Zuordnung und unvollstaendige MAC-Adresse.
+- Bestehender Update-Test prueft zusaetzlich, dass `template_id` beim Aendern der Nebenstellen nicht verloren geht.
+
 ## 0.7.77
 
 **Feature - Neue Gigaset N510 IP PRO Provisioning-Vorlage (Yeastar ProviderFrame)**

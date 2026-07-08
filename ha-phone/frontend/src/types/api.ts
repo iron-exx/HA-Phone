@@ -16,6 +16,26 @@ export interface LinphoneProvisioningInfo {
   provisioning_path: string;
 }
 
+export interface ProvisioningTemplate {
+  id: number;
+  name: string;
+  vendor: string;
+  file_pattern: string;
+  content: string;
+  builtin: boolean;
+}
+
+export interface ProvisionedDevice {
+  id: number;
+  name: string;
+  manufacturer: string;
+  model: string;
+  mac: string;
+  extension_numbers: number[];
+  template_id: number;
+  provisioning_url: string;
+}
+
 export interface ExtensionStatus {
   number: string;
   status: "Online" | "Offline";

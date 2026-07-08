@@ -22,22 +22,26 @@ def _norm_mac(value: str) -> str:
     return re.sub(r"[^0-9a-fA-F]", "", value or "").lower()
 
 
-def _parse_extension_numbers(value: str) -> list[int]:
+def _parse_extension_numbers(value: str, allow_empty: bool = False) -> list[int]:
     if not value or not value.strip():
-        return []
+        if allow_empty:
+            return []
+        raise HTTPException(status_code=422, detail="extension_numbers must not be empty")
     try:
         numbers = [int(n.strip()) for n in value.split(",") if n.strip()]
     except ValueError:
         raise HTTPException(status_code=422, detail="extension_numbers must be comma-separated integers")
+    if not numbers and not allow_empty:
+        raise HTTPException(status_code=422, detail="extension_numbers must not be empty")
     if len(numbers) != len(set(numbers)):
         raise HTTPException(status_code=422, detail="extension_numbers must not contain duplicates")
     return numbers
 
 
-def _validate_extension_numbers(value: str, session: Session) -> str:
+def _validate_extension_numbers(value: str, session: Session, allow_empty: bool = False) -> str:
     """Parse + verify every number resolves to a real extension. Returns the
     normalized (deduped-order-preserved) comma-separated string to store."""
-    numbers = _parse_extension_numbers(value)
+    numbers = _parse_extension_numbers(value, allow_empty=allow_empty)
     if not numbers:
         return ""
     existing = {e.number for e in session.exec(select(Extension)).all()}
@@ -307,13 +311,36 @@ class DeviceOut(BaseModel):
     provisioning_url: str
 
 
+class DeviceCreate(BaseModel):
+    name: str = ""
+    manufacturer: str = ""
+    model: str = ""
+    mac: str
+    extension_numbers: str
+    template_id: int
+
+
+class DeviceUpdate(BaseModel):
+    name: Optional[str] = None
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    mac: Optional[str] = None
+    extension_numbers: Optional[str] = None
+    template_id: Optional[int] = None
+
+
+def _ensure_template_exists(template_id: int, session: Session) -> None:
+    if template_id <= 0 or not session.get(ProvisioningTemplate, template_id):
+        raise HTTPException(status_code=422, detail="Unknown template_id")
+
+
 def _device_out(d: ProvisionedDevice, session: Session, lan_ip: str) -> DeviceOut:
     tpl = session.get(ProvisioningTemplate, d.template_id)
     fname = (tpl.file_pattern if tpl else "{mac}").replace("{mac}", d.mac)
     base = f"http://{lan_ip}" if lan_ip else "http://<PBX-IP>"
     return DeviceOut(
         id=d.id, name=d.name, manufacturer=d.manufacturer, model=d.model, mac=d.mac,
-        extension_numbers=_parse_extension_numbers(d.extension_numbers), template_id=d.template_id,
+        extension_numbers=_parse_extension_numbers(d.extension_numbers, allow_empty=True), template_id=d.template_id,
         provisioning_url=f"{base}/api/autoprovision/{fname}",
     )
 
@@ -325,12 +352,20 @@ def list_devices(session: Session = Depends(get_session)):
 
 
 @router.post("/provisioning/devices", response_model=DeviceOut)
-def create_device(device: ProvisionedDevice, session: Session = Depends(get_session)):
-    device.id = None
-    device.mac = _norm_mac(device.mac)
-    if len(device.mac) != 12:
+def create_device(data: DeviceCreate, session: Session = Depends(get_session)):
+    mac = _norm_mac(data.mac)
+    if len(mac) != 12:
         raise HTTPException(status_code=400, detail="MAC muss 12 Hex-Zeichen haben.")
-    device.extension_numbers = _validate_extension_numbers(device.extension_numbers, session)
+    _ensure_template_exists(data.template_id, session)
+    extension_numbers = _validate_extension_numbers(data.extension_numbers, session)
+    device = ProvisionedDevice(
+        name=data.name,
+        manufacturer=data.manufacturer,
+        model=data.model,
+        mac=mac,
+        extension_numbers=extension_numbers,
+        template_id=data.template_id,
+    )
     session.add(device)
     session.commit()
     session.refresh(device)
@@ -338,18 +373,23 @@ def create_device(device: ProvisionedDevice, session: Session = Depends(get_sess
 
 
 @router.patch("/provisioning/devices/{device_id}", response_model=DeviceOut)
-def update_device(device_id: int, data: ProvisionedDevice, session: Session = Depends(get_session)):
+def update_device(device_id: int, data: DeviceUpdate, session: Session = Depends(get_session)):
     existing = session.get(ProvisionedDevice, device_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Device not found")
-    for field in ("name", "manufacturer", "model", "extension_numbers", "template_id"):
-        val = getattr(data, field, None)
-        if val is not None:
-            setattr(existing, field, val)
-    if existing.extension_numbers:
-        existing.extension_numbers = _validate_extension_numbers(existing.extension_numbers, session)
-    if data.mac:
-        existing.mac = _norm_mac(data.mac)
+    payload = data.model_dump(exclude_unset=True)
+    for field in ("name", "manufacturer", "model"):
+        if field in payload:
+            setattr(existing, field, payload[field])
+    if "template_id" in payload:
+        _ensure_template_exists(payload["template_id"], session)
+        existing.template_id = payload["template_id"]
+    if "extension_numbers" in payload:
+        existing.extension_numbers = _validate_extension_numbers(payload["extension_numbers"], session)
+    if "mac" in payload:
+        existing.mac = _norm_mac(payload["mac"])
+        if len(existing.mac) != 12:
+            raise HTTPException(status_code=400, detail="MAC muss 12 Hex-Zeichen haben.")
     session.add(existing)
     session.commit()
     session.refresh(existing)
@@ -366,7 +406,7 @@ async def delete_device(device_id: int, session: Session = Depends(get_session))
     # naturally expires or the device reconnects) - hanging up any call in
     # progress right now is the one immediate, reliable disconnect action
     # actually available, so that's what deleting a device does.
-    numbers = _parse_extension_numbers(existing.extension_numbers)
+    numbers = _parse_extension_numbers(existing.extension_numbers, allow_empty=True)
     hung_up_calls = 0
     for number in numbers:
         hung_up_calls += await ami.hangup_channels_for_extension(str(number))
@@ -386,7 +426,7 @@ def serve_provisioning(path: str, session: Session = Depends(get_session)):
     if not device:
         raise HTTPException(status_code=404, detail="Unknown device")
     tpl = session.get(ProvisioningTemplate, device.template_id)
-    numbers = _parse_extension_numbers(device.extension_numbers)
+    numbers = _parse_extension_numbers(device.extension_numbers, allow_empty=True)
     extensions = [
         e for number in numbers
         for e in session.exec(select(Extension).where(Extension.number == number)).all()

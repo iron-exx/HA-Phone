@@ -8,13 +8,25 @@
  * (Roadmap Phase A.3/A.7: "Fehlertexte muessen fuer Admins klar lesbar sein").
  */
 export async function apiErrorMessage(resp: Response, fallback: string): Promise<string> {
+  let text = "";
   try {
-    const body = await resp.json();
+    text = await resp.text();
+  } catch {
+    return fallback;
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed) return fallback;
+
+  try {
+    const body = JSON.parse(trimmed);
     if (typeof body?.detail === "string" && body.detail.trim()) return body.detail;
     if (body?.detail) return JSON.stringify(body.detail);
   } catch {
-    // Response wasn't JSON - fall through to the fallback.
+    if (trimmed.startsWith("<")) return fallback;
+    return trimmed;
   }
+
   return fallback;
 }
 

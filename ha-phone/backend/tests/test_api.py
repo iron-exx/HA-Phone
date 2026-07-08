@@ -1266,6 +1266,27 @@ def test_provisioned_device_accepts_multiple_extensions(client):
     assert data["extension_numbers"] == [50, 51]
 
 
+def test_provisioned_device_rejects_empty_extension_assignment(client):
+    tpl_id = _create_multiline_template(client)
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "DECT Basis", "manufacturer": "Gigaset", "model": "N510 IP PRO",
+        "mac": "abcdef123456", "extension_numbers": "", "template_id": tpl_id,
+    })
+    assert resp.status_code == 422
+    assert "extension_numbers must not be empty" in resp.json()["detail"]
+
+
+def test_provisioned_device_rejects_short_mac(client):
+    _ensure_extension(client, 60, "Kurz")
+    tpl_id = _create_multiline_template(client)
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "Bad MAC", "manufacturer": "Gigaset", "model": "N510 IP PRO",
+        "mac": "7C:2F:80", "extension_numbers": "60", "template_id": tpl_id,
+    })
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "MAC muss 12 Hex-Zeichen haben."
+
+
 def test_provisioned_device_rejects_unknown_extension(client):
     tpl_id = _create_multiline_template(client)
     resp = client.post("/api/provisioning/devices", json={
@@ -1377,10 +1398,12 @@ def test_provisioned_device_extension_assignment_editable(client):
     resp = client.patch(f"/api/provisioning/devices/{device_id}", json={"extension_numbers": "58"})
     assert resp.status_code == 200
     assert resp.json()["extension_numbers"] == [58]
+    assert resp.json()["template_id"] == tpl_id
 
     resp = client.get("/api/provisioning/devices")
     updated = next(d for d in resp.json() if d["id"] == device_id)
     assert updated["extension_numbers"] == [58]
+    assert updated["template_id"] == tpl_id
 
 
 def test_deleting_provisioned_device_hangs_up_active_calls(client, mock_ami):

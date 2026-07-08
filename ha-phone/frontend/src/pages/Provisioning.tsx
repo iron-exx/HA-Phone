@@ -12,26 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { type Extension } from "@/types/api";
-
-interface Template {
-  id: number;
-  name: string;
-  vendor: string;
-  file_pattern: string;
-  content: string;
-  builtin: boolean;
-}
-interface Device {
-  id: number;
-  name: string;
-  manufacturer: string;
-  model: string;
-  mac: string;
-  extension_numbers: number[];
-  template_id: number;
-  provisioning_url: string;
-}
+import { type Extension, type ProvisionedDevice as Device, type ProvisioningTemplate as Template } from "@/types/api";
 interface ExtensionDiagnostic {
   number: string;
   status: "Online" | "Offline";
@@ -49,6 +30,10 @@ function contactIp(contactUri: string): string {
 }
 
 const inputCls = "h-9 font-mono";
+
+function normalizeMac(value: string) {
+  return value.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+}
 
 export default function Provisioning() {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -138,6 +123,10 @@ export default function Provisioning() {
       toast.error("MAC, mindestens eine Nebenstelle und Template sind erforderlich.");
       return;
     }
+    if (normalizeMac(dMac).length !== 12) {
+      toast.error("MAC muss 12 Hex-Zeichen haben (z.B. AA:BB:CC:DD:EE:FF).");
+      return;
+    }
     setSavingDev(true);
     try {
       const isEdit = editingDeviceId !== null;
@@ -147,7 +136,7 @@ export default function Provisioning() {
           method: isEdit ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: dName, manufacturer: dManu, model: dModel, mac: dMac,
+            name: dName, manufacturer: dManu, model: dModel, mac: normalizeMac(dMac),
             extension_numbers: dExtNumbers.join(","), template_id: Number(dTpl),
           }),
         }
@@ -213,8 +202,9 @@ export default function Provisioning() {
   }
 
   function copy(text: string) {
-    navigator.clipboard?.writeText(text);
-    toast.success("Kopiert.");
+    navigator.clipboard?.writeText(text)
+      .then(() => toast.success("Kopiert."))
+      .catch(() => toast.error("Link konnte nicht kopiert werden."));
   }
 
   return (
