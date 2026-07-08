@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlmodel import SQLModel, Session, select
 
 from backend.database import run_migrations
-from backend.models import Extension, Trunk, ProvisionedDevice
+from backend.models import Extension, Trunk, ProvisionedDevice, Holiday
 
 
 def _build_legacy_db(path):
@@ -68,6 +68,13 @@ def _build_legacy_db(path):
             "extension_id, template_id) VALUES (1, 'Old Phone', 'Yealink', 'T54W', "
             "'aabbccddeeff', 11, 0)"
         ))
+        conn.execute(text(
+            "CREATE TABLE holiday (id INTEGER PRIMARY KEY, name TEXT NOT NULL, "
+            "month INTEGER NOT NULL, day INTEGER NOT NULL)"
+        ))
+        conn.execute(text(
+            "INSERT INTO holiday (id, name, month, day) VALUES (1, 'Weihnachten', 12, 25)"
+        ))
     return engine
 
 
@@ -100,6 +107,9 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
     device_cols = {c["name"] for c in inspector.get_columns("provisioneddevice")}
     assert "extension_numbers" in device_cols
 
+    holiday_cols = {c["name"] for c in inspector.get_columns("holiday")}
+    assert "year" in holiday_cols
+
     # Old data must survive migration untouched, and new columns get their
     # documented defaults instead of NULL.
     with engine.connect() as conn:
@@ -130,6 +140,13 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
 
         device = session.exec(select(ProvisionedDevice)).first()
         assert device.extension_numbers == "11"
+
+        # A pre-upgrade holiday had no year at all (implicitly recurring
+        # every year); the migration backfills the current year so it isn't
+        # silently dropped, though it now applies as a one-time date.
+        holiday = session.exec(select(Holiday)).first()
+        assert holiday.name == "Weihnachten"
+        assert isinstance(holiday.year, int) and holiday.year >= 2024
 
 
 def test_migrations_are_idempotent(tmp_path):

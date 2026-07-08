@@ -158,8 +158,9 @@ export interface TimeCondition {
 export interface Holiday {
   id: number;
   name: string;
+  year: number;  // one-time date, not auto-recurring
   month: number; // 1-12
-  day: number;   // 1-31, recurring every year
+  day: number;   // 1-31
 }
 
 export interface PhonebookEntry {

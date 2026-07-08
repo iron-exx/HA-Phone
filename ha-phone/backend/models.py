@@ -164,13 +164,16 @@ class TimeCondition(SQLModel, table=True):
 
 
 class Holiday(SQLModel, table=True):
-    """A recurring closure day (Roadmap Phase B.3) applied to every
-    TimeCondition: on this month/day, calls are routed to closed_destination
-    regardless of open_hours/open_days. Fixed month/day only (no lunar/movable
-    holidays like Easter) - those still need a one-off manual TimeCondition
-    override, kept simple on purpose ("einfache Business-Hours-Oberflaeche")."""
+    """A one-time closure day (Roadmap Phase B.3) applied to every
+    TimeCondition: on this exact year/month/day, calls are routed to
+    closed_destination regardless of open_hours/open_days. Deliberately NOT
+    auto-recurring - most holiday dates shift from year to year (Easter and
+    everything calculated from it, plus bridge days chosen per year), so a
+    fixed month/day would silently apply on the wrong date in later years.
+    Users re-add/import next year's dates instead (see CSV import)."""
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=64)
+    year: int = Field(ge=1970, le=2200)
     month: int = Field(ge=1, le=12)
     day: int = Field(ge=1, le=31)
 

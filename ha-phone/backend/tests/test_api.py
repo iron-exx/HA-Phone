@@ -1589,14 +1589,17 @@ def test_backup_restore_resolves_custom_provisioning_template_by_name(client, mo
 
 
 # ---- Holidays (Roadmap Phase B.3: Business Hours + Feiertage) ----
-# A holiday is a recurring month/day override applied to every TimeCondition:
-# on that date, calls go to closed_destination no matter what open_hours/
-# open_days say ("klare Regelprioritaet" - holiday always wins).
+# A holiday is a one-time year/month/day override applied to every
+# TimeCondition: on that exact date, calls go to closed_destination no matter
+# what open_hours/open_days say ("klare Regelprioritaet" - holiday always
+# wins). Deliberately NOT auto-recurring - most holiday dates shift from
+# year to year, so a fixed month/day would silently misfire in later years.
 
 def test_holiday_crud(client, mock_ami):
-    resp = client.post("/api/holidays", json={"name": "Weihnachten", "month": 12, "day": 25})
+    resp = client.post("/api/holidays", json={"name": "Weihnachten", "year": 2026, "month": 12, "day": 25})
     assert resp.status_code == 200
     holiday = resp.json()
+    assert holiday["year"] == 2026
     assert holiday["month"] == 12
     assert holiday["day"] == 25
     holiday_id = holiday["id"]
@@ -1614,10 +1617,15 @@ def test_holiday_crud(client, mock_ami):
     assert client.get("/api/holidays").json() == []
 
 
-def test_holiday_rejects_invalid_month_or_day(client):
-    resp = client.post("/api/holidays", json={"name": "Bad", "month": 13, "day": 1})
+def test_holiday_rejects_invalid_date(client):
+    resp = client.post("/api/holidays", json={"name": "Bad", "year": 2026, "month": 13, "day": 1})
     assert resp.status_code == 422
-    resp = client.post("/api/holidays", json={"name": "Bad", "month": 1, "day": 32})
+    resp = client.post("/api/holidays", json={"name": "Bad", "year": 2026, "month": 1, "day": 32})
+    assert resp.status_code == 422
+    resp = client.post("/api/holidays", json={"name": "Bad", "year": 1900, "month": 1, "day": 1})
+    assert resp.status_code == 422
+    # Calendar-invalid combination that still passes the plain range checks.
+    resp = client.post("/api/holidays", json={"name": "Bad", "year": 2026, "month": 2, "day": 30})
     assert resp.status_code == 422
 
 
@@ -1625,7 +1633,7 @@ def test_holiday_takes_priority_over_open_hours_in_dialplan(client, mock_ami, tm
     """The exact 'klare Regelprioritaet' requirement: the holiday GotoIfTime
     check must render BEFORE the normal open_hours/open_days check, so it
     always wins regardless of what the business hours say."""
-    resp = client.post("/api/holidays", json={"name": "Neujahr", "month": 1, "day": 1})
+    resp = client.post("/api/holidays", json={"name": "Neujahr", "year": 2027, "month": 1, "day": 1})
     assert resp.status_code == 200
     holiday_id = resp.json()["id"]
 
@@ -1641,12 +1649,15 @@ def test_holiday_takes_priority_over_open_hours_in_dialplan(client, mock_ami, tm
         content = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
         assert f"exten => +4977777777,1,NoOp(Inbound (time): +4977777777)" in content
 
+        year_guard = '$["${YEAR}" != "2027"]'
         holiday_line = f"GotoIfTime(*|*|1|jan?closed-{tc_id},1,1)"
         hours_line = f"GotoIfTime(00:00-23:59|*|*|mon-sun?open-{tc_id},1,1:closed-{tc_id},1,1)"
+        assert year_guard in content
         assert holiday_line in content
         assert hours_line in content
-        # Order matters: the holiday check must come first in the same extension.
-        assert content.index(holiday_line) < content.index(hours_line)
+        # Order matters: the year guard + holiday check must come first in
+        # the same extension, before the regular open_hours check.
+        assert content.index(year_guard) < content.index(holiday_line) < content.index(hours_line)
     finally:
         # This holiday would otherwise leak into every other test's generated
         # dialplan (holidays apply globally to every time condition).
@@ -1666,7 +1677,7 @@ def test_holiday_absent_from_dialplan_when_none_configured(client, mock_ami, tmp
 
 
 def test_holiday_included_in_backup_restore(client, mock_ami):
-    resp = client.post("/api/holidays", json={"name": "Tag der Arbeit", "month": 5, "day": 1})
+    resp = client.post("/api/holidays", json={"name": "Tag der Arbeit", "year": 2026, "month": 5, "day": 1})
     assert resp.status_code == 200
     holiday_id = resp.json()["id"]
 
@@ -1685,7 +1696,81 @@ def test_holiday_included_in_backup_restore(client, mock_ami):
     assert import_resp.json()["restored"]["holiday"] == 1
 
     holidays = client.get("/api/holidays").json()
-    assert any(h["name"] == "Tag der Arbeit" and h["month"] == 5 and h["day"] == 1 for h in holidays)
+    assert any(h["name"] == "Tag der Arbeit" and h["year"] == 2026 and h["month"] == 5 and h["day"] == 1 for h in holidays)
+
+
+def test_holiday_csv_export_format(client, mock_ami):
+    resp = client.post("/api/holidays", json={"name": "Ostermontag", "year": 2026, "month": 4, "day": 6})
+    holiday_id = resp.json()["id"]
+    try:
+        resp = client.get("/api/holidays/export")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/csv")
+        body = resp.text
+        assert "name,year,month,day" in body
+        assert "Ostermontag,2026,4,6" in body
+    finally:
+        client.delete(f"/api/holidays/{holiday_id}")
+
+
+def test_holiday_csv_import_creates_and_updates(client, mock_ami):
+    # Existing entry that the import should update (name change), matched by
+    # (year, month, day), plus one brand-new row.
+    resp = client.post("/api/holidays", json={"name": "Alter Name", "year": 2026, "month": 10, "day": 3})
+    existing_id = resp.json()["id"]
+
+    csv_content = (
+        "name,year,month,day\n"
+        "Tag der Deutschen Einheit,2026,10,3\n"
+        "Reformationstag,2026,10,31\n"
+    )
+    resp = client.post(
+        "/api/holidays/import",
+        files={"file": ("holidays.csv", csv_content.encode(), "text/csv")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["created"] == 1
+    assert body["updated"] == 1
+    assert body["skipped"] == 0
+
+    holidays = client.get("/api/holidays").json()
+    updated = next(h for h in holidays if h["id"] == existing_id)
+    assert updated["name"] == "Tag der Deutschen Einheit"
+    assert any(h["name"] == "Reformationstag" and h["day"] == 31 for h in holidays)
+
+    for h in holidays:
+        client.delete(f"/api/holidays/{h['id']}")
+
+
+def test_holiday_csv_import_rejects_missing_columns(client, mock_ami):
+    resp = client.post(
+        "/api/holidays/import",
+        files={"file": ("bad.csv", b"name,month,day\nX,1,1\n", "text/csv")},
+    )
+    assert resp.status_code == 422
+
+
+def test_holiday_csv_import_skips_invalid_rows(client, mock_ami):
+    csv_content = (
+        "name,year,month,day\n"
+        ",2026,1,1\n"
+        "No Year,,1,1\n"
+        "Bad Date,2026,2,30\n"
+        "Valid,2026,6,1\n"
+    )
+    resp = client.post(
+        "/api/holidays/import",
+        files={"file": ("holidays.csv", csv_content.encode(), "text/csv")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["created"] == 1
+    assert body["skipped"] == 3
+
+    holidays = client.get("/api/holidays").json()
+    assert len(holidays) == 1
+    client.delete(f"/api/holidays/{holidays[0]['id']}")
 
 
 # ---- Phonebook (Roadmap: Telefonbuch mit CSV-Import/Export) ----

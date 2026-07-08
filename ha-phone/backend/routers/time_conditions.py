@@ -106,7 +106,12 @@ def _regenerate_routing_conf(session: Session) -> None:
     # GotoIfTime for every time condition, so a holiday always wins regardless of
     # what hours/days are configured ("klare Regelprioritaet").
     holidays = [
-        {"name": h.name, "day": h.day, "month_name": _ASTERISK_MONTH_NAMES[h.month - 1]}
+        {
+            "name": h.name,
+            "year": h.year,
+            "day": h.day,
+            "month_name": _ASTERISK_MONTH_NAMES[h.month - 1],
+        }
         for h in session.exec(select(Holiday)).all()
     ]
     # Outbound caller ID (E.164) — set on outbound calls so the callee sees the

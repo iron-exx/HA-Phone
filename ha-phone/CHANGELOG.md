@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.76
+
+**Breaking Change - Feiertage sind jetzt einmalige Termine statt jaehrlich wiederkehrend**
+- Bisher galt ein Feiertag nur als Monat+Tag und wurde von Asterisk automatisch jedes Jahr wiederholt. Das ist bei den meisten Feiertagen falsch: Ostern und alle davon abgeleiteten Termine (Karfreitag, Ostermontag, Christi Himmelfahrt, Pfingsten, Fronleichnam) verschieben sich jedes Jahr, und auch fixe Feiertage werden oft pro Jahr neu erfasst.
+- Neues Pflichtfeld `year` am Feiertag. Der generierte Dialplan prueft das Jahr jetzt explizit per `${YEAR}`-Variable vor der eigentlichen `GotoIfTime`-Pruefung (Asterisks `GotoIfTime` kennt selbst kein Jahresfeld) - ein Feiertag wirkt nur noch in genau dem eingetragenen Jahr.
+- Migration fuer bestehende Installationen: vorhandene Feiertage ohne `year` bekommen automatisch das aktuelle Jahr zugewiesen, damit sie nicht kommentarlos verschwinden - gelten danach aber nur noch dieses eine Jahr und muessen fuers naechste Jahr neu gepflegt werden.
+- Frontend: neues Jahr-Eingabefeld beim Anlegen, Anzeige inkl. Jahr in der Feiertags-Tabelle.
+
+**Feature - Feiertage per CSV importierbar/exportierbar**
+- Neue Endpunkte `GET /api/holidays/export` und `POST /api/holidays/import` (Spalten `name,year,month,day`), analog zum bestehenden Telefonbuch-CSV-Import. Upsert nach (Jahr, Monat, Tag) - erneuter Import mit korrigiertem Namen aktualisiert statt zu duplizieren. Ungueltige Zeilen (fehlender Name, Datum ausserhalb 1970-2200, kalendarisch ungueltiges Datum wie 30. Februar) werden uebersprungen und gezaehlt statt den ganzen Import abzubrechen.
+- Frontend: "CSV importieren"/"CSV exportieren"-Buttons im Feiertage-Bereich.
+
+**UI - Feiertage-Formular/Tabelle groesser und besser lesbar**
+- Eingabefelder und Tabellenzeilen im Feiertage-Bereich vergroessert (Schriftgroesse, Zeilenhoehe, Touch-Targets) - vorher wirkten die winzigen Inline-Felder auf Klein-Displays kaum lesbar/bedienbar.
+
+- 8 neue/angepasste Backend-Tests (CRUD mit Jahr, Datumsvalidierung inkl. kalendarisch ungueltig, Dialplan-Jahresguard, CSV-Export-Format, CSV-Import Neuanlage+Update, fehlende Spalten, ungueltige Zeilen), 1 neuer Migrationstest (legacy `holiday`-Tabelle ohne `year` -> Backfill mit aktuellem Jahr). 91/91 Backend-Tests, Frontend tsc/vitest/build gruen.
+
 ## 0.7.75
 
 **Fix - Provisioning/Nebenstellen zeigten widerspruechlichen Online/Offline-Status**

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
-import { Check, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
+import { Check, Download, MoreHorizontal, Pencil, Trash2, Upload, X } from "lucide-react";
 
 import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu, type Holiday } from "@/types/api";
 import { WEEKDAYS, WEEKDAY_LABELS, formatDays, formatDaysReadable, parseDays, type Weekday } from "@/lib/weekdays";
@@ -1179,9 +1179,13 @@ function HolidaysSection() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
+  const thisYear = new Date().getFullYear();
+  const [year, setYear] = useState(String(thisYear));
   const [month, setMonth] = useState("1");
   const [day, setDay] = useState("1");
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function load() {
     fetch("/api/holidays")
@@ -1202,10 +1206,10 @@ function HolidaysSection() {
       const resp = await fetch("/api/holidays", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), month: Number(month), day: Number(day) }),
+        body: JSON.stringify({ name: name.trim(), year: Number(year), month: Number(month), day: Number(day) }),
       });
       if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern."));
-      setName(""); setMonth("1"); setDay("1");
+      setName(""); setYear(String(thisYear)); setMonth("1"); setDay("1");
       load();
       toast.success("Feiertag hinzugefügt.");
     } catch (err) {
@@ -1226,16 +1230,81 @@ function HolidaysSection() {
     }
   }
 
+  async function exportCsv() {
+    try {
+      const resp = await fetch("/api/holidays/export");
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Export fehlgeschlagen."));
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ha-phone-feiertage.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Export fehlgeschlagen."));
+    }
+  }
+
+  async function importCsv(file: File) {
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const resp = await fetch("/api/holidays/import", { method: "POST", body: formData });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Import fehlgeschlagen."));
+      const data = await resp.json();
+      load();
+      const parts = [];
+      if (data.created) parts.push(`${data.created} neu`);
+      if (data.updated) parts.push(`${data.updated} aktualisiert`);
+      if (data.skipped) parts.push(`${data.skipped} übersprungen (ungültiges Datum)`);
+      toast.success(`Import abgeschlossen: ${parts.join(", ") || "keine Änderungen"}.`);
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Import fehlgeschlagen."));
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   return (
     <>
       <Separator className="my-8" />
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold">Feiertage</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          An diesen Tagen gilt für <strong>alle</strong> Zeitbedingungen automatisch "geschlossen",
-          unabhängig von den eingestellten Öffnungszeiten. Wiederholt sich jedes Jahr am gleichen
-          Datum. Bewegliche Feiertage (z.B. Ostern) müssen manuell nachgepflegt werden.
-        </p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">Feiertage</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            An diesen Tagen gilt für <strong>alle</strong> Zeitbedingungen automatisch "geschlossen",
+            unabhängig von den eingestellten Öffnungszeiten. Feiertage sind{" "}
+            <strong>einmalige Termine</strong> (Jahr + Monat + Tag) und wiederholen sich{" "}
+            <strong>nicht</strong> automatisch, da sich viele Feiertagsdaten (z.B. Ostern und alle
+            davon abhängigen) jedes Jahr verschieben. Für's nächste Jahr die Termine neu eintragen
+            oder per CSV importieren.
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) importCsv(file);
+            }}
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            <Upload className="mr-2 h-4 w-4" />
+            {importing ? "Importiert…" : "CSV importieren"}
+          </Button>
+          <Button variant="outline" onClick={exportCsv}>
+            <Download className="mr-2 h-4 w-4" />
+            CSV exportieren
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -1252,13 +1321,13 @@ function HolidaysSection() {
           <TableBody>
             {holidays.map((h) => (
               <TableRow key={h.id}>
-                <TableCell>{h.name}</TableCell>
-                <TableCell className="font-mono">{h.day}. {MONTH_NAMES[h.month - 1]}</TableCell>
+                <TableCell className="text-base">{h.name}</TableCell>
+                <TableCell className="font-mono text-base">{h.day}. {MONTH_NAMES[h.month - 1]} {h.year}</TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive"
+                    className="h-9 w-9 text-destructive"
                     aria-label={`Feiertag ${h.name} löschen`}
                     onClick={() => deleteHoliday(h.id)}
                   >
@@ -1271,22 +1340,24 @@ function HolidaysSection() {
             <TableRow>
               <TableCell>
                 <Input value={name} onChange={(e) => setName(e.target.value)}
-                  placeholder="z.B. Weihnachten" className="h-9" />
+                  placeholder="z.B. Ostermontag" className="h-10 text-base" />
               </TableCell>
               <TableCell>
-                <div className="flex gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
                   <select value={day} onChange={(e) => setDay(e.target.value)}
-                    className="h-9 w-16 rounded-md border border-input bg-[#0b0e1a] px-1 text-sm text-slate-200 [color-scheme:dark]">
+                    className="h-10 w-20 rounded-md border border-input bg-[#0b0e1a] px-2 text-base text-slate-200 [color-scheme:dark]">
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
                   <select value={month} onChange={(e) => setMonth(e.target.value)}
-                    className="h-9 flex-1 rounded-md border border-input bg-[#0b0e1a] px-2 text-sm text-slate-200 [color-scheme:dark]">
+                    className="h-10 min-w-[9rem] flex-1 rounded-md border border-input bg-[#0b0e1a] px-2 text-base text-slate-200 [color-scheme:dark]">
                     {MONTH_NAMES.map((m, i) => (
                       <option key={m} value={i + 1}>{m}</option>
                     ))}
                   </select>
+                  <Input value={year} onChange={(e) => setYear(e.target.value)}
+                    placeholder="Jahr" className="h-10 w-24 text-base font-mono" />
                 </div>
               </TableCell>
               <TableCell className="text-right">

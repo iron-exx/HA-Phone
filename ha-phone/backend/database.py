@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from sqlmodel import create_engine, Session, SQLModel
 from sqlalchemy import text, inspect
 from sqlalchemy.engine import Engine
@@ -102,6 +103,20 @@ def run_migrations(engine: Engine) -> None:
                         )
                     )
                     conn.commit()
+        if "holiday" in tables:
+            cols = [c["name"] for c in inspector.get_columns("holiday")]
+            if "year" not in cols:
+                # Holidays used to be a recurring month/day rule with no year
+                # at all. Backfilling the current year keeps existing entries
+                # from silently vanishing on upgrade - they now apply once,
+                # this year, and the user re-adds/imports next year's dates
+                # (holidays shift year to year, e.g. Easter-based ones).
+                conn.execute(
+                    text(
+                        f"ALTER TABLE holiday ADD COLUMN year INTEGER NOT NULL DEFAULT {date.today().year}"
+                    )
+                )
+                conn.commit()
 
 
 def init_db() -> Engine:

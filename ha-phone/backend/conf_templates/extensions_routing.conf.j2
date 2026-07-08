@@ -134,8 +134,13 @@ exten => {{ did }},1,NoOp(Inbound {{ did }} -> {{ route.destination_type }}:{{ r
 {% for condition in time_conditions %}
 exten => {{ condition.did }},1,NoOp(Inbound (time): {{ condition.did }})
 {% for holiday in holidays %}
-; Holiday '{{ holiday.name }}' always wins over open_hours/open_days below.
+; Holiday '{{ holiday.name }}' ({{ holiday.year }}) always wins over open_hours/open_days below.
+; GotoIfTime has no year field, so the year is checked separately here -
+; holidays are one-time dates, not automatically recurring (most shift
+; year to year, e.g. Easter-based ones).
+ same => n,GotoIf($["${YEAR}" != "{{ holiday.year }}"]?skip-holiday-{{ condition.id }}-{{ loop.index }})
  same => n,GotoIfTime(*|*|{{ holiday.day }}|{{ holiday.month_name }}?closed-{{ condition.id }},1,1)
+ same => n(skip-holiday-{{ condition.id }}-{{ loop.index }}),NoOp()
 {% endfor %}
  same => n,GotoIfTime({{ condition.open_hours_start }}-{{ condition.open_hours_end }}|*|*|{{ condition.open_days }}?open-{{ condition.id }},1,1:closed-{{ condition.id }},1,1)
 {% endfor %}
