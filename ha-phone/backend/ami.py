@@ -205,10 +205,16 @@ async def get_extension_diagnostics() -> list[dict]:
                 "active_channels": int(r.get("ActiveChannels", 0) or 0),
                 "aor": r.get("Aor", ""),
                 "contacts": int(r.get("Contacts", 0) or 0),
+                # Kept for backward compat (Diagnostics.tsx): first contact seen.
                 "contact_status": "",
                 "contact_uri": "",
                 "roundtrip_usec": None,
                 "user_agent": "",
+                # Every registered contact, not just the last one processed - an
+                # extension with two devices (e.g. a DECT base AND a softphone)
+                # previously had each new contact silently overwrite the last,
+                # so only one of the two ever showed up anywhere.
+                "contacts_detail": [],
             }
 
         for r in contact_responses:
@@ -227,27 +233,28 @@ async def get_extension_diagnostics() -> list[dict]:
             existing = endpoints.get(endpoint_name)
             if existing is None:
                 continue
-            existing["contact_status"] = (
-                r.get("Status")
-                or r.get("ContactStatus")
-                or existing["contact_status"]
-            )
-            existing["contact_uri"] = (
-                r.get("URI")
-                or r.get("Uri")
-                or r.get("Contact")
-                or existing["contact_uri"]
-            )
-            roundtrip = r.get("RoundtripUsec") or r.get("Roundtrip")
+            status = r.get("Status") or r.get("ContactStatus") or ""
+            uri = r.get("URI") or r.get("Uri") or r.get("Contact") or ""
+            roundtrip_raw = r.get("RoundtripUsec") or r.get("Roundtrip")
             try:
-                existing["roundtrip_usec"] = int(roundtrip) if roundtrip not in (None, "") else None
+                roundtrip = int(roundtrip_raw) if roundtrip_raw not in (None, "") else None
             except (TypeError, ValueError):
-                existing["roundtrip_usec"] = None
-            existing["user_agent"] = (
-                r.get("UserAgent")
-                or r.get("Useragent")
-                or existing["user_agent"]
+                roundtrip = None
+            user_agent = r.get("UserAgent") or r.get("Useragent") or ""
+
+            existing["contacts_detail"].append(
+                {
+                    "status": status,
+                    "uri": uri,
+                    "roundtrip_usec": roundtrip,
+                    "user_agent": user_agent,
+                }
             )
+            if not existing["contact_status"]:
+                existing["contact_status"] = status
+                existing["contact_uri"] = uri
+                existing["roundtrip_usec"] = roundtrip
+                existing["user_agent"] = user_agent
 
         return [endpoints[number] for number in sorted(endpoints, key=int)]
     except Exception as exc:
@@ -297,3 +304,30 @@ async def get_active_channel_details() -> list[dict]:
     except Exception as exc:
         _log.warning("AMI active channel details unavailable: %s", exc)
         return []
+
+
+async def hangup_channels_for_extension(number: str) -> int:
+    """Hang up any active call on `number`'s PJSIP channel(s). This is the
+    only reliable, immediate "disconnect this device" action Asterisk's AMI
+    actually exposes - there is no supported action to force-expire an
+    otherwise-idle, already-registered SIP contact (the registration itself
+    persists until it naturally expires or the device reconnects). Used when
+    deleting a provisioned device so at least an in-progress call ends now."""
+    try:
+        async with asyncio.timeout(_AMI_TIMEOUT):
+            manager = await _get_manager()
+            responses = await manager.send_action(
+                {"Action": "CoreShowChannels"}, as_list=True
+            )
+            prefix = f"PJSIP/{number}-"
+            channels = [
+                r.get("Channel", "")
+                for r in responses
+                if r.get("Event") == "CoreShowChannel" and r.get("Channel", "").startswith(prefix)
+            ]
+            for channel in channels:
+                await manager.send_action({"Action": "Hangup", "Channel": channel})
+        return len(channels)
+    except Exception as exc:
+        _log.warning("AMI hangup for extension %s failed: %s", number, exc)
+        return 0

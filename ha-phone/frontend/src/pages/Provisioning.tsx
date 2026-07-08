@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
-import { Copy, Trash2, Plus, Save, Pencil } from "lucide-react";
+import { Copy, Trash2, Plus, Save, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { type Extension } from "@/types/api";
 
 interface Template {
@@ -30,6 +37,10 @@ interface ExtensionDiagnostic {
   status: "Online" | "Offline";
   contact_uri: string;
 }
+interface ExtensionStatusInfo {
+  status: "Online" | "Offline";
+  ip: string;
+}
 
 function contactIp(contactUri: string): string {
   // contact_uri looks like "sip:11@192.168.7.217:51966;ob" - pull just the host.
@@ -43,10 +54,14 @@ export default function Provisioning() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [extensions, setExtensions] = useState<Extension[]>([]);
-  const [extDiagnostics, setExtDiagnostics] = useState<Record<string, ExtensionDiagnostic>>({});
+  // null = not loaded yet ("unbekannt"), distinct from a confirmed Offline -
+  // a failed/slow diagnostics fetch used to silently render as Offline.
+  const [extStatus, setExtStatus] = useState<Record<string, ExtensionStatusInfo> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // add-device form
+  // add/edit-device form - shared between both flows, `editingDeviceId` set
+  // means the inline row edits an existing device instead of creating one.
+  const [editingDeviceId, setEditingDeviceId] = useState<number | null>(null);
   const [dName, setDName] = useState("");
   const [dManu, setDManu] = useState("");
   const [dModel, setDModel] = useState("");
@@ -54,6 +69,8 @@ export default function Provisioning() {
   const [dExtNumbers, setDExtNumbers] = useState<number[]>([]);
   const [dTpl, setDTpl] = useState<number | "">("");
   const [savingDev, setSavingDev] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Device | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // template editor
   const [editTpl, setEditTpl] = useState<Template | null>(null);
@@ -69,13 +86,26 @@ export default function Provisioning() {
       .finally(() => setLoading(false));
   }
   function loadDiagnostics() {
-    fetch("/api/diagnostics/overview")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!d?.extensions) return;
-        const byNumber: Record<string, ExtensionDiagnostic> = {};
-        for (const ext of d.extensions as ExtensionDiagnostic[]) byNumber[ext.number] = ext;
-        setExtDiagnostics(byNumber);
+    // Online/Offline comes from the SAME endpoint the Nebenstellen page uses
+    // (/api/extensions/status), so the two pages can never show conflicting
+    // status for the same extension. /api/diagnostics/overview is only used
+    // for the IP address (via contact_uri), which that simpler endpoint
+    // doesn't expose.
+    Promise.all([
+      fetch("/api/extensions/status").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/diagnostics/overview").then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([statuses, overview]) => {
+        if (!Array.isArray(statuses)) return;
+        const ipByNumber: Record<string, string> = {};
+        for (const ext of (overview?.extensions ?? []) as ExtensionDiagnostic[]) {
+          ipByNumber[ext.number] = contactIp(ext.contact_uri);
+        }
+        const byNumber: Record<string, ExtensionStatusInfo> = {};
+        for (const s of statuses as { number: string; status: "Online" | "Offline" }[]) {
+          byNumber[s.number] = { status: s.status, ip: ipByNumber[s.number] ?? "" };
+        }
+        setExtStatus(byNumber);
       })
       .catch(() => {});
   }
@@ -92,38 +122,67 @@ export default function Provisioning() {
     );
   }
 
-  async function addDevice() {
+  function resetDeviceForm() {
+    setEditingDeviceId(null);
+    setDName(""); setDManu(""); setDModel(""); setDMac(""); setDExtNumbers([]); setDTpl("");
+  }
+
+  function startEditDevice(d: Device) {
+    setEditingDeviceId(d.id);
+    setDName(d.name); setDManu(d.manufacturer); setDModel(d.model); setDMac(d.mac);
+    setDExtNumbers(d.extension_numbers); setDTpl(d.template_id || "");
+  }
+
+  async function saveDevice() {
     if (!dMac.trim() || dExtNumbers.length === 0 || dTpl === "") {
       toast.error("MAC, mindestens eine Nebenstelle und Template sind erforderlich.");
       return;
     }
     setSavingDev(true);
     try {
-      const resp = await fetch("/api/provisioning/devices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: dName, manufacturer: dManu, model: dModel, mac: dMac,
-          extension_numbers: dExtNumbers.join(","), template_id: Number(dTpl),
-        }),
-      });
-      if (!resp.ok) throw new Error(await resp.text());
-      setDName(""); setDManu(""); setDModel(""); setDMac(""); setDExtNumbers([]); setDTpl("");
+      const isEdit = editingDeviceId !== null;
+      const resp = await fetch(
+        isEdit ? `/api/provisioning/devices/${editingDeviceId}` : "/api/provisioning/devices",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: dName, manufacturer: dManu, model: dModel, mac: dMac,
+            extension_numbers: dExtNumbers.join(","), template_id: Number(dTpl),
+          }),
+        }
+      );
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
+      resetDeviceForm();
       loadAll();
-      toast.success("Gerät hinzugefügt.");
-    } catch (e) {
-      toast.error(`Fehler: ${(e as Error).message || "Speichern fehlgeschlagen"}`);
+      toast.success(isEdit ? "Zuordnung gespeichert." : "Gerät hinzugefügt.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Speichern fehlgeschlagen."));
     } finally {
       setSavingDev(false);
     }
   }
 
-  async function deleteDevice(id: number) {
+  async function confirmDeleteDevice() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await fetch(`/api/provisioning/devices/${id}`, { method: "DELETE" });
-      setDevices((ds) => ds.filter((d) => d.id !== id));
-      toast.success("Gerät gelöscht.");
-    } catch { toast.error("Fehler beim Löschen."); }
+      const resp = await fetch(`/api/provisioning/devices/${deleteTarget.id}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      const data = await resp.json().catch(() => null);
+      setDevices((ds) => ds.filter((d) => d.id !== deleteTarget.id));
+      if (editingDeviceId === deleteTarget.id) resetDeviceForm();
+      toast.success(
+        data?.hung_up_calls
+          ? `Gerät gelöscht, ${data.hung_up_calls} aktive(s) Gespräch(e) getrennt.`
+          : "Gerät gelöscht."
+      );
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function saveTemplate() {
@@ -197,18 +256,18 @@ export default function Provisioning() {
                       <div className="flex flex-col gap-0.5">
                         {d.extension_numbers.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
                         {d.extension_numbers.map((num) => {
-                          const diag = extDiagnostics[String(num)];
-                          const online = diag?.status === "Online";
-                          const ip = diag ? contactIp(diag.contact_uri) : "";
+                          const info = extStatus?.[String(num)];
+                          const online = info?.status === "Online";
+                          const unknown = extStatus === null;
                           return (
                             <span key={num} className="flex items-center gap-1.5 text-xs">
                               <span
                                 className="inline-block h-1.5 w-1.5 rounded-full"
-                                style={{ background: online ? "#22C55E" : "#64748B" }}
+                                style={{ background: unknown ? "#475569" : online ? "#22C55E" : "#64748B" }}
                               />
                               <span className="font-mono text-muted-foreground">{num}</span>
                               <span className={online ? "text-emerald-400" : "text-muted-foreground"}>
-                                {online ? (ip || "Online") : "Offline"}
+                                {unknown ? "Prüft…" : online ? (info?.ip || "Online") : "Offline"}
                               </span>
                             </span>
                           );
@@ -222,15 +281,19 @@ export default function Provisioning() {
                       </button>
                     </td>
                     <td className="py-2 text-right">
+                      <Button variant="ghost" size="icon" className="h-8 w-8"
+                        onClick={() => startEditDevice(d)} aria-label="Gerät bearbeiten">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
-                        onClick={() => deleteDevice(d.id)} aria-label="Gerät löschen">
+                        onClick={() => setDeleteTarget(d)} aria-label="Gerät löschen">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>
                 ))}
-                {/* add row */}
-                <tr className="border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                {/* add/edit row */}
+                <tr className="border-t" style={editingDeviceId !== null ? { borderColor: "rgba(139,92,246,0.4)", background: "rgba(139,92,246,0.05)" } : { borderColor: "rgba(255,255,255,0.06)" }}>
                   <td className="py-2 pr-3"><Input value={dName} onChange={(e) => setDName(e.target.value)} placeholder="Name" className={inputCls} /></td>
                   <td className="py-2 pr-3">
                     <div className="flex gap-1">
@@ -267,9 +330,18 @@ export default function Provisioning() {
                     </select>
                   </td>
                   <td className="py-2 text-right">
-                    <Button size="sm" onClick={addDevice} disabled={savingDev} className="gap-1">
-                      <Plus className="h-3.5 w-3.5" /> {savingDev ? "…" : "Add"}
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      {editingDeviceId !== null && (
+                        <Button size="sm" variant="ghost" onClick={resetDeviceForm} aria-label="Bearbeiten abbrechen">
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <Button size="sm" onClick={saveDevice} disabled={savingDev} className="gap-1">
+                        {editingDeviceId !== null
+                          ? <><Save className="h-3.5 w-3.5" /> {savingDev ? "…" : "Speichern"}</>
+                          : <><Plus className="h-3.5 w-3.5" /> {savingDev ? "…" : "Add"}</>}
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -333,6 +405,28 @@ export default function Provisioning() {
           </div>
         )}
       </div>
+
+      {/* Delete confirmation */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerät "{deleteTarget?.name || deleteTarget?.mac}" löschen?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Ein laufendes Gespräch auf diesem Gerät wird sofort getrennt. Ein aktuell nur
+            registriertes (nicht telefonierendes) Gerät bleibt technisch angemeldet, bis seine
+            Registrierung planmäßig ausläuft (hier bis zu 2 Stunden) oder es neu gestartet wird -
+            Asterisk bietet keine Möglichkeit, eine bestehende, inaktive SIP-Registrierung sofort
+            zwangsweise zu beenden.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>Abbrechen</Button>
+            <Button variant="destructive" onClick={confirmDeleteDevice} disabled={deleting}>
+              {deleting ? "Löscht…" : "Löschen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

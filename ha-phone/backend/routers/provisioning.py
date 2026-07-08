@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import ProvisioningTemplate, ProvisionedDevice, Extension
+from backend import ami
 
 # Auth-protected CRUD router
 router = APIRouter()
@@ -283,13 +284,22 @@ def update_device(device_id: int, data: ProvisionedDevice, session: Session = De
 
 
 @router.delete("/provisioning/devices/{device_id}")
-def delete_device(device_id: int, session: Session = Depends(get_session)):
+async def delete_device(device_id: int, session: Session = Depends(get_session)):
     existing = session.get(ProvisionedDevice, device_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Device not found")
+    # Asterisk exposes no AMI action to force-expire an already-registered,
+    # otherwise-idle SIP contact (the registration itself lingers until it
+    # naturally expires or the device reconnects) - hanging up any call in
+    # progress right now is the one immediate, reliable disconnect action
+    # actually available, so that's what deleting a device does.
+    numbers = _parse_extension_numbers(existing.extension_numbers)
+    hung_up_calls = 0
+    for number in numbers:
+        hung_up_calls += await ami.hangup_channels_for_extension(str(number))
     session.delete(existing)
     session.commit()
-    return {"ok": True}
+    return {"ok": True, "hung_up_calls": hung_up_calls}
 
 
 # ── PUBLIC provisioning endpoint (no auth — devices fetch by MAC) ─────────────

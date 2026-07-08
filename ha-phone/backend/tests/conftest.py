@@ -28,12 +28,13 @@ def mock_ami():
          patch("backend.ami.get_extension_statuses", new_callable=AsyncMock, return_value=[]) as mock_exts, \
          patch("backend.ami.get_extension_diagnostics", new_callable=AsyncMock, return_value=[]) as mock_ext_diag, \
          patch("backend.ami.get_active_call_count", new_callable=AsyncMock, return_value=0) as mock_calls, \
-         patch("backend.ami.get_active_channel_details", new_callable=AsyncMock, return_value=[]) as mock_channels:
+         patch("backend.ami.get_active_channel_details", new_callable=AsyncMock, return_value=[]) as mock_channels, \
+         patch("backend.ami.hangup_channels_for_extension", new_callable=AsyncMock, return_value=0) as mock_hangup:
         yield {"reload_pjsip": mock_reload, "reload_dialplan": mock_dialplan,
                "reload_voicemail": mock_vm, "trunk_status": mock_status,
                "trunk_debug": mock_trunk_debug, "ext_statuses": mock_exts,
                "ext_diagnostics": mock_ext_diag, "active_calls": mock_calls,
-               "channel_details": mock_channels}
+               "channel_details": mock_channels, "hangup": mock_hangup}
 
 @pytest.fixture
 def client(tmp_data_dir, mock_ami):

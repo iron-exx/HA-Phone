@@ -1312,6 +1312,52 @@ def test_provisioning_single_extension_still_works_on_simple_template(client):
     assert "display_name=Solo" in body
 
 
+def test_provisioned_device_extension_assignment_editable(client):
+    """A device's extension assignment must be changeable at any time, not
+    just fixed at creation."""
+    _ensure_extension(client, 57, "First")
+    _ensure_extension(client, 58, "Second")
+    tpl_id = _create_singleline_template(client)
+
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "Reassignable", "mac": "cc11dd22ee33",
+        "extension_numbers": "57", "template_id": tpl_id,
+    })
+    assert resp.status_code == 200
+    device_id = resp.json()["id"]
+
+    resp = client.patch(f"/api/provisioning/devices/{device_id}", json={"extension_numbers": "58"})
+    assert resp.status_code == 200
+    assert resp.json()["extension_numbers"] == [58]
+
+    resp = client.get("/api/provisioning/devices")
+    updated = next(d for d in resp.json() if d["id"] == device_id)
+    assert updated["extension_numbers"] == [58]
+
+
+def test_deleting_provisioned_device_hangs_up_active_calls(client, mock_ami):
+    """Roadmap live-feedback: deleting a device must disconnect it. Asterisk
+    has no way to force-expire an idle registration, so the achievable,
+    honest behavior is hanging up any call in progress right now."""
+    _ensure_extension(client, 59, "Ringing")
+    tpl_id = _create_singleline_template(client)
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "Busy Phone", "mac": "dd22ee33ff44",
+        "extension_numbers": "59", "template_id": tpl_id,
+    })
+    device_id = resp.json()["id"]
+
+    mock_ami["hangup"].return_value = 1
+    resp = client.delete(f"/api/provisioning/devices/{device_id}")
+    assert resp.status_code == 200
+    assert resp.json()["hung_up_calls"] == 1
+    mock_ami["hangup"].assert_called_once_with("59")
+
+    assert client.get("/api/provisioning/devices").json() == [] or all(
+        d["id"] != device_id for d in client.get("/api/provisioning/devices").json()
+    )
+
+
 # ---- Secrets encryption at rest (D8) ----
 # Trunk password, SMTP password, and SIP passwords used to sit in SQLite as
 # plain text. These tests read the RAW database file directly (bypassing the

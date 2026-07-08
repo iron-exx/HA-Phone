@@ -785,17 +785,49 @@ function LinphoneQrDialog({
   );
 }
 
+interface ProvisionedDeviceSummary {
+  id: number;
+  name: string;
+  mac: string;
+  extension_numbers: number[];
+}
+interface ExtensionContact {
+  user_agent: string;
+  uri: string;
+}
+interface ExtensionLiveInfo {
+  contacts: number;
+  contacts_detail: ExtensionContact[];
+}
+
+function contactHost(uri: string): string {
+  const match = uri.match(/@([^:;]+)/);
+  return match ? match[1] : "";
+}
+
 // ---- Main page ----
 export default function Extensions() {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [ringGroups, setRingGroups] = useState<RingGroup[]>([]);
   const [statusMap, setStatusMap] = useState<Record<string, "Online" | "Offline">>({});
+  const [devices, setDevices] = useState<ProvisionedDeviceSummary[]>([]);
+  const [liveInfo, setLiveInfo] = useState<Record<string, ExtensionLiveInfo>>({});
   const [loading, setLoading] = useState(true);
   const [dialogMode, setDialogMode] = useState<"add" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<Extension | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Extension | null>(null);
   const [qrTarget, setQrTarget] = useState<Extension | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function fetchDevices() {
+    try {
+      const resp = await fetch("/api/provisioning/devices");
+      if (!resp.ok) return;
+      setDevices(await resp.json());
+    } catch {
+      // Non-fatal - the "Geräte" column just shows nothing assigned.
+    }
+  }
 
   async function fetchRingGroups() {
     try {
@@ -815,6 +847,7 @@ export default function Extensions() {
       .catch(() => toast.error("Nebenstellen konnten nicht geladen werden."))
       .finally(() => setLoading(false));
     fetchRingGroups();
+    fetchDevices();
   }, []);
 
   useEffect(() => {
@@ -829,6 +862,21 @@ export default function Extensions() {
             });
             return next;
           });
+        })
+        .catch(() => {});
+
+      // Live contact detail (which client(s) are actually registered - a
+      // hardware phone from Auto-Provisioning, a softphone, or both) isn't
+      // in the simpler status endpoint above; diagnostics carries it.
+      fetch("/api/diagnostics/overview")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d?.extensions) return;
+          const next: Record<string, ExtensionLiveInfo> = {};
+          for (const ext of d.extensions as { number: string; contacts: number; contacts_detail?: ExtensionContact[] }[]) {
+            next[ext.number] = { contacts: ext.contacts, contacts_detail: ext.contacts_detail ?? [] };
+          }
+          setLiveInfo(next);
         })
         .catch(() => {});
     }
@@ -927,6 +975,9 @@ export default function Extensions() {
                   Ring Groups
                 </TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                  Geräte
+                </TableHead>
+                <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Aktiv
                 </TableHead>
                 <TableHead className="text-right text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -958,6 +1009,29 @@ export default function Extensions() {
                       )
                       .map((group) => group.name)
                       .join(", ") || "-"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {(() => {
+                      const assignedDevices = devices.filter((d) =>
+                        d.extension_numbers.includes(ext.number)
+                      );
+                      const contacts = liveInfo[String(ext.number)]?.contacts_detail ?? [];
+                      if (assignedDevices.length === 0 && contacts.length === 0) return "—";
+                      return (
+                        <div className="flex flex-col gap-0.5">
+                          {assignedDevices.map((d) => (
+                            <span key={d.id} className="text-xs">
+                              {d.name || d.mac}
+                            </span>
+                          ))}
+                          {contacts.map((c, i) => (
+                            <span key={i} className="text-xs text-emerald-400/80">
+                              {c.user_agent || contactHost(c.uri) || "unbekanntes Gerät"} verbunden
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Switch

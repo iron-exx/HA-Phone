@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.75
+
+**Fix - Provisioning/Nebenstellen zeigten widerspruechlichen Online/Offline-Status**
+- Ursache: Provisioning.tsx las den Status nur aus `/api/diagnostics/overview` und fiel bei jedem Fetch-Fehler stillschweigend auf "Offline" zurueck, waehrend Extensions.tsx den zuverlaessigeren `/api/extensions/status`-Endpunkt nutzte - gleiche Nebenstelle, zwei unabhaengige Status-Quellen.
+- Beide Seiten lesen den Status jetzt aus derselben Quelle (`/api/extensions/status`); `/api/diagnostics/overview` liefert nur noch die IP/Kontakt-Anreicherung. Neuer dritter Zustand "Prueft..." (grauer Punkt), solange der Status noch nicht geladen ist - vorher wurde ein fehlgeschlagener Check nicht von einem echten Offline unterschieden.
+
+**Fix - Mehrere gleichzeitige Kontakte einer Nebenstelle wurden ueberschrieben (ami.py)**
+- `get_extension_diagnostics()` verarbeitete pro Nebenstelle nur den zuletzt gesehenen SIP-Kontakt; bei zwei gleichzeitig registrierten Geraeten (z.B. DECT-Basis + Softphone auf derselben Nebenstelle) ging die Info zum ersten Kontakt kommentarlos verloren.
+- Neues Feld `contacts_detail` sammelt jetzt alle Kontakte (Status, URI, Roundtrip, User-Agent); die bisherigen Einzelfelder bleiben fuer Diagnostics.tsx erhalten (zeigen weiterhin den ersten Kontakt). Erstmals direkte Unit-Tests fuer die Parsing-Logik in `test_ami.py` (3 Tests) - vorher immer nur auf Router-Ebene weggemockt.
+
+**Feature - Provisionierte Geraete: Zuweisung jederzeit bearbeitbar, Loeschen trennt aktive Anrufe**
+- Auto-Provisioning-Seite: Geraete koennen jetzt per Stift-Symbol bearbeitet werden (Nebenstellen-Zuordnung aendern), nicht nur neu angelegt/geloescht.
+- Loeschen zeigt einen Bestaetigungsdialog und trennt beim Loeschen aktive Gespraeche der zugeordneten Nebenstelle sofort per AMI-Hangup (`ami.hangup_channels_for_extension`, neu). Ehrlich kommuniziert: eine bereits registrierte, aber gerade untaetige SIP-Registrierung kann Asterisk nicht zwangsweise sofort beenden (kein AMI-Kommando dafuer vorhanden) - sie laeuft regulaer aus (bis zu 2h) oder endet mit Geraete-Neustart/Reconnect. Bewusst gegen ein Passwort-Rotieren der Nebenstelle entschieden, da das auch andere Geraete an derselben Nebenstelle aussperren wuerde.
+
+**Feature - Nebenstellen-Seite zeigt zugeordnete/verbundene Geraete**
+- Neue Spalte "Geraete" in der Nebenstellen-Tabelle: zeigt sowohl den Namen des zugeordneten provisionierten Geraets als auch, ob aktuell ein Client (Softphone/DECT) live verbunden ist (User-Agent bzw. IP, "verbunden"). Nutzt dieselben `contacts_detail`-Daten aus dem obigen ami.py-Fix.
+
+- 5 neue Backend-Tests (2x Geraete-Edit/Delete-Hangup in test_api.py, 3x direkte ami.py-Parsing-Tests in test_ami.py, neu). 87/87 Backend-Tests, Frontend tsc/vitest/build gruen.
+
 ## 0.7.74
 
 **Feature - Telefonbuch mit CSV-Import/Export**
