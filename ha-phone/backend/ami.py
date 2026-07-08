@@ -176,6 +176,22 @@ async def get_extension_statuses() -> list[dict]:
         return []
 
 
+def _parse_contacts_count(raw) -> int:
+    """PJSIPShowEndpoints's 'Contacts' field is a plain integer count on most
+    Asterisk versions, but some versions instead put the actual comma-
+    separated contact list here (e.g. '11/sip:11@192.168.7.217:58004;ob,') -
+    int() on that raised ValueError, which took down the whole diagnostics
+    endpoint (every call silently returned []), including all IP/contact
+    info shown in the UI. Fall back to counting list entries."""
+    text = str(raw or "").strip()
+    if not text:
+        return 0
+    try:
+        return int(text)
+    except ValueError:
+        return len([part for part in text.split(",") if part.strip()])
+
+
 async def get_extension_diagnostics() -> list[dict]:
     try:
         async with asyncio.timeout(_AMI_TIMEOUT):
@@ -204,7 +220,7 @@ async def get_extension_diagnostics() -> list[dict]:
                 "device_state": r.get("DeviceState", "UNKNOWN"),
                 "active_channels": int(r.get("ActiveChannels", 0) or 0),
                 "aor": r.get("Aor", ""),
-                "contacts": int(r.get("Contacts", 0) or 0),
+                "contacts": _parse_contacts_count(r.get("Contacts", 0)),
                 # Kept for backward compat (Diagnostics.tsx): first contact seen.
                 "contact_status": "",
                 "contact_uri": "",

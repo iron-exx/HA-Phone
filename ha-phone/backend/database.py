@@ -103,6 +103,16 @@ def run_migrations(engine: Engine) -> None:
                         )
                     )
                     conn.commit()
+            # Re-check columns (they may have just changed above): the old
+            # extension_id column is NOT NULL with no default and is no
+            # longer set by the ORM (ProvisionedDevice has no such field
+            # anymore) - every insert on an upgraded database was failing
+            # with "NOT NULL constraint failed: provisioneddevice.extension_id"
+            # until this column is actually removed, not just superseded.
+            cols = [c["name"] for c in inspector.get_columns("provisioneddevice")]
+            if "extension_id" in cols:
+                conn.execute(text("ALTER TABLE provisioneddevice DROP COLUMN extension_id"))
+                conn.commit()
         if "holiday" in tables:
             cols = [c["name"] for c in inspector.get_columns("holiday")]
             if "year" not in cols:

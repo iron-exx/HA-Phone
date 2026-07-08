@@ -87,3 +87,25 @@ async def test_get_extension_diagnostics_handles_zero_contacts():
     assert result[0]["contacts"] == 0
     assert result[0]["contacts_detail"] == []
     assert result[0]["status"] == "Online"  # DeviceState "Not in use" - still registered-capable
+
+
+@pytest.mark.asyncio
+async def test_get_extension_diagnostics_survives_non_numeric_contacts_field():
+    """Reported bug: some Asterisk versions put the actual comma-separated
+    contact list in PJSIPShowEndpoints's 'Contacts' field instead of a plain
+    count (e.g. '11/sip:11@192.168.7.217:58004;ob,'). int() on that used to
+    raise ValueError and silently killed the entire diagnostics response
+    (every call returned []), which is also why IP addresses never showed
+    up in the UI - this must degrade to a best-effort count instead."""
+    endpoint = _endpoint_list("11", contacts=0)
+    endpoint["Contacts"] = "11/sip:11@192.168.7.217:58004;ob,"
+    fake_manager = AsyncMock()
+    fake_manager.send_action.side_effect = [
+        [endpoint],
+        [_contact_list("11", "sip:11@192.168.7.217:58004;ob", "MicroSIP")],
+    ]
+    with patch("backend.ami._get_manager", new=AsyncMock(return_value=fake_manager)):
+        result = await ami.get_extension_diagnostics()
+
+    assert len(result) == 1
+    assert result[0]["contacts"] == 1

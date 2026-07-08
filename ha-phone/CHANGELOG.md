@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.80
+
+**Fix - Geraet anlegen schlug auf bestehenden Installationen mit 500-Fehler fehl**
+- Ursache: die uralte Spalte `provisioneddevice.extension_id` (NOT NULL, ohne Default) wurde vor laengerer Zeit durch `extension_numbers` ersetzt, aber nie aus dem tatsaechlichen Tabellenschema entfernt - nur der ORM-Code kennt sie nicht mehr. Jeder INSERT (jedes neue Geraet anlegen) verletzte die NOT-NULL-Constraint dieser toten Spalte und endete als "500 Internal Server Error".
+- Migration ergaenzt: die Spalte wird jetzt tatsaechlich per `ALTER TABLE ... DROP COLUMN` entfernt, nicht nur funktional ersetzt.
+
+**Fix - Diagnose/IP-Anzeige lieferte auf manchen Asterisk-Versionen dauerhaft nichts**
+- Ursache: `PJSIPShowEndpoints`s `Contacts`-Feld ist bei den meisten Asterisk-Versionen ein reiner Zaehler, bei manchen Versionen steht dort stattdessen direkt die kommagetrennte Kontaktliste (z.B. `11/sip:11@192.168.7.217:58004;ob,`). Die bisherige `int()`-Umwandlung ist daran mit `ValueError` gescheitert und hat die komplette Diagnose-Antwort verschluckt (Log: "AMI extension diagnostics unavailable") - dadurch blieben auf betroffenen Installationen IP-Adressen und Verbindungsstatus in Provisioning UND Nebenstellen-Seite dauerhaft leer, unabhaengig vom eigentlichen Status-Fix aus 0.7.75.
+- Robuster geparst: fällt jetzt bei nicht-numerischem Wert auf Zaehlen der Listeneintraege zurueck statt komplett zu scheitern.
+
+- 2 neue Migrationstests (Spalte wird entfernt, ORM-Insert nach Migration erfolgreich) und 1 neuer ami.py-Test (nicht-numerisches Contacts-Feld). 95/95 Backend-Tests.
+
 ## 0.7.79
 
 **Fix - CI-Testfehler behoben, der 0.7.78 komplett am Ausliefern gehindert hat**

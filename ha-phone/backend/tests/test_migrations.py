@@ -61,7 +61,7 @@ def _build_legacy_db(path):
         ))
         conn.execute(text(
             "CREATE TABLE provisioneddevice (id INTEGER PRIMARY KEY, name TEXT, "
-            "manufacturer TEXT, model TEXT, mac TEXT, extension_id INTEGER, template_id INTEGER)"
+            "manufacturer TEXT, model TEXT, mac TEXT, extension_id INTEGER NOT NULL, template_id INTEGER)"
         ))
         conn.execute(text(
             "INSERT INTO provisioneddevice (id, name, manufacturer, model, mac, "
@@ -106,6 +106,10 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
 
     device_cols = {c["name"] for c in inspector.get_columns("provisioneddevice")}
     assert "extension_numbers" in device_cols
+    # The old extension_id column was NOT NULL with no default and is never
+    # set by the ORM anymore (ProvisionedDevice has no such field) - it must
+    # be dropped, not just superseded, or every future insert fails.
+    assert "extension_id" not in device_cols
 
     holiday_cols = {c["name"] for c in inspector.get_columns("holiday")}
     assert "year" in holiday_cols
@@ -140,6 +144,17 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
 
         device = session.exec(select(ProvisionedDevice)).first()
         assert device.extension_numbers == "11"
+
+        # Reproduces the real "NOT NULL constraint failed:
+        # provisioneddevice.extension_id" 500 error: creating a new device
+        # via the ORM (which knows nothing about the dropped legacy column)
+        # must succeed after migration.
+        new_device = ProvisionedDevice(
+            name="New Phone", manufacturer="Gigaset", model="N510",
+            mac="7c2f80ea7f51", extension_numbers="11", template_id=0,
+        )
+        session.add(new_device)
+        session.commit()
 
         # A pre-upgrade holiday had no year at all (implicitly recurring
         # every year); the migration backfills the current year so it isn't
