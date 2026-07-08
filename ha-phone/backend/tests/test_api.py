@@ -1,4 +1,5 @@
 import re
+import shutil
 import pytest
 from pathlib import Path
 from unittest.mock import patch
@@ -871,6 +872,8 @@ def test_ivr_greeting_upload_normalizes_sample_rate_and_channels(client, tmp_dat
     """D7: a 44.1kHz stereo WAV (typical Audacity/phone export) must be
     converted to the 8kHz mono format Asterisk's Background() expects,
     not just accepted as-is because the extension is .wav."""
+    if shutil.which("sox") is None:
+        pytest.skip("sox not installed on test host")
     import wave
 
     resp = client.post("/api/ivrs", json={
@@ -898,6 +901,8 @@ def test_ivr_greeting_upload_normalizes_sample_rate_and_channels(client, tmp_dat
 def test_ivr_greeting_upload_rejects_non_audio_content(client):
     """A .wav-named file that isn't actually audio must be rejected, not
     silently stored as a greeting Asterisk can't play."""
+    if shutil.which("sox") is None:
+        pytest.skip("sox not installed on test host")
     resp = client.post("/api/ivrs", json={
         "number": 61, "name": "Bad Upload", "timeout": 10, "max_invalid_tries": 3, "options": "[]",
     })
@@ -1291,6 +1296,49 @@ def test_provisioning_renders_one_sip_provider_per_extension(client):
     assert "SipProvider.1.Name=53" in xml
     assert "Handset.0.SIP.AuthPassword=securepass1234567" in xml
     assert "Handset.1.SIP.DisplayName=Zweiter" in xml
+
+
+def test_builtin_gigaset_n510_providerframe_template_renders_assigned_and_empty_slots(client):
+    _ensure_extension(client, 68, "Zentrale")
+    _ensure_extension(client, 69, "Buero")
+
+    from sqlmodel import Session, select
+
+    from backend.database import get_engine
+    from backend.models import ProvisioningTemplate
+    from backend.routers.provisioning import seed_builtin_templates
+
+    with Session(get_engine()) as session:
+        seed_builtin_templates(session)
+        tpl = session.exec(
+            select(ProvisioningTemplate).where(
+                ProvisioningTemplate.name == "Gigaset N510 IP PRO (Yeastar ProviderFrame)"
+            )
+        ).first()
+        assert tpl is not None
+        tpl_id = tpl.id
+
+    resp = client.post("/api/provisioning/devices", json={
+        "name": "DECT Basis", "manufacturer": "Gigaset", "model": "N510 IP PRO",
+        "mac": "665544332211", "extension_numbers": "68,69", "template_id": tpl_id,
+    })
+    assert resp.status_code == 200
+
+    resp = client.get("/api/autoprovision/665544332211.xml")
+    assert resp.status_code == 200
+    xml = resp.text
+    assert '<?xml version="1.0" encoding="ISO-8859-1"?>' in xml
+    assert "<ProviderFrame" in xml
+    assert 'BS_IP_Data1.aucS_SIP_ACCOUNT_NAME' in xml
+    assert 'value=\'"68"\'' in xml
+    assert 'BS_IP_Data1.aucS_SIP_ACCOUNT_NAME_2' in xml
+    assert 'value=\'"69"\'' in xml
+    assert 'BS_IP_Data1.aucS_SIP_PASSWORD_2' in xml
+    assert 'BS_Accounts.astAccounts[1].uiSendMask' in xml
+    assert 'value="0x2"' in xml
+    assert 'BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE_3' in xml
+    assert 'value="0x0"' in xml
+    assert 'BS_AE_Subscriber.stMtDat[0].aucTlnName[0]' in xml
 
 
 def test_provisioning_single_extension_still_works_on_simple_template(client):

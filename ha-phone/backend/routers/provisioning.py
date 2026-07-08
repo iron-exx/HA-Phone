@@ -62,6 +62,31 @@ def _lan_ip() -> str:
         return ""
 
 
+def _gigaset_slots(accounts: list[dict], max_slots: int = 6) -> list[dict[str, str | int]]:
+    """Return all fixed Gigaset DECT account slots, including empty ones."""
+    slots: list[dict[str, str | int]] = []
+    for idx in range(max_slots):
+        account = accounts[idx] if idx < len(accounts) else None
+        suffix = "" if idx == 0 else f"_{idx + 1}"
+        mask = f"0x{1 << idx:x}" if account else "0x0"
+        slots.append(
+            {
+                "index0": idx,
+                "suffix": suffix,
+                "account_name": account["number"] if account else "",
+                "display_name": account["display_name"] if account else "",
+                "sip_username": account["sip_username"] if account else "",
+                "sip_auth": account["sip_auth"] if account else "",
+                "sip_password": account["sip_password"] if account else "",
+                "active_hex": "0x1" if account else "0x0",
+                "state_hex": "0x1" if account else "0x0",
+                "send_mask": mask,
+                "receive_mask": mask,
+            }
+        )
+    return slots
+
+
 # ── Built-in starter templates (fully editable in the UI) ────────────────────
 BUILTIN_TEMPLATES = [
     {
@@ -151,6 +176,54 @@ BUILTIN_TEMPLATES = [
             "{% endfor %}"
             "  </nvm>\n"
             "</provisioning>\n"
+        ),
+    },
+    {
+        "name": "Gigaset N510 IP PRO (Yeastar ProviderFrame)",
+        "vendor": "Gigaset",
+        "file_pattern": "{mac}.xml",
+        "content": (
+            '<?xml version="1.0" encoding="ISO-8859-1"?>\n'
+            '<ProviderFrame xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            'xsi:noNamespaceSchemaLocation="profile.xsd">\n'
+            "  <Provider>\n"
+            "    <!-- HA-Phone auto-provisioning - Gigaset N510 IP PRO.\n"
+            "         Yeastar-style ProviderFrame adapted to HA-Phone's multi-line\n"
+            "         provisioning. Data server URL on the base:\n"
+            "         http://<PBX-IP>/api/autoprovision/[MAC].xml\n"
+            "         One SIP account per assigned extension, max. 6. Unused slots\n"
+            "         are explicitly cleared so old assignments do not linger. -->\n"
+            '    <PROFILE_NAME class="string" value="HA-Phone"/>\n'
+            '    <PROFILE_VERSION class="string" value="1"/>\n'
+            '    <REBOOT value="true"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.ucB_ACCEPT_FOREIGN_SUBNET" class="symb_item" value="0x1"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data.ucB_AUTO_UPDATE_PROFILE" class="symb_item" value="0x1"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data3.ucI_ONESHOT_PROVISIONING_MODE_1" class="symb_item" value="0x1"/>\n'
+            "{% for slot in gigaset_slots %}"
+            '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].aucAccountName[0]" class="symb_item" value=\'"{{ slot.account_name }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_ACCOUNT_NAME{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.account_name }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_DISPLAYNAME{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.display_name }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data3.aucS_SIP_LOGIN_ID{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.sip_auth }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_PASSWORD{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.sip_password }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_USER_ID{{ slot.suffix }}" class="symb_item" value=\'"{{ slot.sip_username }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_DOMAIN{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_SERVER{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_REGISTRAR{{ slot.suffix }}" class="symb_item" value=\'"{{ sip_server }}"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.aucS_SIP_PROVIDER_NAME{{ slot.suffix }}" class="symb_item" value=\'"HA-Phone"\'/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.uiI_SIP_SERVER_PORT{{ slot.suffix }}" class="symb_item" value="{{ gigaset_sip_port_hex }}"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.uiI_SIP_REGISTRAR_PORT{{ slot.suffix }}" class="symb_item" value="{{ gigaset_sip_port_hex }}"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.ucB_SIP_USE_STUN{{ slot.suffix }}" class="symb_item" value="0x0"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.ucI_OUTBOUND_PROXY_MODE{{ slot.suffix }}" class="symb_item" value="0x0"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.ucI_SIP_PREFERRED_VOCODER{{ slot.suffix }}" class="symb_item" value="0x05,0x01,0x00,0x02,0x03"/>\n'
+            '    <SYMB_ITEM ID="BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE{{ slot.suffix }}" class="symb_item" value="{{ slot.active_hex }}"/>\n'
+            '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].uiSendMask" class="symb_item" value="{{ slot.send_mask }}"/>\n'
+            '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].uiReceiveMask" class="symb_item" value="{{ slot.receive_mask }}"/>\n'
+            '    <SYMB_ITEM ID="BS_Accounts.astAccounts[{{ slot.index0 }}].ucState" class="symb_item" value="{{ slot.state_hex }}"/>\n'
+            '    <SYMB_ITEM ID="BS_AE_Subscriber.stMtDat[{{ slot.index0 }}].aucTlnName[0]" class="symb_item" value=\'"{{ slot.account_name }}"\'/>\n'
+            "{% endfor %}"
+            '    <SYMB_ITEM ID="BS_LM_AppCfg.bit.bHasIdleTextInternalName" class="symb_item" value="1"/>\n'
+            "  </Provider>\n"
+            "</ProviderFrame>\n"
         ),
     },
 ]
@@ -332,10 +405,12 @@ def serve_provisioning(path: str, session: Session = Depends(get_session)):
         for e in extensions
     ]
     first = accounts[0]
+    sip_server = _lan_ip()
+    sip_port = "5060"
     subs = {
         "mac": device.mac,
-        "sip_server": _lan_ip(),
-        "sip_port": "5060",
+        "sip_server": sip_server,
+        "sip_port": sip_port,
         # Multi-line devices (e.g. a DECT base with several handsets) loop
         # over `accounts` in their template to get one SIP account per
         # extension. Every pre-multi-line template only used the flat vars
@@ -348,6 +423,8 @@ def serve_provisioning(path: str, session: Session = Depends(get_session)):
         "sip_username": first["sip_username"],
         "sip_auth": first["sip_auth"],
         "sip_password": first["sip_password"],
+        "gigaset_slots": _gigaset_slots(accounts),
+        "gigaset_sip_port_hex": hex(int(sip_port)),
     }
     body = _render(tpl.content, subs)
     media = "application/xml" if path.lower().endswith(".xml") else "text/plain"

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.77
+
+**Feature - Neue Gigaset N510 IP PRO Provisioning-Vorlage (Yeastar ProviderFrame)**
+- Neue eingebaute Provisioning-Vorlage `Gigaset N510 IP PRO (Yeastar ProviderFrame)` auf Basis des von dir gelieferten Yeastar-ProviderFrames.
+- Die Vorlage legt bis zu 6 feste SIP-Slots der N510-Basis an, je zugewiesener Nebenstelle ein eigenes Konto. Das passt zum aktuellen Multi-Extension-Provisioning von HA-Phone statt nur einen einzelnen SIP-Block zu schreiben.
+- Ungenutzte Slots werden bewusst leer/deaktiviert mit ausgerendert, damit alte Konten nach einer spaeteren Umzuweisung nicht in der Basis haengen bleiben.
+
+**Test - Built-in N510 Template abgesichert**
+- Neuer Backend-Test prueft das eingebaute N510-Template direkt: ProviderFrame-Ausgabe, zwei belegte Slots, korrekte Slot-Masken und deaktivierte leere Slots.
+
 ## 0.7.76
 
 **Breaking Change - Feiertage sind jetzt einmalige Termine statt jaehrlich wiederkehrend**
