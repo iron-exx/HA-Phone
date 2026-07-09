@@ -209,6 +209,65 @@ def test_active_calls(client):
     assert isinstance(data["count"], int)
 
 
+def test_update_info_uses_supervisor_apps_api(client, monkeypatch):
+    from backend.routers import update
+
+    calls: list[str] = []
+
+    async def fake_get(path: str) -> dict:
+        calls.append(path)
+        return {
+            "data": {
+                "version": "0.7.82",
+                "version_latest": "0.7.83",
+                "update_available": True,
+            }
+        }
+
+    monkeypatch.setattr(update, "_supervisor_get", fake_get)
+
+    resp = client.get("/api/update/info")
+    assert resp.status_code == 200
+    assert calls == ["/apps/self/info"]
+    assert resp.json()["version_latest"] == "0.7.83"
+
+
+def test_update_start_uses_supervisor_apps_api(client, monkeypatch):
+    from backend.routers import update
+
+    calls: list[str] = []
+
+    async def fake_post(path: str) -> dict:
+        calls.append(path)
+        return {"result": "ok"}
+
+    monkeypatch.setattr(update, "_supervisor_post", fake_post)
+
+    resp = client.post("/api/update/start")
+    assert resp.status_code == 200
+    assert calls == ["/apps/self/update"]
+
+
+def test_update_start_falls_back_for_old_supervisor(client, monkeypatch):
+    from fastapi import HTTPException
+
+    from backend.routers import update
+
+    calls: list[str] = []
+
+    async def fake_post(path: str) -> dict:
+        calls.append(path)
+        if path == "/apps/self/update":
+            raise HTTPException(404, "apps endpoint not found")
+        return {"result": "ok"}
+
+    monkeypatch.setattr(update, "_supervisor_post", fake_post)
+
+    resp = client.post("/api/update/start")
+    assert resp.status_code == 200
+    assert calls == ["/apps/self/update", "/addons/self/update"]
+
+
 def test_diagnostics_overview(client, mock_ami):
     mock_ami["trunk_status"].return_value = "Registered"
     mock_ami["trunk_debug"].return_value = {

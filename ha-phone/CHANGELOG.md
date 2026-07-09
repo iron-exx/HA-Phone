@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.83
+
+**Fix - Home-Assistant-Update-Aufruf nutzt neue Supervisor-App-API**
+- Dashboard-Update startet jetzt ueber `POST /apps/self/update` statt ueber den veralteten Add-on-Pfad `POST /addons/self/update`.
+- Update-Info wird ebenfalls zuerst ueber `/apps/self/info` gelesen. Fuer aeltere Supervisor-Versionen bleibt ein Fallback auf die alten `/addons/self/...`-Endpunkte erhalten.
+- Supervisor-Fehler werden nicht mehr als generischer 500er verschluckt, sondern mit Pfad und Supervisor-Meldung an die UI weitergegeben.
+- Regressionstests pruefen den neuen `/apps/self/...`-Pfad und den Fallback fuer alte Supervisor-Versionen.
+
 ## 0.7.82
 
 **Feature - Linphone bekommt das HA-Phone-Telefonbuch per Provisioning**
