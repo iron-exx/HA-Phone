@@ -107,10 +107,18 @@ def _ensure_provisioning_token(extension: Extension, session: Session) -> Extens
 def _request_host(request: Request) -> str:
     forwarded_host = request.headers.get("x-forwarded-host", "")
     if forwarded_host:
-        return forwarded_host.split(",")[0].strip()
+        return _host_without_port(forwarded_host.split(",")[0].strip())
     if request.url.hostname:
         return request.url.hostname
     return "pbx.local"
+
+
+def _host_without_port(host: str) -> str:
+    if host.startswith("[") and "]" in host:
+        return host[1 : host.index("]")]
+    if host.count(":") == 1:
+        return host.rsplit(":", 1)[0]
+    return host
 
 
 def _request_origin(request: Request) -> str:
@@ -121,6 +129,14 @@ def _request_origin(request: Request) -> str:
     if not host:
         host = request.url.netloc or _request_host(request)
     return f"{scheme or 'http'}://{host}"
+
+
+_INGRESS_PATH_RE = re.compile(r"^/api/hassio_ingress/[A-Za-z0-9_-]+$")
+
+
+def _request_ingress_path(request: Request) -> str:
+    raw = request.headers.get("x-ingress-path", "").strip()
+    return raw if _INGRESS_PATH_RE.match(raw) else ""
 
 
 def _vcard_escape(value: str) -> str:
@@ -161,8 +177,9 @@ def _render_phonebook_vcards(entries: list[PhonebookEntry], sip_domain: str) -> 
 
 def _render_linphone_provisioning_xml(extension: Extension, request: Request) -> str:
     host = html.escape(_request_host(request), quote=True)
+    public_base = f"{_request_origin(request)}{_request_ingress_path(request)}"
     contacts_url = html.escape(
-        f"{_request_origin(request)}/api/linphone/contacts/{extension.provisioning_token}.vcf",
+        f"{public_base}/api/linphone/contacts/{extension.provisioning_token}.vcf",
         quote=True,
     )
     username = html.escape(str(extension.number), quote=True)

@@ -1,11 +1,41 @@
-export function buildProvisioningUrl(path: string, hostname = window.location.hostname) {
-  return `http://${hostname}${path}`;
+function currentIngressPath() {
+  const raw = (window as Window & { __INGRESS_PATH__?: string }).__INGRESS_PATH__ ?? "";
+  return raw.replace(/\/+$/, "");
 }
 
-export function buildLinphoneConfigUri(path: string, hostname = window.location.hostname) {
-  return `linphone-config:${buildProvisioningUrl(path, hostname)}`;
+function normalizePath(path: string) {
+  return path.startsWith("/") ? path : `/${path}`;
 }
 
-export function buildLinphoneQrPayload(path: string, hostname = window.location.hostname) {
-  return buildProvisioningUrl(path, hostname);
+export function buildProvisioningUrl(
+  path: string,
+  origin = window.location.origin,
+  ingressPath = currentIngressPath()
+) {
+  if (/^https?:\/\//i.test(path)) return path;
+
+  const normalizedPath = normalizePath(path);
+  const normalizedIngress = ingressPath ? normalizePath(ingressPath).replace(/\/+$/, "") : "";
+  const prefix =
+    normalizedIngress && !normalizedPath.startsWith(`${normalizedIngress}/`)
+      ? normalizedIngress
+      : "";
+
+  return `${origin.replace(/\/+$/, "")}${prefix}${normalizedPath}`;
+}
+
+export function buildLinphoneConfigUri(
+  path: string,
+  origin = window.location.origin,
+  ingressPath = currentIngressPath()
+) {
+  return `linphone-config:${buildProvisioningUrl(path, origin, ingressPath)}`;
+}
+
+export function buildLinphoneQrPayload(
+  path: string,
+  origin = window.location.origin,
+  ingressPath = currentIngressPath()
+) {
+  return buildProvisioningUrl(path, origin, ingressPath);
 }

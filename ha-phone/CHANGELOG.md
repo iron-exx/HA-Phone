@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.84
+
+**Fix - Linphone-Kontakte ueber Home-Assistant-Ingress erreichbar**
+- Linphone-QR und Provisioning-Link behalten jetzt die echte Browser-Origin inklusive Port/HTTPS und Home-Assistant-Ingress-Pfad. Vorher wurde aus `https://host:8123/api/hassio_ingress/...` versehentlich nur ein nacktes `http://host/...` gebaut.
+- Das Linphone-Provisioning-XML schreibt den `contacts-vcard-list`-Link jetzt ebenfalls mit dem Ingress-Pfad, damit Linphone die vCard-Kontaktliste vom Handy aus abrufen kann.
+- SIP-Proxy/Identity im Linphone-XML bekommen weiterhin nur den Hostnamen ohne Home-Assistant-Port `8123`, damit sich der Client nicht versehentlich gegen die HA-Weboberflaeche statt gegen SIP registrieren will.
+- Regressionstests pruefen den Ingress-Fall sowohl im Frontend-Link-Builder als auch im Backend-Provisioning-XML.
+
 ## 0.7.83
 
 **Fix - Home-Assistant-Update-Aufruf nutzt neue Supervisor-App-API**

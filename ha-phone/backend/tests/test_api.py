@@ -156,6 +156,40 @@ def test_linphone_qr_metadata_and_public_provisioning(client):
     assert client.delete(f"/api/phonebook/{phonebook_entry_id}").status_code == 200
 
 
+def test_linphone_provisioning_uses_ingress_path_for_contacts(client):
+    resp = client.post(
+        "/api/extensions",
+        json={
+            "number": 22,
+            "display_name": "Ingress Linphone",
+            "sip_password": "securepass1234567",
+        },
+    )
+    assert resp.status_code == 200
+    extension = resp.json()
+
+    qr_resp = client.get(f"/api/extensions/{extension['id']}/linphone-qr")
+    token = qr_resp.json()["provisioning_path"].rsplit("/", 1)[-1]
+    xml_resp = client.get(
+        f"/api/linphone/provision/{token}",
+        headers={
+            "x-forwarded-proto": "https",
+            "x-forwarded-host": "ha.example.test:8123",
+            "x-ingress-path": "/api/hassio_ingress/test-token_123",
+        },
+    )
+
+    assert xml_resp.status_code == 200
+    assert (
+        '<entry name="contacts-vcard-list" overwrite="true">'
+        "https://ha.example.test:8123/api/hassio_ingress/test-token_123"
+        f"/api/linphone/contacts/{token}.vcf</entry>"
+    ) in xml_resp.text
+    assert "sip:22@ha.example.test:8123" not in xml_resp.text
+    assert "sip:22@ha.example.test" in xml_resp.text
+    assert "&lt;sip:ha.example.test;transport=udp&gt;" in xml_resp.text
+
+
 def test_trunk_ami_reload(client, mock_ami):
     """POST /api/trunk calls ami_reload_pjsip (mock asserted)."""
     client.post(
