@@ -1,5 +1,6 @@
 import html
 import os
+import re
 import secrets
 from pathlib import Path
 from typing import List, Optional
@@ -13,6 +14,7 @@ from backend.models import (
     ExtensionCreateOut,
     ExtensionOut,
     ExtensionUpdate,
+    PhonebookEntry,
     RingGroup,
     VoicemailSettings,
 )
@@ -111,8 +113,58 @@ def _request_host(request: Request) -> str:
     return "pbx.local"
 
 
+def _request_origin(request: Request) -> str:
+    forwarded_proto = request.headers.get("x-forwarded-proto", "")
+    scheme = forwarded_proto.split(",")[0].strip() if forwarded_proto else request.url.scheme
+    forwarded_host = request.headers.get("x-forwarded-host", "")
+    host = forwarded_host.split(",")[0].strip() if forwarded_host else request.headers.get("host", "")
+    if not host:
+        host = request.url.netloc or _request_host(request)
+    return f"{scheme or 'http'}://{host}"
+
+
+def _vcard_escape(value: str) -> str:
+    return (
+        value.replace("\\", "\\\\")
+        .replace("\r", "")
+        .replace("\n", "\\n")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+    )
+
+
+def _dial_string(value: str) -> str:
+    return re.sub(r"[^0-9+*#]", "", value)
+
+
+def _render_phonebook_vcards(entries: list[PhonebookEntry], sip_domain: str) -> str:
+    lines: list[str] = []
+    for entry in sorted(entries, key=lambda item: item.name.lower()):
+        name = _vcard_escape(entry.name.strip())
+        number = entry.number.strip()
+        dial = _dial_string(number)
+        lines.extend(
+            [
+                "BEGIN:VCARD",
+                "VERSION:4.0",
+                f"FN:{name}",
+                f"TEL;TYPE=voice:{_vcard_escape(number)}",
+            ]
+        )
+        if dial:
+            lines.append(f"IMPP:sip:{dial}@{sip_domain}")
+        if entry.notes.strip():
+            lines.append(f"NOTE:{_vcard_escape(entry.notes.strip())}")
+        lines.append("END:VCARD")
+    return "\r\n".join(lines) + ("\r\n" if lines else "")
+
+
 def _render_linphone_provisioning_xml(extension: Extension, request: Request) -> str:
     host = html.escape(_request_host(request), quote=True)
+    contacts_url = html.escape(
+        f"{_request_origin(request)}/api/linphone/contacts/{extension.provisioning_token}.vcf",
+        quote=True,
+    )
     username = html.escape(str(extension.number), quote=True)
     password = html.escape(extension.sip_password, quote=True)
     identity = f"sip:{username}@{host}"
@@ -130,6 +182,9 @@ def _render_linphone_provisioning_xml(extension: Extension, request: Request) ->
         '<config xmlns="http://www.linphone.org/xsds/lpconfig.xsd" '
         'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
         'xsi:schemaLocation="http://www.linphone.org/xsds/lpconfig.xsd lpconfig.xsd">\n'
+        '  <section name="misc">\n'
+        f'    <entry name="contacts-vcard-list" overwrite="true">{contacts_url}</entry>\n'
+        "  </section>\n"
         '  <section name="sip">\n'
         '    <entry name="sip_port" overwrite="true">-1</entry>\n'
         '    <entry name="sip_tcp_port" overwrite="true">-1</entry>\n'
@@ -323,3 +378,19 @@ def get_linphone_provisioning(token: str, request: Request, session: Session = D
         raise HTTPException(status_code=404, detail="Unknown provisioning token")
     xml = _render_linphone_provisioning_xml(extension, request)
     return Response(content=xml, media_type="application/xml")
+
+
+@public_router.get("/linphone/contacts/{token}.vcf")
+def get_linphone_contacts(token: str, request: Request, session: Session = Depends(get_session)):
+    extension = session.exec(
+        select(Extension).where(Extension.provisioning_token == token)
+    ).first()
+    if not extension:
+        raise HTTPException(status_code=404, detail="Unknown provisioning token")
+    entries = session.exec(select(PhonebookEntry)).all()
+    body = _render_phonebook_vcards(entries, _request_host(request))
+    return Response(
+        content=body,
+        media_type="text/vcard; charset=utf-8",
+        headers={"Content-Disposition": 'inline; filename="ha-phone-contacts.vcf"'},
+    )

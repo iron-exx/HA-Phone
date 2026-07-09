@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.82
+
+**Feature - Linphone bekommt das HA-Phone-Telefonbuch per Provisioning**
+- Linphone-QR-Provisioning verknuepft jetzt das vorhandene Telefonbuch ueber den offiziellen `misc/contacts-vcard-list`-Eintrag in der Linphone-Remote-Konfiguration.
+- Neuer tokengebundener oeffentlicher Endpunkt `GET /api/linphone/contacts/{token}.vcf` liefert die HA-Phone-Kontakte als vCard 4.0 aus. Es wird derselbe Provisioning-Token wie fuer die SIP-Konfiguration genutzt; ohne gueltigen Token gibt es `404`.
+- Kontakte enthalten `FN`, `TEL`, `IMPP:sip:<Nummer>@<PBX-Host>` und optional `NOTE`. Formatierte Nummern werden fuer die SIP-URI auf waehltaugliche Zeichen normalisiert, die sichtbare `TEL`-Nummer bleibt erhalten.
+- Regressionstest erweitert: Provisioning-XML muss den VCF-Link enthalten, und der VCF-Endpunkt muss einen Telefonbucheintrag im Linphone-tauglichen Format ausliefern.
+
 ## 0.7.81
 
 **Fix - Gigaset N510 IP PRO Auto-Provisioning aktivierte Account 1 nie**

@@ -96,6 +96,13 @@ def test_extension_status(client):
 
 
 def test_linphone_qr_metadata_and_public_provisioning(client):
+    phonebook_resp = client.post(
+        "/api/phonebook",
+        json={"name": "Taxi Zentrale", "number": "+49 3333 5555", "notes": "24h; Stadt"},
+    )
+    assert phonebook_resp.status_code == 200
+    phonebook_entry_id = phonebook_resp.json()["id"]
+
     resp = client.post(
         "/api/extensions",
         json={
@@ -127,10 +134,26 @@ def test_linphone_qr_metadata_and_public_provisioning(client):
     assert "&lt;sip:testserver;transport=udp;lr&gt;" in xml
     assert '<entry name="realm" overwrite="true">testserver</entry>' in xml
     assert "securepass1234567" in xml
+    assert '<section name="misc">' in xml
+    assert '<entry name="contacts-vcard-list" overwrite="true">http://testserver/api/linphone/contacts/' in xml
     assert '<entry name="enabled" overwrite="true">1</entry>' in xml
     assert '<entry name="capture" overwrite="true">1</entry>' in xml
     assert '<entry name="push_notification_allowed" overwrite="true">0</entry>' in xml
     assert '<entry name="remote_push_notification_allowed" overwrite="true">0</entry>' in xml
+
+    vcard_resp = client.get(f"/api/linphone/contacts/{token}.vcf")
+    assert vcard_resp.status_code == 200
+    assert vcard_resp.headers["content-type"].startswith("text/vcard")
+    vcard = vcard_resp.text
+    assert "BEGIN:VCARD" in vcard
+    assert "VERSION:4.0" in vcard
+    assert "FN:Taxi Zentrale" in vcard
+    assert "TEL;TYPE=voice:+49 3333 5555" in vcard
+    assert "IMPP:sip:+4933335555@testserver" in vcard
+    assert "NOTE:24h\\; Stadt" in vcard
+
+    assert client.get("/api/linphone/contacts/unknown.vcf").status_code == 404
+    assert client.delete(f"/api/phonebook/{phonebook_entry_id}").status_code == 200
 
 
 def test_trunk_ami_reload(client, mock_ami):
