@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.87
+
+**Fix - Linphone zeigte trotz neu gescanntem QR-Code weiterhin keine Kontakte**
+- Ursache: das in 0.7.82 verwendete Provisioning-Feld `contacts-vcard-list` (misc-Sektion) ist in der aktuellen liblinphone-Dokumentation nicht mehr auffindbar - es wird von der App (zumindest auf iOS) offenbar nicht mehr ausgewertet. Ein neu per QR-Code angelegtes Konto laedt die Datei zwar potenziell, aber es entsteht daraus keine sichtbare Kontaktliste.
+- Tatsaechlich dokumentierter, unterstuetzter Mechanismus: eine `remote_contact_directory_N`-Sektion mit `type=ldap` - die Telefon-eigene Kontaktsuche fragt dieses Verzeichnis live ab. Das Linphone-Provisioning-XML enthaelt diese Sektion jetzt und zeigt auf denselben eingebauten LDAP-Server (0.7.86), der auch die Gigaset-DECT-Basis bedient - eine Baustelle weniger, ein Verzeichnis fuer alle Telefone.
+- Das alte `contacts-vcard-list`-Feld bleibt (schadet nicht, falls eine kuenftige liblinphone-Version es doch respektiert), ist aber nicht mehr der primaere Weg.
+- Nach dem Update: Konto in Linphone einmal neu anlegen (QR-Code erneut scannen) oder die App komplett neu starten, damit die neue Verzeichnis-Konfiguration geladen wird. Kontakte erscheinen dann ueber die eingebaute Kontaktsuche/das Adressbuch der App, sobald danach gesucht wird (kein vorab befuellter Kontakt-Tab - LDAP ist eine Live-Suche, kein Import).
+- Backend-Test erweitert: prueft die neue `remote_contact_directory_0`-Sektion (Typ, LDAP-URI, Base-DN).
+
 ## 0.7.86
 
 **Feature - Telefonbuch auf DECT-Telefonen (Gigaset Netzverzeichnis via LDAP)**

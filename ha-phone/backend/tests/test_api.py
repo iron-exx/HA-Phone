@@ -136,6 +136,13 @@ def test_linphone_qr_metadata_and_public_provisioning(client):
     assert "securepass1234567" in xml
     assert '<section name="misc">' in xml
     assert '<entry name="contacts-vcard-list" overwrite="true">http://testserver/api/linphone/contacts/' in xml
+    # LDAP is the documented, actually-working mechanism (see 0.7.87
+    # changelog): liblinphone's remote_contact_directory_N with type=ldap,
+    # reusing the same embedded LDAP server the Gigaset DECT base uses.
+    assert '<section name="remote_contact_directory_0">' in xml
+    assert '<entry name="type" overwrite="true">ldap</entry>' in xml
+    assert '<entry name="uri" overwrite="true">ldap://testserver:389</entry>' in xml
+    assert '<entry name="ldap_base_object" overwrite="true">dc=phonebook</entry>' in xml
     assert '<entry name="enabled" overwrite="true">1</entry>' in xml
     assert '<entry name="capture" overwrite="true">1</entry>' in xml
     assert '<entry name="push_notification_allowed" overwrite="true">0</entry>' in xml

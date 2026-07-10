@@ -170,6 +170,16 @@ def _render_linphone_provisioning_xml(extension: Extension, request: Request) ->
         f"http://{_request_host(request)}/api/linphone/contacts/{extension.provisioning_token}.vcf",
         quote=True,
     )
+    # "contacts-vcard-list" (misc, above) turned out to be undocumented in
+    # current liblinphone and never actually populated contacts on iOS -
+    # kept harmlessly since it costs nothing, but the real, documented
+    # mechanism (liblinphone provisioning_configuration_key docs) is a
+    # remote_contact_directory_N section with type=ldap, which the phone's
+    # own contact search queries live. Reuses the same embedded LDAP server
+    # (backend/ldap_server.py) already serving the phonebook to DECT bases.
+    from backend.ldap_server import ldap_port_from_env
+
+    ldap_port = ldap_port_from_env()
     username = html.escape(str(extension.number), quote=True)
     password = html.escape(extension.sip_password, quote=True)
     identity = f"sip:{username}@{host}"
@@ -189,6 +199,18 @@ def _render_linphone_provisioning_xml(extension: Extension, request: Request) ->
         'xsi:schemaLocation="http://www.linphone.org/xsds/lpconfig.xsd lpconfig.xsd">\n'
         '  <section name="misc">\n'
         f'    <entry name="contacts-vcard-list" overwrite="true">{contacts_url}</entry>\n'
+        "  </section>\n"
+        '  <section name="remote_contact_directory_0">\n'
+        '    <entry name="enabled" overwrite="true">1</entry>\n'
+        '    <entry name="type" overwrite="true">ldap</entry>\n'
+        f'    <entry name="uri" overwrite="true">ldap://{host}:{ldap_port}</entry>\n'
+        '    <entry name="ldap_auth_method" overwrite="true">0</entry>\n'
+        '    <entry name="ldap_base_object" overwrite="true">dc=phonebook</entry>\n'
+        '    <entry name="ldap_name_attribute" overwrite="true">cn</entry>\n'
+        '    <entry name="ldap_sip_attribute" overwrite="true">telephoneNumber</entry>\n'
+        f'    <entry name="ldap_sip_domain" overwrite="true">{host}</entry>\n'
+        '    <entry name="ldap_filter" overwrite="true">(cn=%s)</entry>\n'
+        '    <entry name="min_characters" overwrite="true">2</entry>\n'
         "  </section>\n"
         '  <section name="sip">\n'
         '    <entry name="sip_port" overwrite="true">-1</entry>\n'
