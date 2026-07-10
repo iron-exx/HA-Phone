@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.89
+
+**Fix - Kopieren-Buttons taten manchmal nichts (LDAP-Dialog, Provisioning-URL)**
+- Ursache: `navigator.clipboard?.writeText(...)` liefert auf normalem HTTP (das Add-on laeuft ueber host_network typischerweise auf `http://<LAN-IP>`, kein HTTPS) oder innerhalb des Home-Assistant-Ingress-iFrames oft `undefined` zurueck - die Browser-Zwischenablage-API ist dort aus Sicherheitsgruenden gesperrt. Durch das Optional Chaining ist dabei die gesamte Kette (inkl. `.then()`/`.catch()`) still verpufft: kein Fehler, keine Meldung, einfach nichts passiert - genau das im neuen LDAP-Dialog gemeldete Verhalten.
+- Ein bereits vorhandener, robusterer Kopier-Mechanismus mit `execCommand`-Fallback (bisher nur beim Provisioning-Link auf der Nebenstellen-Seite) ist jetzt als gemeinsamer Helfer (`lib/clipboard.ts`) extrahiert und wird ueberall verwendet: LDAP-Verbindungsdaten-Dialog, Provisioning-Link auf der Nebenstellen-Seite, Gigaset-Provisioning-URL. Schlaegt selbst der Fallback fehl, gibt es jetzt eine klare Fehlermeldung statt Stille.
+- 3 neue Frontend-Tests fuer den Kopier-Helfer (Clipboard-API verfuegbar, Fallback greift, beides blockiert). 33/33 Frontend-Tests, 107/107 Backend-Tests.
+
 ## 0.7.88
 
 **Feature - LDAP-Verbindungsdaten im Telefonbuch abrufbar**

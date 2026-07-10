@@ -56,6 +56,7 @@ import {
   buildLinphoneQrPayload,
   buildProvisioningUrl,
 } from "@/lib/linphoneProvisioning";
+import { copyToClipboard } from "@/lib/clipboard";
 
 // ---- Zod schema ----
 const extensionSchema = z.object({
@@ -657,42 +658,7 @@ function LinphoneQrDialog({
 
   async function copyProvisioningLink() {
     if (!provisioning) return;
-    const value = buildProvisioningUrl(provisioning.provisioning_path);
-
-    // This page usually runs inside Home Assistant's ingress <iframe>, where the
-    // async Clipboard API can be unavailable/blocked by permissions policy even
-    // in a secure context. Try it, but always fall back to execCommand, and if
-    // even that is blocked, leave the text selected so the user can hit Ctrl+C.
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(value);
-        toast.success("Provisioning-Link kopiert.");
-        return;
-      }
-    } catch {
-      // fall through to execCommand fallback
-    }
-
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    let success = false;
-    try {
-      success = document.execCommand("copy");
-    } catch {
-      success = false;
-    }
-    document.body.removeChild(textarea);
-
-    if (success) {
-      toast.success("Provisioning-Link kopiert.");
-    } else {
-      toast.error("Automatisches Kopieren blockiert - bitte Link im Feld markieren und manuell kopieren.");
-    }
+    await copyToClipboard(buildProvisioningUrl(provisioning.provisioning_path), "Provisioning-Link kopiert.");
   }
 
   function openInLinphone() {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
+import { copyToClipboard } from "@/lib/clipboard";
 import { Copy, Trash2, Plus, Save, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -202,9 +203,7 @@ export default function Provisioning() {
   }
 
   function copy(text: string) {
-    navigator.clipboard?.writeText(text)
-      .then(() => toast.success("Kopiert."))
-      .catch(() => toast.error("Link konnte nicht kopiert werden."));
+    copyToClipboard(text, "Kopiert.");
   }
 
   return (
