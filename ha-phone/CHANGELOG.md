@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.86
+
+**Feature - Telefonbuch auf DECT-Telefonen (Gigaset Netzverzeichnis via LDAP)**
+- HA-Phone bringt jetzt einen eingebauten, schreibgeschuetzten LDAP-Server mit (Port 389), der das Telefonbuch live ausliefert - jede Suche liest direkt aus der Datenbank, es gibt also keinen Sync-Verzug. Kein neues Python-Paket noetig (Minimal-Implementierung von Bind + Search, dem einzigen Protokoll-Teil, den Telefone tatsaechlich benutzen).
+- Das eingebaute Gigaset-N510-ProviderFrame-Template konfiguriert das Netzverzeichnis jetzt automatisch mit (Feldnamen wie im Yeastar-Referenz-Template: LDAP auf Netdir-Slot 0, Server = PBX-IP, Port 389, anonyme Anmeldung, Suchfilter fuer Name und Nummer). Am Mobilteil erreichbar ueber die Telefonbuch-Taste (lang druecken) bzw. Menue -> Netzverzeichnis.
+- Bereits ausgelieferte, unveraenderte Kopien des eingebauten Templates (0.7.81-0.7.85) werden beim naechsten Start automatisch um den LDAP-Block ergaenzt; selbst angepasste Templates bleiben unangetastet. Wer die Basis manuell konfiguriert hat, traegt die LDAP-Daten einmal von Hand ein (Server = PBX-IP, Port 389, Base DN `dc=phonebook`, anonym) oder laesst die Basis einmal neu provisionieren.
+- Sicherheitsmodell bewusst wie bei den Provisioning-Endpunkten: das Verzeichnis ist im LAN ohne Anmeldung lesbar (Namen + Nummern, keine Zugangsdaten) - dasselbe Vertrauensmodell wie MAC-basiertes Auto-Provisioning.
+- Andere Telefone mit LDAP-Verzeichnis-Funktion (Yealink, Fanvil, Gigaset N720 usw.) koennen denselben Server nutzen.
+- 4 neue Backend-Tests, die den LDAP-Server ueber einen echten TCP-Socket mit von Hand kodierten BER-Nachrichten testen (anonymer Bind, Alles-Suche, Namens-Substring-Suche, Nummernsuche, sizeLimit); Template-Rendering- und Reparatur-Tests erweitert. 105/105 Backend-Tests.
+
 ## 0.7.85
 
 **Fix - Linphone-Kontakte kamen nie an: Ingress-URLs sind fuer das Handy unerreichbar (macht 0.7.84 rueckgaengig)**

@@ -1490,6 +1490,10 @@ def test_builtin_gigaset_n510_providerframe_template_renders_assigned_and_empty_
     assert 'BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE_1" class="symb_item" value="0x1"' in xml
     assert 'BS_IP_Data1.ucB_SIP_ACCOUNT_IS_ACTIVE"' not in xml
     assert 'BS_IP_Data1.ucI_SIP_PROVIDER_ID" class="symb_item" value="0"' in xml
+    # LDAP phonebook ("Netzverzeichnis") pointing at the PBX's own LDAP server.
+    assert 'BS_XML_Netdirs.aucActivatedNetdirs[0]" class="symb_item" value="0xa"' in xml
+    assert 'BS_LDAP_Netdirs.astNetdirProvider[0].uiServerPort[0]" class="symb_item" value="0x185"' in xml
+    assert 'BS_LDAP_Netdirs.astNetdirProvider[0].aucBaseDN[0]" class="symb_item" value=\'"dc=phonebook"\'' in xml
 
 
 def test_repair_broken_builtin_templates_fixes_unedited_n510_content(client):
@@ -1500,26 +1504,30 @@ def test_repair_broken_builtin_templates_fixes_unedited_n510_content(client):
     from backend.routers.provisioning import (
         _N510_PROVIDERFRAME_BROKEN_CONTENT,
         _N510_PROVIDERFRAME_NAME,
+        _N510_PROVIDERFRAME_PRE_LDAP_CONTENT,
         BUILTIN_TEMPLATES,
         repair_broken_builtin_templates,
         seed_builtin_templates,
     )
 
+    fixed_content = next(t for t in BUILTIN_TEMPLATES if t["name"] == _N510_PROVIDERFRAME_NAME)["content"]
     with Session(get_engine()) as session:
         seed_builtin_templates(session)
         tpl = session.exec(
             select(ProvisioningTemplate).where(ProvisioningTemplate.name == _N510_PROVIDERFRAME_NAME)
         ).first()
-        tpl.content = _N510_PROVIDERFRAME_BROKEN_CONTENT
-        session.add(tpl)
-        session.commit()
+        # Every known superseded shipped revision must be auto-upgraded.
+        for outdated in (_N510_PROVIDERFRAME_BROKEN_CONTENT, _N510_PROVIDERFRAME_PRE_LDAP_CONTENT):
+            tpl.content = outdated
+            session.add(tpl)
+            session.commit()
 
-        assert repair_broken_builtin_templates(session) is True
+            assert repair_broken_builtin_templates(session) is True
 
-        session.refresh(tpl)
-        fixed_content = next(t for t in BUILTIN_TEMPLATES if t["name"] == _N510_PROVIDERFRAME_NAME)["content"]
-        assert tpl.content == fixed_content
-        assert 'ucB_SIP_ACCOUNT_IS_ACTIVE{{ slot.active_suffix }}' in tpl.content
+            session.refresh(tpl)
+            assert tpl.content == fixed_content
+            assert 'ucB_SIP_ACCOUNT_IS_ACTIVE{{ slot.active_suffix }}' in tpl.content
+            assert "BS_LDAP_Netdirs" in tpl.content
 
 
 def test_repair_broken_builtin_templates_leaves_user_edits_alone(client):

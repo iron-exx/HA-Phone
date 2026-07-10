@@ -28,7 +28,21 @@ async def lifespan(app: FastAPI):
             repair_broken_builtin_templates(s)
     except Exception:
         pass
+    # LDAP phonebook directory for desk/DECT phones (Gigaset "Netzverzeichnis").
+    # Port 389 needs root - present in the add-on container, absent when
+    # running tests locally, so a failed bind is a warning, never a crash.
+    from backend.ldap_server import PhonebookLdapServer, ldap_port_from_env
+
+    ldap_server = PhonebookLdapServer(ldap_port_from_env())
+    try:
+        await ldap_server.start()
+    except Exception as exc:
+        ldap_server = None
+        import logging
+        logging.getLogger(__name__).warning("LDAP phonebook server not started: %s", exc)
     yield
+    if ldap_server is not None:
+        await ldap_server.stop()
 
 
 app = FastAPI(lifespan=lifespan)
