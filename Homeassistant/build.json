@@ -1,0 +1,14 @@
+{
+  "build_from": {
+    "aarch64": "ghcr.io/home-assistant/base:3.23",
+    "amd64": "ghcr.io/home-assistant/base:3.23",
+    "armhf": "ghcr.io/home-assistant/base:3.23",
+    "armv7": "ghcr.io/home-assistant/base:3.23",
+    "i386": "ghcr.io/home-assistant/base:3.23"
+  },
+  "squash": false,
+  "args": {
+    "BUILD_DATE": "2026-05-04",
+    "BUILD_REF": "v1.0.0"
+  }
+}

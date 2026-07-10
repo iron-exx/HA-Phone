@@ -1,0 +1,61 @@
+name: "Wallbox-Dolibarr Addon"
+description: "RFID-basierte Abrechnung von Wallbox-Ladevorgängen"
+version: "1.4.0"
+slug: "wallbox-dolibarr"
+init: false
+
+image: "ghcr.io/iron-exx/{arch}-addon-wallbox-dolibarr"
+
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+
+ingress: true
+ingress_port: 8099
+
+ports:
+  8099/tcp: null
+
+options:
+  log_level: "INFO"
+
+  # Multi-Wallbox Konfiguration
+  wallboxes:
+    - id: "alfen_eve"
+      name: "Alfen Eve (Hauptwandbox)"
+      enabled: true
+      default: true
+
+  # Fallback für Abwärtskompatibilität
+  wallbox_id: "alfen_eve"
+
+  # RFID Whitelist
+  rfid_whitelist:
+    - "EFCD083E"
+
+  # API-Konfiguration für Dolibarr-Übertragung
+  api:
+    dolibarr_url: "https://dolibarr.example.com"
+    api_token: "your_dolapikey_here"
+    transmit_interval: 300
+    timeout: 30
+
+schema:
+  log_level: "list(DEBUG|INFO|WARNING|ERROR)"
+  wallboxes: "list"
+  wallbox_id: "str"
+  rfid_whitelist: "list(str)"
+  api:
+    dolibarr_url: "str"
+    api_token: "str"
+    transmit_interval: "int"
+    timeout: "int"
+
+logging:
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"

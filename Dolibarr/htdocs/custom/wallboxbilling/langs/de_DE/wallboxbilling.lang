@@ -1,0 +1,31 @@
+# Wallbox Billing Sprachdatei (Deutsch) v2
+
+WallboxBillingSetup=Wallbox-Abrechnung Konfiguration
+WallboxConfiguration=Konfiguration
+WallboxUserRFIDManagement=RFID-Verwaltung
+DefaultPricePerKwh=Standardpreis pro kWh (€)
+WallboxAdminEmail=Admin-E-Mail (Benachrichtigungen)
+WallboxAPIInfo=Sessions werden per REST-API empfangen und direkt in die Spesenabrechnung eingetragen.
+
+Permissions=Berechtigungen
+Permission=Berechtigung
+Description=Beschreibung
+ViewOwnSessions=Eigene Ladevorgänge ansehen
+ManageAllSessions=Alle Ladevorgänge und RFID-Zuordnungen verwalten
+
+User=Benutzer
+Action=Aktion
+PricePerKWh=Preis pro kWh
+CostCenter=Kostenstelle
+RFIDHash=RFID-Hash
+
+Save=Speichern
+Saved=Gespeichert
+RFIDHashSaved=RFID-Zuordnung gespeichert
+DatabaseError=Datenbankfehler
+WallboxInvalidPrice=Ungültiges Preisformat (Dezimalzahl erforderlich, z.B. 0.30)
+WallboxNoRFIDToUpdate=Keine RFID-Zuordnung gefunden — bitte zuerst RFID-Hex eingeben
+WallboxNoActiveUsers=Keine aktiven Benutzer gefunden
+WallboxRFIDAssigned=zugeordnet
+WallboxRFIDNotAssigned=nicht zugeordnet
+WallboxEnterNewHex=Neuen Hex eingeben zum Ändern:
