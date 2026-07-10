@@ -2,7 +2,7 @@ import csv
 import io
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import Response
 from sqlmodel import Session, select
 
@@ -12,6 +12,31 @@ from backend.models import PhonebookEntry
 router = APIRouter()
 
 _CSV_FIELDS = ["name", "number", "notes"]
+
+
+@router.get("/phonebook/ldap-info")
+def ldap_info(request: Request):
+    """Connection details for the embedded LDAP phonebook server (see
+    backend/ldap_server.py) - so the UI can show them instead of making
+    users dig through the changelog to configure a phone/DECT base by hand.
+    Host is taken the same way as the public provisioning endpoints (never
+    an HA-ingress host/port - a phone can't reach those)."""
+    from backend.ldap_server import ldap_port_from_env
+
+    forwarded_host = request.headers.get("x-forwarded-host", "")
+    host = forwarded_host.split(",")[0].strip() if forwarded_host else (request.url.hostname or "pbx.local")
+    if host.startswith("[") and "]" in host:
+        host = host[1 : host.index("]")]
+    elif host.count(":") == 1:
+        host = host.rsplit(":", 1)[0]
+    return {
+        "host": host,
+        "port": ldap_port_from_env(),
+        "base_dn": "dc=phonebook",
+        "auth": "anonymous",
+        "name_filter": "(|(cn=%s)(sn=%s)(givenName=%s))",
+        "number_filter": "(telephoneNumber=%s)",
+    }
 
 
 @router.get("/phonebook", response_model=List[PhonebookEntry])

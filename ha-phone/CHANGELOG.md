@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.88
+
+**Feature - LDAP-Verbindungsdaten im Telefonbuch abrufbar**
+- Neuer Button "LDAP-Server" oberhalb der Telefonbuch-Tabelle oeffnet einen Dialog mit allen Daten, die ein Telefon/eine DECT-Basis zum manuellen Einrichten des Netzverzeichnisses braucht: Host, Port, Base DN, Authentifizierung, Namens- und Nummernfilter - jeweils mit Kopieren-Button.
+- Neuer Endpunkt `GET /api/phonebook/ldap-info` liefert diese Daten server-seitig (Port aus derselben Quelle wie der LDAP-Server selbst, Host nie ein Home-Assistant-Ingress-Host - dieselbe Regel wie bei den Linphone-/Provisioning-URLs).
+- 2 neue Backend-Tests. 107/107 Backend-Tests, Frontend tsc/vitest/build gruen.
+
 ## 0.7.87
 
 **Fix - Linphone zeigte trotz neu gescanntem QR-Code weiterhin keine Kontakte**

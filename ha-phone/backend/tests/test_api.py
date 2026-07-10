@@ -2047,6 +2047,27 @@ def test_holiday_csv_import_skips_invalid_rows(client, mock_ami):
 
 # ---- Phonebook (Roadmap: Telefonbuch mit CSV-Import/Export) ----
 
+def test_phonebook_ldap_info(client):
+    resp = client.get("/api/phonebook/ldap-info")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["host"] == "testserver"
+    assert data["port"] == 389
+    assert data["base_dn"] == "dc=phonebook"
+    assert data["auth"] == "anonymous"
+
+
+def test_phonebook_ldap_info_never_returns_ha_ingress_host(client):
+    """Same rule as the Linphone/provisioning URLs: a phone configuring LDAP
+    by hand must get the directly-reachable host, never an HA-ingress one."""
+    resp = client.get(
+        "/api/phonebook/ldap-info",
+        headers={"x-forwarded-host": "ha.example.test:8123"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["host"] == "ha.example.test"
+
+
 def test_phonebook_crud(client):
     resp = client.post("/api/phonebook", json={"name": "Pizza Service", "number": "+4933334444", "notes": "Lieferung"})
     assert resp.status_code == 200
