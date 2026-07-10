@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from contextlib import asynccontextmanager
@@ -11,6 +12,13 @@ from backend.database import init_db
 from backend.auth import get_current_user, SESSION_SECRET
 from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning, backup, holidays, phonebook
 from backend.routers import auth as auth_router
+
+# Nothing configures a logging level anywhere in this app, so Python's
+# default root level (WARNING) silently swallowed every _log.info(...) call
+# app-wide (LDAP server startup confirmation, AMI connect/reconnect) - only
+# .warning()+ ever reached the container logs. That made "did the LDAP
+# server actually bind port 389" impossible to diagnose from logs alone.
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 @asynccontextmanager

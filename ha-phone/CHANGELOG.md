@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.90
+
+**Fix - Voicemail-Modul konnte seit jeher nie laden**
+- `app_voicemail.so` war in der Asterisk-Modulauswahl aktiviert, seine harten Abhaengigkeiten `res_adsi` und `res_smdi` aber nicht - das Modul ist bei jedem Start mit "missing dependencies: res_adsi, res_smdi" fehlgeschlagen, in jedem bisherigen Log sichtbar. Voicemail (inkl. des Standard-Fallbacks "closed_destination: Voicemail" bei Zeitbedingungen/Ring-Groups) hat dadurch nie funktioniert. Beide Module jetzt mit aktiviert.
+
+**Fix - eigene Info-Logs (u.a. LDAP-Server-Start) wurden nirgendwo angezeigt**
+- Die App hat nie ein Logging-Level konfiguriert; Pythons Standard (WARNING) hat dadurch application-weit jede `.info(...)`-Meldung verschluckt - inklusive der Bestaetigung, dass der LDAP-Telefonbuch-Server (0.7.86) tatsaechlich auf Port 389 lauscht, und der AMI-Verbindungsmeldungen. Dadurch war aus den Logs bisher nicht ersichtlich, ob der LDAP-Server ueberhaupt startet. Logging-Level global auf INFO gesetzt.
+
+**Hinweis (kein Code-Fix) - Telefonbuch-Kontakte in Linphone erscheinen nur bei aktiver Suche**
+- Laut Linphone-eigener Dokumentation zeigt die LDAP-Verzeichnissuche Treffer ausschliesslich im Haupt-Suchfeld waehrend der Eingabe (mind. 2 Zeichen), nicht als vorab befuellte Liste unter "Kontakte". Das ist eine bewusste Design-Entscheidung von Linphone selbst, keine Fehlkonfiguration unsererseits.
+
 ## 0.7.89
 
 **Fix - Kopieren-Buttons taten manchmal nichts (LDAP-Dialog, Provisioning-URL)**

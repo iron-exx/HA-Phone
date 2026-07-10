@@ -109,6 +109,8 @@ RUN make menuselect.makeopts && \
       --enable app_echo \
       --enable app_playback \
       --enable app_voicemail \
+      --enable res_adsi \
+      --enable res_smdi \
       --enable bridge_simple \
       --enable bridge_softmix \
       --enable bridge_native_rtp \
