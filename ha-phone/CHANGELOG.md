@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.85
+
+**Fix - Linphone-Kontakte kamen nie an: Ingress-URLs sind fuer das Handy unerreichbar (macht 0.7.84 rueckgaengig)**
+- 0.7.84 hat QR-/Provisioning-Links und den `contacts-vcard-list`-Link bewusst durch Home-Assistant-Ingress geleitet (`https://host:8123/api/hassio_ingress/...`). Das war genau verkehrt herum: Ingress-URLs funktionieren nur im Browser mit eingeloggter HA-Session. Die Linphone-App auf dem Handy hat keine HA-Anmeldung und bekommt auf jede Ingress-URL ein 401 - sie konnte daher weder eine neue Provisionierung noch die Kontaktliste jemals herunterladen. Deshalb blieben die Telefonbuch-Kontakte in Linphone leer, obwohl das vCard-Feature (0.7.82) selbst korrekt war.
+- Das alte Verhalten (Port und Ingress-Praefix bewusst weglassen) war Absicht: das Add-on laeuft mit host_network und liefert die Provisioning-/Kontakt-Endpunkte direkt auf Port 80 aus - die einzige Adresse, die ein Telefon ohne HA-Login erreichen kann. QR-Code, `linphone-config:`-Link und `contacts-vcard-list` zeigen jetzt wieder dorthin (gleicher Host wie die SIP-Domain).
+- Regressionstests in beide Richtungen ersetzt: Frontend- und Backend-Tests stellen jetzt sicher, dass in vom Handy konsumierten URLs NIE `hassio_ingress` oder Port `:8123` auftaucht - auch dann nicht, wenn das XML selbst ueber Ingress abgerufen wird.
+- Nach dem Update: In Linphone einmal die Provisionierung neu laden (QR neu scannen oder App komplett beenden und neu starten), damit die App den korrigierten `contacts-vcard-list`-Link uebernimmt.
+
 ## 0.7.84
 
 **Fix - Linphone-Kontakte ueber Home-Assistant-Ingress erreichbar**

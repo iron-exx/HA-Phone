@@ -121,24 +121,6 @@ def _host_without_port(host: str) -> str:
     return host
 
 
-def _request_origin(request: Request) -> str:
-    forwarded_proto = request.headers.get("x-forwarded-proto", "")
-    scheme = forwarded_proto.split(",")[0].strip() if forwarded_proto else request.url.scheme
-    forwarded_host = request.headers.get("x-forwarded-host", "")
-    host = forwarded_host.split(",")[0].strip() if forwarded_host else request.headers.get("host", "")
-    if not host:
-        host = request.url.netloc or _request_host(request)
-    return f"{scheme or 'http'}://{host}"
-
-
-_INGRESS_PATH_RE = re.compile(r"^/api/hassio_ingress/[A-Za-z0-9_-]+$")
-
-
-def _request_ingress_path(request: Request) -> str:
-    raw = request.headers.get("x-ingress-path", "").strip()
-    return raw if _INGRESS_PATH_RE.match(raw) else ""
-
-
 def _vcard_escape(value: str) -> str:
     return (
         value.replace("\\", "\\\\")
@@ -177,9 +159,15 @@ def _render_phonebook_vcards(entries: list[PhonebookEntry], sip_domain: str) -> 
 
 def _render_linphone_provisioning_xml(extension: Extension, request: Request) -> str:
     host = html.escape(_request_host(request), quote=True)
-    public_base = f"{_request_origin(request)}{_request_ingress_path(request)}"
+    # The contacts URL is fetched by the PHONE, which has no Home Assistant
+    # login - anything behind HA ingress (:8123/api/hassio_ingress/...) is a
+    # guaranteed 401 for it. Use the same directly-reachable host as the SIP
+    # domain (the add-on's own FastAPI on port 80 via host_network), exactly
+    # like the provisioning URL itself. Building this from the browser
+    # origin + x-ingress-path (0.7.84) meant Linphone could never download
+    # the list, so contacts silently never appeared.
     contacts_url = html.escape(
-        f"{public_base}/api/linphone/contacts/{extension.provisioning_token}.vcf",
+        f"http://{_request_host(request)}/api/linphone/contacts/{extension.provisioning_token}.vcf",
         quote=True,
     )
     username = html.escape(str(extension.number), quote=True)

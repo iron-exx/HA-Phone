@@ -156,7 +156,13 @@ def test_linphone_qr_metadata_and_public_provisioning(client):
     assert client.delete(f"/api/phonebook/{phonebook_entry_id}").status_code == 200
 
 
-def test_linphone_provisioning_uses_ingress_path_for_contacts(client):
+def test_linphone_contacts_url_never_points_at_ha_ingress(client):
+    """Regression for 0.7.84: the contacts URL was built from the browser
+    origin + x-ingress-path, i.e. an HA-ingress URL. The phone has no Home
+    Assistant session, so that URL is a guaranteed 401 for it and contacts
+    silently never appeared in Linphone. The contacts URL must use the same
+    directly-reachable host (add-on port 80) as the SIP domain - even when
+    the XML itself happens to be requested through ingress."""
     resp = client.post(
         "/api/extensions",
         json={
@@ -182,10 +188,10 @@ def test_linphone_provisioning_uses_ingress_path_for_contacts(client):
     assert xml_resp.status_code == 200
     assert (
         '<entry name="contacts-vcard-list" overwrite="true">'
-        "https://ha.example.test:8123/api/hassio_ingress/test-token_123"
-        f"/api/linphone/contacts/{token}.vcf</entry>"
+        f"http://ha.example.test/api/linphone/contacts/{token}.vcf</entry>"
     ) in xml_resp.text
-    assert "sip:22@ha.example.test:8123" not in xml_resp.text
+    assert "hassio_ingress" not in xml_resp.text
+    assert ":8123" not in xml_resp.text
     assert "sip:22@ha.example.test" in xml_resp.text
     assert "&lt;sip:ha.example.test;transport=udp&gt;" in xml_resp.text
 
