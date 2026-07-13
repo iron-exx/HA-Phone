@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import Response
 from sqlmodel import Session, select
 
+from backend.csv_safety import csv_safe
 from backend.database import get_session
 from backend.models import PhonebookEntry
 
@@ -88,7 +89,7 @@ def export_csv(session: Session = Depends(get_session)):
     writer = csv.DictWriter(buf, fieldnames=_CSV_FIELDS)
     writer.writeheader()
     for e in entries:
-        writer.writerow({"name": e.name, "number": e.number, "notes": e.notes})
+        writer.writerow({"name": csv_safe(e.name), "number": csv_safe(e.number), "notes": csv_safe(e.notes)})
     return Response(
         content=buf.getvalue(),
         media_type="text/csv",

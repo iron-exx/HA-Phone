@@ -184,3 +184,48 @@ async def test_size_limit_is_respected(ldap_server):
     entries = [m for m in messages if m[0] == 0x64]
     assert len(entries) == 2
     assert messages[-1][0] == 0x65
+
+
+@pytest.mark.asyncio
+async def test_oversized_message_length_is_rejected(ldap_server):
+    """Security regression: a client declaring a BER length far beyond any
+    real bind/search message must not make the server buffer that many
+    bytes (unauthenticated memory-exhaustion DoS). The connection should
+    just be dropped, not hang or crash the server for other clients."""
+    reader, writer = await asyncio.open_connection("127.0.0.1", ldap_server.port)
+    # Long-form length: 4 length-of-length bytes encoding 100MB - the server
+    # must reject this before ever calling readexactly() for the body.
+    huge_length = (100 * 1024 * 1024).to_bytes(4, "big")
+    writer.write(bytes([0x30, 0x84]) + huge_length)
+    await writer.drain()
+    data = await asyncio.wait_for(reader.read(), timeout=5)
+    assert data == b""  # server closed the connection, sent nothing
+    writer.close()
+    await writer.wait_closed()
+
+    # Server must still work for the next client on the same port.
+    messages = await _roundtrip(
+        ldap_server.port,
+        _bind_request(1),
+        _search_request(2, "dc=phonebook", _filter_present("objectclass")),
+    )
+    assert messages[0][0] == 0x61
+    assert messages[0][1][2] == 0
+
+
+@pytest.mark.asyncio
+async def test_idle_connection_is_dropped_after_read_timeout(ldap_server, monkeypatch):
+    """Security regression: a client that opens a connection and never
+    completes a message (anonymous bind means no auth is needed to do this)
+    must not be able to hold the connection - and its coroutine/file
+    descriptor - open forever (slowloris-style DoS)."""
+    import backend.ldap_server as ldap_module
+
+    monkeypatch.setattr(ldap_module, "_READ_TIMEOUT", 0.2)
+    reader, writer = await asyncio.open_connection("127.0.0.1", ldap_server.port)
+    writer.write(bytes([0x30]))  # header incomplete - never send the length byte
+    await writer.drain()
+    data = await asyncio.wait_for(reader.read(), timeout=5)
+    assert data == b""
+    writer.close()
+    await writer.wait_closed()

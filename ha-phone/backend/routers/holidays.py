@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlmodel import Session, select
 
+from backend.csv_safety import csv_safe
 from backend.database import get_session
 from backend.models import Holiday
 from backend.regeneration import run_single_regeneration_step, step_succeeded
@@ -108,7 +109,7 @@ def export_csv(session: Session = Depends(get_session)):
     writer = csv.DictWriter(buf, fieldnames=_CSV_FIELDS)
     writer.writeheader()
     for h in holidays:
-        writer.writerow({"name": h.name, "year": h.year, "month": h.month, "day": h.day})
+        writer.writerow({"name": csv_safe(h.name), "year": h.year, "month": h.month, "day": h.day})
     return Response(
         content=buf.getvalue(),
         media_type="text/csv",

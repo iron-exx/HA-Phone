@@ -32,6 +32,23 @@ _log = logging.getLogger(__name__)
 # that don't.
 _DEFAULT_SIZE_LIMIT = 200
 
+# No real LDAP bind/search/filter this server ever needs to parse comes
+# anywhere near this size - a client claiming a longer BER length is either
+# broken or hostile. Without this cap, a single connection could declare an
+# arbitrary length (up to 2**1016 per the encoding) and make readexactly()
+# buffer that many bytes before returning, i.e. an unauthenticated remote
+# memory-exhaustion DoS against the whole add-on (this server shares the
+# FastAPI process/event loop, not a separate sandboxed one).
+_MAX_MESSAGE_SIZE = 65536
+
+# Anonymous/simple bind means anyone who can reach this port can open a
+# connection and just... never send a complete message. Without a read
+# deadline, each such connection parks a coroutine + a file descriptor
+# forever - enough of them exhausts the process's FD limit (a slowloris-
+# style DoS). Every blocking read in a connection's lifetime must go through
+# this timeout, not just the first one.
+_READ_TIMEOUT = 10.0
+
 _TAG_BIND_REQUEST = 0x60
 _TAG_BIND_RESPONSE = 0x61
 _TAG_UNBIND_REQUEST = 0x42
@@ -209,15 +226,23 @@ class PhonebookLdapServer:
     @staticmethod
     async def _read_message(reader: asyncio.StreamReader) -> bytes | None:
         try:
-            header = await reader.readexactly(2)
-        except (asyncio.IncompleteReadError, ConnectionResetError):
+            header = await asyncio.wait_for(reader.readexactly(2), _READ_TIMEOUT)
+        except (asyncio.IncompleteReadError, ConnectionResetError, asyncio.TimeoutError):
             return None
         length = header[1]
         extra = b""
         if length & 0x80:
-            extra = await reader.readexactly(length & 0x7F)
+            try:
+                extra = await asyncio.wait_for(reader.readexactly(length & 0x7F), _READ_TIMEOUT)
+            except (asyncio.IncompleteReadError, ConnectionResetError, asyncio.TimeoutError):
+                return None
             length = int.from_bytes(extra, "big")
-        body = await reader.readexactly(length)
+        if length > _MAX_MESSAGE_SIZE:
+            raise ValueError(f"LDAP message length {length} exceeds max {_MAX_MESSAGE_SIZE}")
+        try:
+            body = await asyncio.wait_for(reader.readexactly(length), _READ_TIMEOUT)
+        except (asyncio.IncompleteReadError, ConnectionResetError, asyncio.TimeoutError):
+            return None
         return header + extra + body
 
     def _dispatch(self, raw: bytes) -> bytes | None:

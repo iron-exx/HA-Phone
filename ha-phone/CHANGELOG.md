@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.91
+
+**Security - LDAP-Server: kein Limit fuer Nachrichtengroesse, kein Lese-Timeout**
+- Der eingebettete LDAP-Telefonbuch-Server (0.7.86) hatte keine Obergrenze fuer die BER-Nachrichtenlaenge: ein Client konnte eine Laenge von mehreren GB angeben, was den Server dazu gebracht haette, entsprechend viel Speicher zu puffern - ein unauthentifizierter Denial-of-Service, der denselben Prozess/Event-Loop wie die Haupt-API betrifft. Ausserdem gab es kein Lese-Timeout: eine Verbindung, die nie eine vollstaendige Nachricht sendet (Bind ist anonym, braucht also keine Anmeldung), konnte auf unbestimmte Zeit offengehalten werden (Slowloris-artig).
+- Fix: Nachrichten ueber 64 KB werden abgelehnt, jeder Lesevorgang hat ein 10-Sekunden-Timeout. 2 neue Regressionstests.
+
+**Security - CSV-Export von Telefonbuch/Feiertagen konnte Formel-Injection enthalten**
+- Ein Name wie `=cmd|"/c calc"!A1` wurde unveraendert in die CSV-Datei geschrieben - Excel/Sheets werten ein fuehrendes `=`/`+`/`-`/`@` beim Oeffnen als Formel aus (OWASP CSV Injection). Betroffene Felder (Name, Nummer, Notiz) bekommen jetzt bei gefaehrlichem Praefix einen fuehrenden Apostroph vorangestellt - Standard-Mitigation, in Excel unsichtbar (erzwingt nur Text-Interpretation).
+- 2 neue Regressionstests (Telefonbuch, Feiertage).
+
+- 109/109 Backend-Tests (4 neu: 2x LDAP-DoS-Haertung, 2x CSV-Injection).
+
 ## 0.7.90
 
 **Fix - Voicemail-Modul konnte seit jeher nie laden**

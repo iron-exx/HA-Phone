@@ -1985,6 +1985,20 @@ def test_holiday_csv_export_format(client, mock_ami):
         client.delete(f"/api/holidays/{holiday_id}")
 
 
+def test_holiday_csv_export_neutralizes_formula_injection(client, mock_ami):
+    """Security regression: a name starting with =/+/-/@ must not survive
+    into the CSV unescaped - Excel/Sheets evaluate such a leading char as a
+    formula the moment the export is opened (CSV/formula injection)."""
+    resp = client.post("/api/holidays", json={"name": '=cmd|"/c calc"!A1', "year": 2026, "month": 5, "day": 1})
+    holiday_id = resp.json()["id"]
+    try:
+        body = client.get("/api/holidays/export").text
+        assert "'=cmd" in body
+        assert '\n=cmd' not in body and not body.startswith("=cmd")
+    finally:
+        client.delete(f"/api/holidays/{holiday_id}")
+
+
 def test_holiday_csv_import_creates_and_updates(client, mock_ami):
     # Existing entry that the import should update (name change), matched by
     # (year, month, day), plus one brand-new row.
@@ -2102,7 +2116,31 @@ def test_phonebook_export_csv(client):
     assert resp.headers["content-type"].startswith("text/csv")
     body = resp.text
     assert "name,number,notes" in body
-    assert "Taxi Zentrale,+4933335555,24h" in body
+    # Leading "'" on the number: CSV/formula-injection mitigation (see
+    # test_phonebook_csv_export_neutralizes_formula_injection) - "+" is a
+    # dangerous leading char to Excel/Sheets regardless of it also being a
+    # normal E.164 prefix. The quote is invisible once opened in a
+    # spreadsheet (it just forces text interpretation), so this doesn't
+    # change what the user actually sees there.
+    assert "Taxi Zentrale,'+4933335555,24h" in body
+
+
+def test_phonebook_csv_export_neutralizes_formula_injection(client):
+    """Security regression: a name/notes value starting with =/+/-/@ must
+    not survive into the CSV unescaped - Excel/Sheets evaluate a leading
+    formula-prefix character the moment the export is opened."""
+    resp = client.post(
+        "/api/phonebook",
+        json={"name": '=cmd|"/c calc"!A1', "number": "123", "notes": "@SUM(1+1)"},
+    )
+    entry_id = resp.json()["id"]
+    try:
+        body = client.get("/api/phonebook/export").text
+        assert "'=cmd" in body
+        assert "'@SUM" in body
+        assert not body.split("\n")[-2].startswith("=cmd")
+    finally:
+        client.delete(f"/api/phonebook/{entry_id}")
 
 
 def test_phonebook_import_creates_and_updates(client):
