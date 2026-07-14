@@ -64,6 +64,7 @@ const extensionSchema = z.object({
   display_name: z.string().min(1, "Required").max(64, "Max 64 chars"),
   sip_password: z.string().min(8, "Min 8 characters"),
   enabled: z.boolean(),
+  video_capable: z.boolean().default(false),
   internal_only: z.boolean().default(false),
   numeric_callerid: z.boolean().default(false),
 });
@@ -173,7 +174,7 @@ function AddExtensionDialog({
 }) {
   const form = useForm<ExtensionFormValues>({
     resolver: zodResolver(extensionSchema),
-    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, internal_only: false, numeric_callerid: false },
+    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, video_capable: false, internal_only: false, numeric_callerid: false },
   });
   const [saving, setSaving] = useState(false);
   const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>([]);
@@ -273,6 +274,34 @@ function AddExtensionDialog({
             />
             <FormField
               control={form.control}
+              name="video_capable"
+              render={({ field }) => (
+                <FormItem
+                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  onClick={() => field.onChange(!field.value)}
+                >
+                  <div>
+                    <FormLabel>Video-fähig</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone.
+                      Beide Gesprächsseiten müssen video-fähig sein.
+                    </p>
+                  </div>
+                  <FormControl>
+                    {/* pointer-events-none: the row's own onClick above is the single
+                        source of truth for toggling. Some mobile WebViews (e.g. the
+                        Home Assistant Companion App's embedded browser) don't
+                        reliably deliver Radix's pointer events to a tiny nested
+                        control, so the whole row - a plain onClick on a block
+                        element - is the more compatible tap target. */}
+                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="internal_only"
               render={({ field }) => (
                 <FormItem
@@ -287,12 +316,7 @@ function AddExtensionDialog({
                     </p>
                   </div>
                   <FormControl>
-                    {/* pointer-events-none: the row's own onClick above is the single
-                        source of truth for toggling. Some mobile WebViews (e.g. the
-                        Home Assistant Companion App's embedded browser) don't
-                        reliably deliver Radix's pointer events to a tiny nested
-                        control, so the whole row - a plain onClick on a block
-                        element - is the more compatible tap target. */}
+                    {/* See "Video-fähig" above for the row-onClick rationale. */}
                     <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
                   </FormControl>
                 </FormItem>
@@ -394,6 +418,7 @@ function EditExtensionDialog({
       display_name: extension.display_name,
       sip_password: "",
       enabled: extension.enabled,
+      video_capable: extension.video_capable ?? false,
       internal_only: extension.internal_only ?? false,
       numeric_callerid: extension.numeric_callerid ?? false,
     },
@@ -405,9 +430,10 @@ function EditExtensionDialog({
 
   async function onSubmit(values: EditFormValues) {
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; internal_only: boolean; numeric_callerid: boolean }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean }> = {
       display_name: values.display_name,
       enabled: values.enabled,
+      video_capable: values.video_capable,
       internal_only: values.internal_only,
       numeric_callerid: values.numeric_callerid,
     };
@@ -483,6 +509,34 @@ function EditExtensionDialog({
             />
             <FormField
               control={form.control}
+              name="video_capable"
+              render={({ field }) => (
+                <FormItem
+                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  onClick={() => field.onChange(!field.value)}
+                >
+                  <div>
+                    <FormLabel>Video-fähig</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone.
+                      Beide Gesprächsseiten müssen video-fähig sein.
+                    </p>
+                  </div>
+                  <FormControl>
+                    {/* pointer-events-none: the row's own onClick above is the single
+                        source of truth for toggling. Some mobile WebViews (e.g. the
+                        Home Assistant Companion App's embedded browser) don't
+                        reliably deliver Radix's pointer events to a tiny nested
+                        control, so the whole row - a plain onClick on a block
+                        element - is the more compatible tap target. */}
+                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="internal_only"
               render={({ field }) => (
                 <FormItem
@@ -497,12 +551,7 @@ function EditExtensionDialog({
                     </p>
                   </div>
                   <FormControl>
-                    {/* pointer-events-none: the row's own onClick above is the single
-                        source of truth for toggling. Some mobile WebViews (e.g. the
-                        Home Assistant Companion App's embedded browser) don't
-                        reliably deliver Radix's pointer events to a tiny nested
-                        control, so the whole row - a plain onClick on a block
-                        element - is the more compatible tap target. */}
+                    {/* See "Video-fähig" above for the row-onClick rationale. */}
                     <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
                   </FormControl>
                 </FormItem>

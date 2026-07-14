@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.93
+
+**Feature - "Video-fähig"-Schalter je Nebenstelle in der Oberfläche**
+- Das `video_capable`-Feld existierte im Backend seit Langem (steuert H.264-Codec + Video-Streams im PJSIP-Endpoint), war aber in der Weboberfläche nie ein- oder ausschaltbar - jede Nebenstelle blieb dadurch dauerhaft auf "kein Video". Videotelefonie war damit faktisch nicht nutzbar, obwohl der Unterbau da war.
+- Neuer Schalter "Video-fähig" im Nebenstellen-Dialog (Anlegen + Bearbeiten), gleiche robuste Ganze-Zeile-Klickfläche wie die anderen Schalter. Für einen Videoanruf müssen BEIDE Seiten video-fähig sein (z.B. die Video-Türsprechstelle UND alle Handys in der Ziel-Ring-Gruppe).
+
 ## 0.7.92
 
 **Fix - Interne Anrufe (z.B. Türsprechstelle → Ring-Gruppe) kamen als "Anonymous" an**
