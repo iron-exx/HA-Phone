@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.94
+
+**Fix - Schalter im Nebenstellen-Dialog reagierten nicht / lösten eine Ereignis-Lawine aus**
+- Der Schalter-Fix aus 0.7.92 war selbst fehlerhaft: die gesamte Zeile hatte ein `onClick`, enthielt aber gleichzeitig noch ein `<label>` (aus `FormLabel`). Ein Klick auf den Titel-Text löste dadurch ZWEI Umschaltungen aus (native Label-Weiterleitung des Browsers + das Zeilen-`onClick`), die sich gegenseitig aufhoben - der Titel (das offensichtlichste Klick-Ziel) tat also gar nichts. Im Browser-Test bestätigt: ein einziger Klick erzeugte dutzende Klick-Events (Ereignis-Lawine) samt React-Fehler "Maximum update depth exceeded".
+- Ersetzt durch das kanonische, barrierefreie Muster: ein echtes `<label htmlFor>` um den Text + der Switch mit eigenem `onCheckedChange`, kein konkurrierendes `onClick`. Jeder Klick (Titel, Beschreibung oder Switch) schaltet jetzt genau EINMAL um - im Browser verifiziert, inkl. gegenseitiger Unabhängigkeit der drei Schalter und null Endlosschleifen-Fehler. Als wiederverwendbare `ToggleRow`-Komponente umgesetzt (Anlegen + Bearbeiten).
+
 ## 0.7.93
 
 **Feature - "Video-fähig"-Schalter je Nebenstelle in der Oberfläche**

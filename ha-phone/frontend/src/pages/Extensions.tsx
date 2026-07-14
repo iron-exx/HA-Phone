@@ -110,6 +110,48 @@ function buildExtensionNumbers(group: RingGroup, extensionNumber: number, select
     .join(",");
 }
 
+/**
+ * A labelled on/off row for a boolean form field.
+ *
+ * Canonical accessible pattern: a real <label htmlFor> wrapping the text,
+ * paired with a Radix Switch that owns the toggle via onCheckedChange. The
+ * label's native for-forwarding delivers exactly ONE toggle when the text is
+ * clicked/tapped, and clicking the switch itself is the same single toggle -
+ * no competing custom onClick, so no double-fire.
+ *
+ * History (why this is spelled out): an earlier attempt put a custom onClick
+ * on the row AND kept a FormLabel (<label for>) inside it. A label-text click
+ * then fired twice (native label-forward + row onClick) and the two cancelled
+ * out, so clicking the bold title did nothing - the exact "switch doesn't
+ * react" bug users reported. Do NOT reintroduce a row-level onClick here.
+ */
+function ToggleRow({
+  id,
+  label,
+  description,
+  checked,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  return (
+    <div
+      className="flex items-center justify-between rounded-lg border p-3"
+      style={{ borderColor: "rgba(255,255,255,0.08)" }}
+    >
+      <label htmlFor={id} className="flex-1 cursor-pointer pr-3">
+        <div className="text-sm font-medium leading-none">{label}</div>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      </label>
+      <Switch id={id} checked={checked} onCheckedChange={onToggle} />
+    </div>
+  );
+}
+
 async function syncRingGroupMemberships(
   extensionNumber: number,
   selectedRingGroupIds: number[],
@@ -276,75 +318,39 @@ function AddExtensionDialog({
               control={form.control}
               name="video_capable"
               render={({ field }) => (
-                <FormItem
-                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
-                  onClick={() => field.onChange(!field.value)}
-                >
-                  <div>
-                    <FormLabel>Video-fähig</FormLabel>
-                    <p className="text-xs text-muted-foreground">
-                      Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone.
-                      Beide Gesprächsseiten müssen video-fähig sein.
-                    </p>
-                  </div>
-                  <FormControl>
-                    {/* pointer-events-none: the row's own onClick above is the single
-                        source of truth for toggling. Some mobile WebViews (e.g. the
-                        Home Assistant Companion App's embedded browser) don't
-                        reliably deliver Radix's pointer events to a tiny nested
-                        control, so the whole row - a plain onClick on a block
-                        element - is the more compatible tap target. */}
-                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
-                  </FormControl>
-                </FormItem>
+                <ToggleRow
+                  id={field.name}
+                  label="Video-fähig"
+                  description="Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
               )}
             />
             <FormField
               control={form.control}
               name="internal_only"
               render={({ field }) => (
-                <FormItem
-                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
-                  onClick={() => field.onChange(!field.value)}
-                >
-                  <div>
-                    <FormLabel>Nur intern</FormLabel>
-                    <p className="text-xs text-muted-foreground">
-                      Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle).
-                    </p>
-                  </div>
-                  <FormControl>
-                    {/* See "Video-fähig" above for the row-onClick rationale. */}
-                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
-                  </FormControl>
-                </FormItem>
+                <ToggleRow
+                  id={field.name}
+                  label="Nur intern"
+                  description="Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle)."
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
               )}
             />
             <FormField
               control={form.control}
               name="numeric_callerid"
               render={({ field }) => (
-                <FormItem
-                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
-                  onClick={() => field.onChange(!field.value)}
-                >
-                  <div>
-                    <FormLabel>Altgeräte-Modus</FormLabel>
-                    <p className="text-xs text-muted-foreground">
-                      Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte
-                      SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.
-                    </p>
-                  </div>
-                  <FormControl>
-                    {/* See "Nur intern" above: the row's onClick is the single
-                        toggle source, since some mobile WebViews don't reliably
-                        deliver events to the tiny nested Switch control. */}
-                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
-                  </FormControl>
-                </FormItem>
+                <ToggleRow
+                  id={field.name}
+                  label="Altgeräte-Modus"
+                  description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.'}
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
               )}
             />
             {ringGroups.length > 0 && (
@@ -511,75 +517,39 @@ function EditExtensionDialog({
               control={form.control}
               name="video_capable"
               render={({ field }) => (
-                <FormItem
-                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
-                  onClick={() => field.onChange(!field.value)}
-                >
-                  <div>
-                    <FormLabel>Video-fähig</FormLabel>
-                    <p className="text-xs text-muted-foreground">
-                      Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone.
-                      Beide Gesprächsseiten müssen video-fähig sein.
-                    </p>
-                  </div>
-                  <FormControl>
-                    {/* pointer-events-none: the row's own onClick above is the single
-                        source of truth for toggling. Some mobile WebViews (e.g. the
-                        Home Assistant Companion App's embedded browser) don't
-                        reliably deliver Radix's pointer events to a tiny nested
-                        control, so the whole row - a plain onClick on a block
-                        element - is the more compatible tap target. */}
-                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
-                  </FormControl>
-                </FormItem>
+                <ToggleRow
+                  id={field.name}
+                  label="Video-fähig"
+                  description="Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
               )}
             />
             <FormField
               control={form.control}
               name="internal_only"
               render={({ field }) => (
-                <FormItem
-                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
-                  onClick={() => field.onChange(!field.value)}
-                >
-                  <div>
-                    <FormLabel>Nur intern</FormLabel>
-                    <p className="text-xs text-muted-foreground">
-                      Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle).
-                    </p>
-                  </div>
-                  <FormControl>
-                    {/* See "Video-fähig" above for the row-onClick rationale. */}
-                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
-                  </FormControl>
-                </FormItem>
+                <ToggleRow
+                  id={field.name}
+                  label="Nur intern"
+                  description="Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle)."
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
               )}
             />
             <FormField
               control={form.control}
               name="numeric_callerid"
               render={({ field }) => (
-                <FormItem
-                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
-                  onClick={() => field.onChange(!field.value)}
-                >
-                  <div>
-                    <FormLabel>Altgeräte-Modus</FormLabel>
-                    <p className="text-xs text-muted-foreground">
-                      Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte
-                      SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.
-                    </p>
-                  </div>
-                  <FormControl>
-                    {/* See "Nur intern" above: the row's onClick is the single
-                        toggle source, since some mobile WebViews don't reliably
-                        deliver events to the tiny nested Switch control. */}
-                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
-                  </FormControl>
-                </FormItem>
+                <ToggleRow
+                  id={field.name}
+                  label="Altgeräte-Modus"
+                  description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.'}
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
               )}
             />
             {ringGroups.length > 0 && (
