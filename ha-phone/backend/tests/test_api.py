@@ -698,6 +698,13 @@ def test_doorbell_extension_conf(client, mock_ami, tmp_data_dir):
     assert "max_video_streams = 1" in stanza
     assert "context           = from-internal" in stanza
     assert "trust_id_outbound = yes" in stanza
+    # Regression: trust_id_outbound alone only controls whether a real caller
+    # id is REVEALED to a destination - it does nothing if the calling leg
+    # never had one. Without trust_id_inbound, a call this extension places
+    # (e.g. a door intercom dialling a ring group) loses its caller id and
+    # every Dial()-created leg past it falls back to "Anonymous" (confirmed
+    # live via a SIP capture of exactly that call path).
+    assert "trust_id_inbound  = yes" in stanza
     assert "max_video_streams = 0" not in stanza
 
 

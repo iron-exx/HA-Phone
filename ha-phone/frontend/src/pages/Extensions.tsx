@@ -275,8 +275,11 @@ function AddExtensionDialog({
               control={form.control}
               name="internal_only"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                <FormItem
+                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  onClick={() => field.onChange(!field.value)}
+                >
                   <div>
                     <FormLabel>Nur intern</FormLabel>
                     <p className="text-xs text-muted-foreground">
@@ -284,7 +287,13 @@ function AddExtensionDialog({
                     </p>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    {/* pointer-events-none: the row's own onClick above is the single
+                        source of truth for toggling. Some mobile WebViews (e.g. the
+                        Home Assistant Companion App's embedded browser) don't
+                        reliably deliver Radix's pointer events to a tiny nested
+                        control, so the whole row - a plain onClick on a block
+                        element - is the more compatible tap target. */}
+                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
                   </FormControl>
                 </FormItem>
               )}
@@ -293,8 +302,11 @@ function AddExtensionDialog({
               control={form.control}
               name="numeric_callerid"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                <FormItem
+                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  onClick={() => field.onChange(!field.value)}
+                >
                   <div>
                     <FormLabel>Altgeräte-Modus</FormLabel>
                     <p className="text-xs text-muted-foreground">
@@ -303,7 +315,10 @@ function AddExtensionDialog({
                     </p>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    {/* See "Nur intern" above: the row's onClick is the single
+                        toggle source, since some mobile WebViews don't reliably
+                        deliver events to the tiny nested Switch control. */}
+                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
                   </FormControl>
                 </FormItem>
               )}
@@ -470,8 +485,11 @@ function EditExtensionDialog({
               control={form.control}
               name="internal_only"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                <FormItem
+                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  onClick={() => field.onChange(!field.value)}
+                >
                   <div>
                     <FormLabel>Nur intern</FormLabel>
                     <p className="text-xs text-muted-foreground">
@@ -479,7 +497,13 @@ function EditExtensionDialog({
                     </p>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    {/* pointer-events-none: the row's own onClick above is the single
+                        source of truth for toggling. Some mobile WebViews (e.g. the
+                        Home Assistant Companion App's embedded browser) don't
+                        reliably deliver Radix's pointer events to a tiny nested
+                        control, so the whole row - a plain onClick on a block
+                        element - is the more compatible tap target. */}
+                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
                   </FormControl>
                 </FormItem>
               )}
@@ -488,8 +512,11 @@ function EditExtensionDialog({
               control={form.control}
               name="numeric_callerid"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-3"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                <FormItem
+                  className="flex cursor-pointer items-center justify-between rounded-lg border p-3"
+                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  onClick={() => field.onChange(!field.value)}
+                >
                   <div>
                     <FormLabel>Altgeräte-Modus</FormLabel>
                     <p className="text-xs text-muted-foreground">
@@ -498,7 +525,10 @@ function EditExtensionDialog({
                     </p>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    {/* See "Nur intern" above: the row's onClick is the single
+                        toggle source, since some mobile WebViews don't reliably
+                        deliver events to the tiny nested Switch control. */}
+                    <Switch checked={field.value} className="pointer-events-none" tabIndex={-1} />
                   </FormControl>
                 </FormItem>
               )}
@@ -999,10 +1029,15 @@ export default function Extensions() {
                       );
                     })()}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => toggleEnabled(ext)}>
+                    {/* See the "Nur intern" toggle for why the click lives on the
+                        cell, not the Switch: some mobile WebViews (Home Assistant
+                        Companion App) don't reliably deliver events to the tiny
+                        nested control. */}
                     <Switch
                       checked={ext.enabled}
-                      onCheckedChange={() => toggleEnabled(ext)}
+                      className="pointer-events-none"
+                      tabIndex={-1}
                       aria-label={`${ext.enabled ? "Deaktivieren" : "Aktivieren"} ${ext.number}`}
                     />
                   </TableCell>

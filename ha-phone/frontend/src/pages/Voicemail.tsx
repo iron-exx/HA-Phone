@@ -239,25 +239,23 @@ function VoicemailCard({
             placeholder="e.g. user@example.com"
           />
         </div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor={`attach-${extension.id}`} className="cursor-pointer">
-            Attach message to email
-          </Label>
-          <Switch
-            id={`attach-${extension.id}`}
-            checked={attachMessage}
-            onCheckedChange={setAttachMessage}
-          />
+        {/* onClick on the row (not just the Switch) is the single toggle source:
+            some mobile WebViews (Home Assistant Companion App) don't reliably
+            deliver events to a tiny nested control, and label->button click
+            forwarding isn't consistent there either. */}
+        <div
+          className="flex cursor-pointer items-center justify-between"
+          onClick={() => setAttachMessage((v) => !v)}
+        >
+          <Label className="cursor-pointer">Attach message to email</Label>
+          <Switch checked={attachMessage} className="pointer-events-none" tabIndex={-1} />
         </div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor={`delete-${extension.id}`} className="cursor-pointer">
-            Delete after email
-          </Label>
-          <Switch
-            id={`delete-${extension.id}`}
-            checked={deleteAfterEmail}
-            onCheckedChange={setDeleteAfterEmail}
-          />
+        <div
+          className="flex cursor-pointer items-center justify-between"
+          onClick={() => setDeleteAfterEmail((v) => !v)}
+        >
+          <Label className="cursor-pointer">Delete after email</Label>
+          <Switch checked={deleteAfterEmail} className="pointer-events-none" tabIndex={-1} />
         </div>
         <Button
           variant="outline"

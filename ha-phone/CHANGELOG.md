@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.92
+
+**Fix - Interne Anrufe (z.B. Türsprechstelle → Ring-Gruppe) kamen als "Anonymous" an**
+- Per SIP-Mitschnitt bestätigt: eine echte Anrufer-Kennung existierte auf dem an die Ring-Gruppe weitergeleiteten Anruf-Bein gar nicht - Asterisk schickte `From: "Anonymous" <sip:anonymous@anonymous.invalid>` ohne jede Identitaets-Information.
+- Ursache: `trust_id_outbound = yes` (seit 0.7.61) steuert nur, ob eine bereits vorhandene Kennung an ein Ziel *weitergegeben* wird - nicht, ob die Kennung des *Anrufers selbst* ueberhaupt *uebernommen* wird. Ohne das fehlende Gegenstueck blieb die CallerID auf dem Kanal leer, sobald eine unserer eigenen Nebenstellen selbst anrief (z.B. eine Tuersprechstelle, die eine Ring-Gruppe waehlt) - jeder nachfolgende Dial()-Sprung (z.B. in die Ring-Gruppe) griff dann auf "Anonymous" zurueck.
+- Jede Nebenstelle bekommt jetzt zusaetzlich `trust_id_inbound = yes`, damit Asterisk die eigene, bekannte Identitaet der Nebenstelle als Anrufer tatsaechlich uebernimmt.
+
+**Fix - "Nur intern"/"Altgeraete-Modus"-Schalter reagierten in der Home-Assistant-Begleit-App nicht auf Klicks**
+- Trotz korrektem Code (in zwei Simulationen bestaetigt funktionsfaehig) meldete ein Nutzer der HA-Begleit-App (eingebettetes WebView), dass die Schalter auf Tippen nicht reagierten - ein dokumentiertes Muster bei Radix-UI-Komponenten in bestimmten mobilen WebViews (Ereignis-Zustellung an kleine verschachtelte Steuerelemente ist dort nicht zuverlaessig).
+- Robusterer Fix: die **gesamte Zeile** (nicht nur der winzige Schalter) ist jetzt klickbar, mit einem einfachen, direkten Klick-Handler statt sich allein auf Radix' internes Zeigeereignis-Handling zu verlassen. Betrifft alle Schalter in der App (Nebenstellen anlegen/bearbeiten, Nebenstellen-Tabelle "Aktiv", Voicemail-Einstellungen).
+
+- 1 neuer/angepasster Backend-Test (trust_id_inbound). 109/109 Backend-Tests, Frontend tsc/vitest/build gruen.
+
 ## 0.7.91
 
 **Security - LDAP-Server: kein Limit fuer Nachrichtengroesse, kein Lese-Timeout**
