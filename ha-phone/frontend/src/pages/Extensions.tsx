@@ -14,8 +14,8 @@ import {
   type LinphoneProvisioningInfo,
 } from "@/types/api";
 import { Button } from "@/components/ui/button";
+import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -113,17 +113,19 @@ function buildExtensionNumbers(group: RingGroup, extensionNumber: number, select
 /**
  * A labelled on/off row for a boolean form field.
  *
- * Canonical accessible pattern: a real <label htmlFor> wrapping the text,
- * paired with a Radix Switch that owns the toggle via onCheckedChange. The
- * label's native for-forwarding delivers exactly ONE toggle when the text is
- * clicked/tapped, and clicking the switch itself is the same single toggle -
- * no competing custom onClick, so no double-fire.
+ * Uses a self-contained <button> toggle with INLINE colors instead of the
+ * Radix Switch. Why: the Radix Switch's track/thumb colours come from Tailwind
+ * theme classes (bg-input/bg-primary/bg-foreground + CSS variables). In the
+ * deployed build those resolved to transparent (verified: computed
+ * background-color rgba(0,0,0,0) on both track and thumb), so the switch was
+ * effectively invisible - users saw only the row border and nothing to click.
+ * Inline style colours render identically in every browser (including the
+ * older embedded browsers this add-on gets opened in) with no dependency on
+ * Tailwind variable resolution.
  *
- * History (why this is spelled out): an earlier attempt put a custom onClick
- * on the row AND kept a FormLabel (<label for>) inside it. A label-text click
- * then fired twice (native label-forward + row onClick) and the two cancelled
- * out, so clicking the bold title did nothing - the exact "switch doesn't
- * react" bug users reported. Do NOT reintroduce a row-level onClick here.
+ * A real <button role="switch"> is a labelable element, so the <label htmlFor>
+ * still forwards a click from the text exactly once - single toggle, no
+ * double-fire, no row-level onClick. Do NOT reintroduce a row-level onClick.
  */
 function ToggleRow({
   id,
@@ -147,7 +149,7 @@ function ToggleRow({
         <div className="text-sm font-medium leading-none">{label}</div>
         <p className="mt-1 text-xs text-muted-foreground">{description}</p>
       </label>
-      <Switch id={id} checked={checked} onCheckedChange={onToggle} />
+      <ToggleSwitch id={id} checked={checked} ariaLabel={label} onToggle={() => onToggle(!checked)} />
     </div>
   );
 }
@@ -1048,16 +1050,11 @@ export default function Extensions() {
                       );
                     })()}
                   </TableCell>
-                  <TableCell className="cursor-pointer" onClick={() => toggleEnabled(ext)}>
-                    {/* See the "Nur intern" toggle for why the click lives on the
-                        cell, not the Switch: some mobile WebViews (Home Assistant
-                        Companion App) don't reliably deliver events to the tiny
-                        nested control. */}
-                    <Switch
+                  <TableCell>
+                    <ToggleSwitch
                       checked={ext.enabled}
-                      className="pointer-events-none"
-                      tabIndex={-1}
-                      aria-label={`${ext.enabled ? "Deaktivieren" : "Aktivieren"} ${ext.number}`}
+                      ariaLabel={`${ext.enabled ? "Deaktivieren" : "Aktivieren"} ${ext.number}`}
+                      onToggle={() => toggleEnabled(ext)}
                     />
                   </TableCell>
                   <TableCell className="text-right">

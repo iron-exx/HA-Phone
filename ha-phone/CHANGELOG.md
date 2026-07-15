@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.95
+
+**Fix - Schalter waren unsichtbar (nur Rahmen, kein anklickbarer Schalter)**
+- Eigentliche Ursache endlich gefunden (im echten Browser per Computed-Style verifiziert): der Radix-Switch rendert Schiene UND Knopf mit `background-color: rgba(0,0,0,0)` - also komplett transparent. Seine Farben kommen aus Tailwind-Theme-Klassen (bg-input/bg-primary/bg-foreground + CSS-Variablen), die im ausgelieferten Build zu transparent aufgelöst wurden. Der Schalter war dadurch faktisch unsichtbar; sichtbar blieb nur der Zeilenrahmen - "nur die Umrandung, nichts zum Anklicken".
+- Ersetzt durch eine eigene `ToggleSwitch`-Komponente mit fest eincodierten Inline-Farben (graue Schiene `#3f3f46`, violett `#8b5cf6` wenn an, weißer Knopf). Rendert in jedem Browser identisch, unabhängig von Tailwind-Variablen-Auflösung - insbesondere auch in älteren/eingebetteten Browsern. Als `<button role="switch">` (labelbar) bleibt die Ein-Klick-Weiterleitung per `<label htmlFor>` erhalten.
+- Betrifft alle Schalter der App: Nebenstellen-Dialog (Video-fähig / Nur intern / Altgeräte-Modus), "Aktiv"-Spalte der Nebenstellen-Tabelle, Voicemail-Einstellungen. Im Browser verifiziert: Schalter sichtbar (grau/violett + weißer Knopf), Klick auf Titel oder Schalter schaltet genau einmal um.
+
 ## 0.7.94
 
 **Fix - Schalter im Nebenstellen-Dialog reagierten nicht / lösten eine Ereignis-Lawine aus**

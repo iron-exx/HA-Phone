@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -239,23 +239,27 @@ function VoicemailCard({
             placeholder="e.g. user@example.com"
           />
         </div>
-        {/* onClick on the row (not just the Switch) is the single toggle source:
-            some mobile WebViews (Home Assistant Companion App) don't reliably
-            deliver events to a tiny nested control, and label->button click
-            forwarding isn't consistent there either. */}
-        <div
-          className="flex cursor-pointer items-center justify-between"
-          onClick={() => setAttachMessage((v) => !v)}
-        >
-          <Label className="cursor-pointer">Attach message to email</Label>
-          <Switch checked={attachMessage} className="pointer-events-none" tabIndex={-1} />
+        <div className="flex items-center justify-between">
+          <label htmlFor={`attach-${extension.id}`} className="cursor-pointer text-sm">
+            Attach message to email
+          </label>
+          <ToggleSwitch
+            id={`attach-${extension.id}`}
+            checked={attachMessage}
+            ariaLabel="Attach message to email"
+            onToggle={() => setAttachMessage((v) => !v)}
+          />
         </div>
-        <div
-          className="flex cursor-pointer items-center justify-between"
-          onClick={() => setDeleteAfterEmail((v) => !v)}
-        >
-          <Label className="cursor-pointer">Delete after email</Label>
-          <Switch checked={deleteAfterEmail} className="pointer-events-none" tabIndex={-1} />
+        <div className="flex items-center justify-between">
+          <label htmlFor={`delete-${extension.id}`} className="cursor-pointer text-sm">
+            Delete after email
+          </label>
+          <ToggleSwitch
+            id={`delete-${extension.id}`}
+            checked={deleteAfterEmail}
+            ariaLabel="Delete after email"
+            onToggle={() => setDeleteAfterEmail((v) => !v)}
+          />
         </div>
         <Button
           variant="outline"
