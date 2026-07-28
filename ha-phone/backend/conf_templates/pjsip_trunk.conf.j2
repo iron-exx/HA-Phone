@@ -30,7 +30,23 @@ server_uri = sip:{{ server_target }}
 client_uri = sip:{{ reg_user }}@{{ sip_domain }}
 contact_user = {{ reg_user }}
 transport = {{ transport }}
-retry_interval = 30
+{#
+  SELF-HEALING registration. With the stock defaults PJSIP permanently STOPS the
+  outbound registration once it exhausts max_retries (default 10) consecutive
+  failures — a "Maximum retries reached ... stopping registration attempt" and it
+  never tries again until Asterisk reloads. A single transient provider/network
+  blip (observed 2026-07-16: 10× "No response received" during an ~11-min DG
+  outage) therefore takes the trunk down for days, killing all outbound/inbound
+  calls while internal calls keep working. The knobs below keep it retrying:
+    - max_retries very high        → never permanently give up on timeouts
+    - fatal_retry_interval  > 0    → keep retrying after a "fatal" 4xx/5xx (e.g. 404)
+    - forbidden_retry_interval > 0 → keep retrying after 403 Forbidden
+    - auth_rejection_permanent = no → 401/407 auth failures are not permanent
+#}
+retry_interval = 60
+forbidden_retry_interval = 60
+fatal_retry_interval = 60
+max_retries = 10000
 expiration = {{ trunk.reg_refresh }}
 auth_rejection_permanent = no
 
