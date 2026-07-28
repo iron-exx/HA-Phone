@@ -7,12 +7,17 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import Trunk
+from backend.models import Trunk, TrunkDid
 from backend.conf_generator import render_conf
 from backend.regeneration import run_regeneration_steps, step_succeeded
 from backend import ami
 
 router = APIRouter()
+
+
+class TrunkDidCreate(BaseModel):
+    did: str
+    label: str = ""
 
 
 def _to_e164(number: str) -> str:
@@ -134,3 +139,27 @@ async def trunk_status():
 @router.get("/trunk/debug")
 async def trunk_debug():
     return await ami.get_trunk_debug()
+
+
+@router.get("/trunk/dids", response_model=list[TrunkDid])
+def list_trunk_dids(session: Session = Depends(get_session)):
+    return session.exec(select(TrunkDid)).all()
+
+
+@router.post("/trunk/dids", response_model=TrunkDid)
+def create_trunk_did(did_data: TrunkDidCreate, session: Session = Depends(get_session)):
+    did = TrunkDid(did=did_data.did, label=did_data.label)
+    session.add(did)
+    session.commit()
+    session.refresh(did)
+    return did
+
+
+@router.delete("/trunk/dids/{did_id}")
+def delete_trunk_did(did_id: int, session: Session = Depends(get_session)):
+    existing = session.get(TrunkDid, did_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="DID not found")
+    session.delete(existing)
+    session.commit()
+    return {"ok": True}

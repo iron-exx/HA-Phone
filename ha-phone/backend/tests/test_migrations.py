@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlmodel import SQLModel, Session, select
 
 from backend.database import run_migrations
-from backend.models import Extension, Trunk, ProvisionedDevice, Holiday, TimeCondition
+from backend.models import Extension, Trunk, ProvisionedDevice, Holiday, TimeCondition, OutboundRule
 
 
 def _build_legacy_db(path):
@@ -80,6 +80,14 @@ def _build_legacy_db(path):
         conn.execute(text(
             "INSERT INTO holiday (id, name, month, day) VALUES (1, 'Weihnachten', 12, 25)"
         ))
+        conn.execute(text(
+            "CREATE TABLE outboundrule (id INTEGER PRIMARY KEY, pattern TEXT NOT NULL, "
+            "strip INTEGER NOT NULL, prepend TEXT NOT NULL, priority INTEGER NOT NULL)"
+        ))
+        conn.execute(text(
+            "INSERT INTO outboundrule (id, pattern, strip, prepend, priority) VALUES "
+            "(1, '0.', 1, '+49', 10)"
+        ))
     return engine
 
 
@@ -119,6 +127,9 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
 
     holiday_cols = {c["name"] for c in inspector.get_columns("holiday")}
     assert "year" in holiday_cols
+
+    outboundrule_cols = {c["name"] for c in inspector.get_columns("outboundrule")}
+    assert "outbound_caller_id" in outboundrule_cols
 
     # Old data must survive migration untouched, and new columns get their
     # documented defaults instead of NULL.
@@ -187,6 +198,11 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
         assert condition.open_dest_type == "extension"
         assert condition.closed_destination == 12
         assert condition.closed_dest_type == "voicemail"
+
+        rule = session.exec(select(OutboundRule)).first()
+        assert rule.pattern == "0."
+        assert rule.prepend == "+49"
+        assert rule.outbound_caller_id == ""
 
 
 def test_migrations_are_idempotent(tmp_path):

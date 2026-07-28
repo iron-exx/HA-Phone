@@ -48,6 +48,7 @@ exten => _XX,1,NoOp(Internal call to ${EXTEN})
 {% for rule in outbound_rules %}
 exten => _{{ rule.pattern }},1,NoOp(Outbound rule '{{ rule.pattern }}' strip {{ rule.strip }} prepend '{{ rule.prepend }}': ${EXTEN})
  same => n,Set(CALLNUM={{ rule.prepend }}${EXTEN:{{ rule.strip }}})
+ same => n,Set(OUTBOUND_CID={{ outbound_rule_cid.get(rule.id, '') }})
  same => n,Goto(outbound-pstn,${CALLNUM},1)
 {% endfor %}
 {% if not outbound_rules %}
@@ -99,9 +100,15 @@ exten => i,1,Hangup()
 exten => t,1,Hangup()
 
 ; Outbound PSTN via SIP trunk
+; OUTBOUND_CID is set by the per-rule block above - either the outbound rule's
+; own CID override (a specific trunk DID) or, if unset, the trunk's default
+; phone_number (both already normalized to E.164 in Python - see
+; outbound_rule_cid in time_conditions.py). The only other way into this
+; context is the _+X. re-entry rule below, on the same channel, where
+; OUTBOUND_CID is already set from the original rule.
 [outbound-pstn]
 exten => _X.,1,NoOp(Outbound via SIP trunk: ${EXTEN})
-{% if trunk_callerid %} same => n,Set(CALLERID(all)={{ trunk_callerid }} <{{ trunk_callerid }}>)
+{% if trunk_callerid %} same => n,Set(CALLERID(all)=${OUTBOUND_CID} <${OUTBOUND_CID}>)
 {% endif %} same => n,Dial(PJSIP/${EXTEN}@trunk-endpoint,60)
  same => n,Congestion()
  same => n,Hangup()

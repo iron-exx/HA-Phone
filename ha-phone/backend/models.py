@@ -96,6 +96,22 @@ class Trunk(SQLModel, table=True):
     codecs: str = "ulaw,alaw"  # comma-separated Asterisk codec names, in priority order
 
 
+class TrunkDid(SQLModel, table=True):
+    """An additional phone number (DID) reachable via the trunk, beyond
+    Trunk.phone_number (the primary/registered number). Reference list only —
+    used to populate DID pickers (Route.did, OutboundRule.outbound_caller_id)
+    instead of free-typing numbers; the SIP registration identity itself stays
+    tied to the single primary phone_number (aarenet/DG convention).
+
+    No trunk_id: HA-Phone only ever has one Trunk row, and `save_trunk`
+    deletes+recreates it (new id) on every save, which would orphan a foreign
+    key on every trunk edit. A flat list is simpler and avoids that entirely.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    did: str = Field(max_length=32)
+    label: str = Field(default="", max_length=64)
+
+
 class SmtpSettings(SQLModel, table=True):
     """Outbound mail (SMTP) for sending voicemail-to-email. Single row."""
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -131,6 +147,10 @@ class OutboundRule(SQLModel, table=True):
     strip: int = 0
     prepend: str = Field(default="", max_length=16)
     priority: int = 0
+    # Optional per-rule outbound CallerID override (one of the trunk's DIDs).
+    # Empty = fall back to the trunk's default phone_number, same as before
+    # this field existed.
+    outbound_caller_id: str = Field(default="", max_length=32)
 
 
 class RingGroup(SQLModel, table=True):

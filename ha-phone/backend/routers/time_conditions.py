@@ -118,6 +118,14 @@ def _regenerate_routing_conf(session: Session) -> None:
     # trunk's number (CLIP), independent of the calling extension's caller ID.
     trunk = session.exec(select(Trunk)).first()
     trunk_callerid = _to_e164(trunk.phone_number) if trunk else ""
+    # Per-outbound-rule CID override (Multi-DID trunk): a rule can present a
+    # different one of the trunk's DIDs instead of the default phone_number.
+    # Falls back to trunk_callerid when the rule has no override set, so
+    # existing rules keep their prior (single-CID) behavior unchanged.
+    outbound_rule_cid = {
+        rule.id: (_to_e164(rule.outbound_caller_id) if rule.outbound_caller_id else trunk_callerid)
+        for rule in outbound_rules
+    }
     ivr_sounds_dir = str(_data_dir() / "sounds" / "custom" / "ivr")
     output_path = _data_dir() / "asterisk" / "extensions_routing.conf"
     render_conf(
@@ -133,6 +141,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "all_ext_dial": all_ext_dial,
             "doorbell_dial": _build_doorbell_dial_string(ring_groups_list),
             "trunk_callerid": trunk_callerid,
+            "outbound_rule_cid": outbound_rule_cid,
             "ivr_menus": ivr_menus,
             "ivr_number_to_id": ivr_number_to_id,
             "ivr_sounds_dir": ivr_sounds_dir,

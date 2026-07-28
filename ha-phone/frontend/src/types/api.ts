@@ -58,6 +58,12 @@ export interface TrunkStatus {
   status: "Registered" | "Unregistered" | "Rejected" | "Forbidden" | "Unreachable" | "UNKNOWN";
 }
 
+export interface TrunkDid {
+  id: number;
+  did: string;
+  label: string;
+}
+
 export interface ExtensionDiagnostic {
   number: string;
   status: "Online" | "Offline";

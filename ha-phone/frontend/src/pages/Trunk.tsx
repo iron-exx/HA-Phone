@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Network, RefreshCw, Save, Wifi, WifiOff, HelpCircle } from "lucide-react";
 
-import { type Trunk, type TrunkStatus } from "@/types/api";
+import { type Trunk, type TrunkStatus, type TrunkDid } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,6 +19,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Trash2 } from "lucide-react";
 
 // ---- Zod schema ----
 const trunkSchema = z.object({
@@ -90,6 +99,126 @@ function StatusChip({
     <div className="flex items-center gap-2">
       <span className="inline-block h-2 w-2 rounded-full bg-slate-500" />
       <span className="font-mono text-sm font-semibold text-slate-400">UNKNOWN</span>
+    </div>
+  );
+}
+
+// ---- Additional DIDs section ----
+// Reference list of extra phone numbers reachable via this trunk, beyond the
+// single "Rufnummer (CallerID)" field above. Used to populate DID pickers
+// elsewhere (e.g. the outbound rules' Anrufer-ID override) instead of
+// free-typing numbers repeatedly.
+function TrunkDidsSection() {
+  const [dids, setDids] = useState<TrunkDid[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [did, setDid] = useState("");
+  const [label, setLabel] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function load() {
+    fetch("/api/trunk/dids")
+      .then((r) => r.json())
+      .then((data: TrunkDid[]) => setDids(data))
+      .catch(() => toast.error("Rufnummern konnten nicht geladen werden."))
+      .finally(() => setLoading(false));
+  }
+  useEffect(load, []);
+
+  async function addDid() {
+    if (!did.trim()) {
+      toast.error("Rufnummer ist erforderlich.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const resp = await fetch("/api/trunk/dids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ did: did.trim(), label: label.trim() }),
+      });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern."));
+      setDid(""); setLabel("");
+      load();
+      toast.success("Rufnummer hinzugefügt.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Speichern."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteDid(id: number) {
+    try {
+      const resp = await fetch(`/api/trunk/dids/${id}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      setDids((ds) => ds.filter((d) => d.id !== id));
+      toast.success("Rufnummer gelöscht.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
+    }
+  }
+
+  return (
+    <div className="glass rounded-xl">
+      <div
+        className="flex items-center gap-3 border-b px-6 py-4"
+        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+      >
+        <span className="text-sm font-semibold text-foreground">Weitere Rufnummern (Multi-DID)</span>
+      </div>
+      <div className="p-6">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Zusätzliche Nummern, die über diesen Trunk erreichbar sind. Werden als Auswahl bei
+          eingehenden Routen und der Anrufer-ID ausgehender Regeln angeboten.
+        </p>
+        {loading ? (
+          <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Rufnummer</TableHead>
+                <TableHead>Bezeichnung</TableHead>
+                <TableHead className="text-right">Aktionen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dids.map((d) => (
+                <TableRow key={d.id}>
+                  <TableCell className="font-mono">{d.did}</TableCell>
+                  <TableCell>{d.label || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      aria-label={`Rufnummer ${d.did} löschen`}
+                      onClick={() => deleteDid(d.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell>
+                  <Input value={did} onChange={(e) => setDid(e.target.value)}
+                    placeholder="z.B. +4963483260199" className="h-9 font-mono" />
+                </TableCell>
+                <TableCell>
+                  <Input value={label} onChange={(e) => setLabel(e.target.value)}
+                    placeholder="z.B. Vertrieb" className="h-9" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button size="sm" onClick={addDid} disabled={saving}>
+                    {saving ? "…" : "Hinzufügen"}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        )}
+      </div>
     </div>
   );
 }
@@ -521,6 +650,8 @@ export default function TrunkPage() {
           </Form>
         </div>
       </div>
+
+      <TrunkDidsSection />
     </div>
   );
 }

@@ -43,6 +43,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -985,6 +992,13 @@ interface OutboundRule {
   strip: number;
   prepend: string;
   priority: number;
+  outbound_caller_id: string;
+}
+
+interface TrunkDid {
+  id: number;
+  did: string;
+  label: string;
 }
 
 function OutboundRulesSection() {
@@ -993,7 +1007,10 @@ function OutboundRulesSection() {
   const [pattern, setPattern] = useState("");
   const [strip, setStrip] = useState("0");
   const [prepend, setPrepend] = useState("");
+  const [newRuleCid, setNewRuleCid] = useState("");
   const [saving, setSaving] = useState(false);
+  const [trunkDefaultDid, setTrunkDefaultDid] = useState("");
+  const [dids, setDids] = useState<TrunkDid[]>([]);
 
   function load() {
     fetch("/api/outbound-rules")
@@ -1003,6 +1020,10 @@ function OutboundRulesSection() {
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
+  useEffect(() => {
+    fetch("/api/trunk").then((r) => r.json()).then((t) => setTrunkDefaultDid(t?.phone_number || "")).catch(() => {});
+    fetch("/api/trunk/dids").then((r) => r.json()).then((data: TrunkDid[]) => setDids(data)).catch(() => {});
+  }, []);
 
   async function addRule() {
     if (!pattern.trim()) {
@@ -1020,10 +1041,11 @@ function OutboundRulesSection() {
           strip: Number(strip) || 0,
           prepend: prepend.trim(),
           priority: nextPriority,
+          outbound_caller_id: newRuleCid,
         }),
       });
       if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern. Läuft die PBX?"));
-      setPattern(""); setStrip("0"); setPrepend("");
+      setPattern(""); setStrip("0"); setPrepend(""); setNewRuleCid("");
       load();
       toast.success("Regel hinzugefügt.");
     } catch (err) {
@@ -1042,6 +1064,43 @@ function OutboundRulesSection() {
     } catch (err) {
       toast.error(toErrorMessage(err, "Fehler beim Löschen."));
     }
+  }
+
+  async function updateRuleCid(id: number, outbound_caller_id: string) {
+    const prev = rules;
+    setRules((rs) => rs.map((r) => (r.id === id ? { ...r, outbound_caller_id } : r)));
+    try {
+      const resp = await fetch(`/api/outbound-rules/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outbound_caller_id }),
+      });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Speichern."));
+      toast.success("Anrufer-ID aktualisiert.");
+    } catch (err) {
+      setRules(prev);
+      toast.error(toErrorMessage(err, "Fehler beim Speichern."));
+    }
+  }
+
+  function CidSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    return (
+      <Select value={value || "__default__"} onValueChange={(v) => onChange(v === "__default__" ? "" : v)}>
+        <SelectTrigger className="h-9 w-full sm:w-48">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__default__">
+            Standard{trunkDefaultDid ? ` (${trunkDefaultDid})` : ""}
+          </SelectItem>
+          {dids.map((d) => (
+            <SelectItem key={d.id} value={d.did}>
+              {d.did}{d.label ? ` — ${d.label}` : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
   }
 
   return (
@@ -1065,6 +1124,7 @@ function OutboundRulesSection() {
               <TableHead>Muster</TableHead>
               <TableHead>Entfernen</TableHead>
               <TableHead>Voranstellen</TableHead>
+              <TableHead>Anrufer-ID</TableHead>
               <TableHead className="text-right">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
@@ -1074,6 +1134,9 @@ function OutboundRulesSection() {
                 <TableCell className="font-mono">{r.pattern}</TableCell>
                 <TableCell className="font-mono">{r.strip}</TableCell>
                 <TableCell className="font-mono">{r.prepend || "—"}</TableCell>
+                <TableCell>
+                  <CidSelect value={r.outbound_caller_id} onChange={(v) => updateRuleCid(r.id, v)} />
+                </TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
@@ -1100,6 +1163,9 @@ function OutboundRulesSection() {
               <TableCell>
                 <Input value={prepend} onChange={(e) => setPrepend(e.target.value)}
                   placeholder="z.B. +49" className="h-9 font-mono" />
+              </TableCell>
+              <TableCell>
+                <CidSelect value={newRuleCid} onChange={setNewRuleCid} />
               </TableCell>
               <TableCell className="text-right">
                 <Button size="sm" onClick={addRule} disabled={saving}>

@@ -85,6 +85,13 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE trunk ADD COLUMN codecs TEXT NOT NULL DEFAULT 'ulaw,alaw'")
                 )
                 conn.commit()
+        if "outboundrule" in tables:
+            cols = [c["name"] for c in inspector.get_columns("outboundrule")]
+            if "outbound_caller_id" not in cols:
+                conn.execute(
+                    text("ALTER TABLE outboundrule ADD COLUMN outbound_caller_id TEXT NOT NULL DEFAULT ''")
+                )
+                conn.commit()
         if "adminuser" in tables:
             cols = [c["name"] for c in inspector.get_columns("adminuser")]
             if "must_change_password" not in cols:
