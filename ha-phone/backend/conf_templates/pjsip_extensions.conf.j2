@@ -38,6 +38,14 @@ trust_id_outbound = yes
 ; (e.g. into a ring group) falls back to "Anonymous", confirmed live via a
 ; SIP capture of exactly that call path (door intercom -> ring group).
 trust_id_inbound  = yes
+; Gigaset DECT bases (N510/N720 etc.) don't reliably show a caller NAME from a
+; plain From header alone — confirmed live via SIP capture: the From header
+; carried a correct "name" <number> for an internal call, yet the handset
+; still displayed "Anonymous". Send P-Asserted-Identity / Remote-Party-ID too,
+; same as already done for the trunk endpoint (CLIP), so the phone has an
+; identity source it actually trusts for internal caller ID.
+send_pai          = yes
+send_rpid         = yes
 auth              = {{ ext.number }}-auth
 aors              = {{ ext.number }}
 callerid          = {{ ext.display_name }} <{{ ext.number }}>
