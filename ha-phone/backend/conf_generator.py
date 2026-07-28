@@ -15,7 +15,7 @@ def render_conf(template_name: str, context: dict, output_path: Path) -> None:
     content = template.render(**context)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
-        mode="w", dir=output_path.parent, delete=False, suffix=".tmp"
+        mode="w", dir=output_path.parent, delete=False, suffix=".tmp", encoding="utf-8"
     ) as tmp:
         tmp.write(content)
         tmp_path = tmp.name

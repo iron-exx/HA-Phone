@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Check, Download, MoreHorizontal, Pencil, Trash2, Upload, X } from "lucide-react";
 
-import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu, type Holiday } from "@/types/api";
+import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu, type Holiday, type DestinationType } from "@/types/api";
+import { DestinationField, formatDestination, DESTINATION_TYPE_LABELS, type DestinationValue } from "@/components/DestinationField";
 import { WEEKDAYS, WEEKDAY_LABELS, formatDays, formatDaysReadable, parseDays, type Weekday } from "@/lib/weekdays";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,139 +47,74 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // ---- Zod schemas ----
-const routeSchema = z.object({
-  did: z.string().min(1, "Required").max(32, "Max 32 chars"),
-  destination_type: z.enum(["extension", "ring_group", "ivr"]).default("extension"),
-  destination_id: z.coerce.number().int().min(1, "Required"),
-});
+const routeSchema = z
+  .object({
+    did: z.string().min(1, "Required").max(32, "Max 32 chars"),
+    destination_type: z
+      .enum(["extension", "ring_group", "ivr", "voicemail", "hangup"])
+      .default("extension"),
+    destination_id: z.coerce.number().int().min(0),
+  })
+  .refine((data) => data.destination_type === "hangup" || data.destination_id >= 1, {
+    message: "Required",
+    path: ["destination_id"],
+  });
+
+const ROUTE_ALLOWED_DESTINATION_TYPES: DestinationType[] = [
+  "extension",
+  "ring_group",
+  "ivr",
+  "voicemail",
+  "hangup",
+];
 
 type RouteFormValues = z.infer<typeof routeSchema>;
 
-const timeConditionSchema = z.object({
-  name: z.string().min(1, "Required").max(64, "Max 64 chars"),
-  did: z.string().min(1, "Required").max(32, "Max 32 chars"),
-  open_hours_start: z.string().regex(/^\d{2}:\d{2}$/, "Format: HH:MM"),
-  open_hours_end: z.string().regex(/^\d{2}:\d{2}$/, "Format: HH:MM"),
-  open_days: z.string().min(1, "Required"),
-  open_destination: z.coerce.number().int().min(10, "Min 10").max(99, "Max 99"),
-  closed_destination: z.coerce.number().int().min(10, "Min 10").max(99, "Max 99"),
-});
+const timeConditionSchema = z
+  .object({
+    name: z.string().min(1, "Required").max(64, "Max 64 chars"),
+    did: z.string().min(1, "Required").max(32, "Max 32 chars"),
+    open_hours_start: z.string().regex(/^\d{2}:\d{2}$/, "Format: HH:MM"),
+    open_hours_end: z.string().regex(/^\d{2}:\d{2}$/, "Format: HH:MM"),
+    open_days: z.string().min(1, "Required"),
+    open_destination: z.coerce.number().int().min(0),
+    open_dest_type: z
+      .enum(["extension", "ring_group", "ivr", "voicemail", "hangup"])
+      .default("extension"),
+    closed_destination: z.coerce.number().int().min(0),
+    closed_dest_type: z
+      .enum(["extension", "ring_group", "ivr", "voicemail", "hangup"])
+      .default("voicemail"),
+  })
+  .refine((data) => data.open_dest_type === "hangup" || data.open_destination >= 1, {
+    message: "Required",
+    path: ["open_destination"],
+  })
+  .refine((data) => data.closed_dest_type === "hangup" || data.closed_destination >= 1, {
+    message: "Required",
+    path: ["closed_destination"],
+  });
 
 type TimeConditionFormValues = z.infer<typeof timeConditionSchema>;
 
-function getRouteDestinationOptions(
-  type: RouteFormValues["destination_type"],
-  extensions: Extension[],
-  ringGroups: RingGroup[],
-  ivrMenus: IVRMenu[]
-) {
-  if (type === "ring_group") {
-    // Route destination_id is the ring group's DB id, not its internal dial number
-    // (`number`) — so a group without one (0 = "no internal extension", e.g. legacy
-    // groups from before that field existed) must still be selectable as an inbound
-    // route target. Filtering on `number > 0` here used to hide them entirely.
-    return [...ringGroups]
-      .sort((a, b) => a.number - b.number)
-      .map((group) => ({
-        value: String(group.id),
-        label: group.number > 0 ? `${group.number} ${group.name}` : group.name,
-      }));
-  }
-  if (type === "ivr") {
-    return [...ivrMenus]
-      .filter((ivr) => ivr.number > 0)
-      .sort((a, b) => a.number - b.number)
-      .map((ivr) => ({
-        value: String(ivr.id),
-        label: `${ivr.number} ${ivr.name}`,
-      }));
-  }
-  return [...extensions]
-    .sort((a, b) => a.number - b.number)
-    .map((extension) => ({
-      value: String(extension.number),
-      label: `${extension.number} ${extension.display_name}`,
-    }));
-}
-
-function DestinationSelectField({
-  control,
-  destinationType,
-  extensions,
-  ringGroups,
-  ivrMenus,
-}: {
-  control: ReturnType<typeof useForm<RouteFormValues>>["control"];
-  destinationType: RouteFormValues["destination_type"];
-  extensions: Extension[];
-  ringGroups: RingGroup[];
-  ivrMenus: IVRMenu[];
-}) {
-  const options = getRouteDestinationOptions(destinationType, extensions, ringGroups, ivrMenus);
-  const placeholder = destinationType === "ring_group"
-    ? "Rufgruppe wählen"
-    : destinationType === "ivr"
-    ? "IVR-Menü wählen"
-    : "Nebenstelle wählen";
-  const emptyMsg = destinationType === "ring_group"
-    ? "Noch keine Rufgruppe mit Durchwahl vorhanden."
-    : destinationType === "ivr"
-    ? "Noch kein IVR-Menü mit Durchwahl vorhanden."
-    : "Noch keine Nebenstelle vorhanden.";
-  return (
-    <FormField
-      control={control}
-      name="destination_id"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>Ziel</FormLabel>
-          <Select
-            onValueChange={(value) => field.onChange(Number(value))}
-            value={field.value ? String(field.value) : ""}
-          >
-            <FormControl>
-              <SelectTrigger>
-                <SelectValue placeholder={placeholder} />
-              </SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {options.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {options.length === 0 && (
-            <p className="text-xs text-muted-foreground">{emptyMsg}</p>
-          )}
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-}
+const TIME_CONDITION_ALLOWED_DESTINATION_TYPES: DestinationType[] = [
+  "extension",
+  "ring_group",
+  "ivr",
+  "voicemail",
+  "hangup",
+];
 
 function formatRouteDestination(route: Route, extensions: Extension[], ringGroups: RingGroup[], ivrMenus: IVRMenu[]) {
-  if (route.destination_type === "ring_group") {
-    const group = ringGroups.find((item) => item.id === route.destination_id);
-    return group ? `${group.number} ${group.name}` : `Rufgruppe #${route.destination_id}`;
-  }
-  if (route.destination_type === "ivr") {
-    const ivr = ivrMenus.find((item) => item.id === route.destination_id);
-    return ivr ? `${ivr.number} ${ivr.name}` : `IVR #${route.destination_id}`;
-  }
-  const extension = extensions.find((item) => item.number === route.destination_id);
-  return extension ? `${extension.number} ${extension.display_name}` : `Nebenstelle ${route.destination_id}`;
+  return formatDestination(
+    { type: route.destination_type, target: route.destination_id },
+    extensions,
+    ringGroups,
+    ivrMenus,
+    "id"
+  );
 }
 
 // ---- Add Route dialog ----
@@ -249,40 +185,19 @@ function AddRouteDialog({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="destination_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Zieltyp</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      form.setValue("destination_id", undefined as unknown as number);
-                    }}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Zieltyp wählen" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="extension">Nebenstelle</SelectItem>
-                      <SelectItem value="ring_group">Rufgruppe</SelectItem>
-                      <SelectItem value="ivr">IVR-Menü</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DestinationSelectField
-              control={form.control}
-              destinationType={destinationType}
+            <DestinationField
+              value={{ type: destinationType, target: form.watch("destination_id") }}
+              onChange={(next: DestinationValue) => {
+                form.setValue("destination_type", next.type);
+                form.setValue("destination_id", (next.target ?? 0) as number);
+              }}
+              allowedTypes={ROUTE_ALLOWED_DESTINATION_TYPES}
               extensions={extensions}
               ringGroups={ringGroups}
               ivrMenus={ivrMenus}
+              keyBy="id"
+              label="Zieltyp"
+              error={form.formState.errors.destination_id?.message as string | undefined}
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
@@ -361,34 +276,19 @@ function EditRouteDialog({
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="destination_type" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Zieltyp</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    form.setValue("destination_id", undefined as unknown as number);
-                  }}
-                  value={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger><SelectValue placeholder="Zieltyp wählen" /></SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="extension">Nebenstelle</SelectItem>
-                    <SelectItem value="ring_group">Rufgruppe</SelectItem>
-                    <SelectItem value="ivr">IVR-Menü</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <DestinationSelectField
-              control={form.control}
-              destinationType={destinationType}
+            <DestinationField
+              value={{ type: destinationType, target: form.watch("destination_id") }}
+              onChange={(next: DestinationValue) => {
+                form.setValue("destination_type", next.type);
+                form.setValue("destination_id", (next.target ?? 0) as number);
+              }}
+              allowedTypes={ROUTE_ALLOWED_DESTINATION_TYPES}
               extensions={extensions}
               ringGroups={ringGroups}
               ivrMenus={ivrMenus}
+              keyBy="id"
+              label="Zieltyp"
+              error={form.formState.errors.destination_id?.message as string | undefined}
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
@@ -499,10 +399,16 @@ function AddTimeConditionDialog({
   open,
   onClose,
   onCreated,
+  extensions,
+  ringGroups,
+  ivrMenus,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: (tc: TimeCondition) => void;
+  extensions: Extension[];
+  ringGroups: RingGroup[];
+  ivrMenus: IVRMenu[];
 }) {
   const form = useForm<TimeConditionFormValues>({
     resolver: zodResolver(timeConditionSchema),
@@ -513,7 +419,9 @@ function AddTimeConditionDialog({
       open_hours_end: "22:00",
       open_days: "mon-sun",
       open_destination: undefined as unknown as number,
+      open_dest_type: "extension",
       closed_destination: undefined as unknown as number,
+      closed_dest_type: "voicemail",
     },
   });
   const [saving, setSaving] = useState(false);
@@ -581,20 +489,34 @@ function AddTimeConditionDialog({
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="open_destination" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Open Destination (Extension)</FormLabel>
-                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="closed_destination" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Closed Destination (Extension → Voicemail)</FormLabel>
-                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <DestinationField
+              value={{ type: form.watch("open_dest_type"), target: form.watch("open_destination") }}
+              onChange={(next: DestinationValue) => {
+                form.setValue("open_dest_type", next.type);
+                form.setValue("open_destination", (next.target ?? 0) as number);
+              }}
+              allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
+              extensions={extensions}
+              ringGroups={ringGroups}
+              ivrMenus={ivrMenus}
+              keyBy="id"
+              label="Ziel bei geöffnet"
+              error={form.formState.errors.open_destination?.message as string | undefined}
+            />
+            <DestinationField
+              value={{ type: form.watch("closed_dest_type"), target: form.watch("closed_destination") }}
+              onChange={(next: DestinationValue) => {
+                form.setValue("closed_dest_type", next.type);
+                form.setValue("closed_destination", (next.target ?? 0) as number);
+              }}
+              allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
+              extensions={extensions}
+              ringGroups={ringGroups}
+              ivrMenus={ivrMenus}
+              keyBy="id"
+              label="Ziel bei geschlossen"
+              error={form.formState.errors.closed_destination?.message as string | undefined}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Time Condition"}</Button>
@@ -611,10 +533,16 @@ function EditTimeConditionDialog({
   condition,
   onClose,
   onUpdated,
+  extensions,
+  ringGroups,
+  ivrMenus,
 }: {
   condition: TimeCondition;
   onClose: () => void;
   onUpdated: (tc: TimeCondition) => void;
+  extensions: Extension[];
+  ringGroups: RingGroup[];
+  ivrMenus: IVRMenu[];
 }) {
   const form = useForm<TimeConditionFormValues>({
     resolver: zodResolver(timeConditionSchema),
@@ -625,7 +553,9 @@ function EditTimeConditionDialog({
       open_hours_end: condition.open_hours_end,
       open_days: condition.open_days,
       open_destination: condition.open_destination,
+      open_dest_type: condition.open_dest_type,
       closed_destination: condition.closed_destination,
+      closed_dest_type: condition.closed_dest_type,
     },
   });
   const [saving, setSaving] = useState(false);
@@ -693,20 +623,34 @@ function EditTimeConditionDialog({
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="open_destination" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Open Destination (Extension)</FormLabel>
-                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="closed_destination" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Closed Destination (Extension → Voicemail)</FormLabel>
-                <FormControl><Input type="number" placeholder="e.g. 10" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            <DestinationField
+              value={{ type: form.watch("open_dest_type"), target: form.watch("open_destination") }}
+              onChange={(next: DestinationValue) => {
+                form.setValue("open_dest_type", next.type);
+                form.setValue("open_destination", (next.target ?? 0) as number);
+              }}
+              allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
+              extensions={extensions}
+              ringGroups={ringGroups}
+              ivrMenus={ivrMenus}
+              keyBy="id"
+              label="Ziel bei geöffnet"
+              error={form.formState.errors.open_destination?.message as string | undefined}
+            />
+            <DestinationField
+              value={{ type: form.watch("closed_dest_type"), target: form.watch("closed_destination") }}
+              onChange={(next: DestinationValue) => {
+                form.setValue("closed_dest_type", next.type);
+                form.setValue("closed_destination", (next.target ?? 0) as number);
+              }}
+              allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
+              extensions={extensions}
+              ringGroups={ringGroups}
+              ivrMenus={ivrMenus}
+              keyBy="id"
+              label="Ziel bei geschlossen"
+              error={form.formState.errors.closed_destination?.message as string | undefined}
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Time Condition"}</Button>
@@ -1458,7 +1402,7 @@ export default function Routing() {
             {routes.map((route) => (
               <TableRow key={route.id}>
                 <TableCell className="font-medium">{route.did}</TableCell>
-                <TableCell>{route.destination_type === "ring_group" ? "Rufgruppe" : route.destination_type === "ivr" ? "IVR-Menü" : "Nebenstelle"}</TableCell>
+                <TableCell>{DESTINATION_TYPE_LABELS[route.destination_type]}</TableCell>
                 <TableCell>{formatRouteDestination(route, extensions, ringGroups, ivrMenus)}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -1533,6 +1477,7 @@ export default function Routing() {
               <TableHead>Open Hours</TableHead>
               <TableHead>Days</TableHead>
               <TableHead>Open Destination</TableHead>
+              <TableHead>Closed Destination</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -1542,7 +1487,24 @@ export default function Routing() {
                 <TableCell className="font-medium">{tc.did}</TableCell>
                 <TableCell>{tc.open_hours_start} – {tc.open_hours_end}</TableCell>
                 <TableCell>{formatDaysReadable(tc.open_days)}</TableCell>
-                <TableCell>ext {tc.open_destination}</TableCell>
+                <TableCell>
+                  {formatDestination(
+                    { type: tc.open_dest_type, target: tc.open_destination },
+                    extensions,
+                    ringGroups,
+                    ivrMenus,
+                    "id"
+                  )}
+                </TableCell>
+                <TableCell>
+                  {formatDestination(
+                    { type: tc.closed_dest_type, target: tc.closed_destination },
+                    extensions,
+                    ringGroups,
+                    ivrMenus,
+                    "id"
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <Tooltip>
@@ -1629,6 +1591,9 @@ export default function Routing() {
           open
           onClose={() => setTcDialogOpen(false)}
           onCreated={(tc) => setTimeConditions((prev) => [...prev, tc])}
+          extensions={extensions}
+          ringGroups={ringGroups}
+          ivrMenus={ivrMenus}
         />
       )}
 
@@ -1641,6 +1606,9 @@ export default function Routing() {
             setTimeConditions((prev) => prev.map((tc) => (tc.id === updated.id ? updated : tc)));
             setTcEditTarget(null);
           }}
+          extensions={extensions}
+          ringGroups={ringGroups}
+          ivrMenus={ivrMenus}
         />
       )}
 

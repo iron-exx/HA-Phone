@@ -112,7 +112,9 @@ class SmtpSettings(SQLModel, table=True):
 class Route(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     did: str = Field(max_length=32)
-    destination_type: str = "extension"  # "extension" | "ring_group"
+    # Shared destination vocabulary with IVRMenu.options/TimeCondition:
+    # "extension" | "ring_group" | "ivr" | "voicemail" | "hangup".
+    destination_type: str = "extension"
     destination_id: int = 0
 
 
@@ -159,8 +161,18 @@ class TimeCondition(SQLModel, table=True):
     open_hours_start: str = "09:00"
     open_hours_end: str = "18:00"
     open_days: str = "mon-fri"  # GotoIfTime format
+    # Destination vocabulary shared with Route/IVRMenu.options: dest_type is one
+    # of "extension" | "ring_group" | "ivr" | "voicemail" | "hangup"; *_destination
+    # holds the target id/number (unused for "hangup"). Kept as two separate int
+    # fields (not renamed) for migration simplicity — dest_type defaults to
+    # "extension" so pre-existing rows keep their old plain-extension behavior.
     open_destination: int = 0
-    closed_destination: int = 0  # 0 = voicemail
+    open_dest_type: str = "extension"
+    closed_destination: int = 0
+    # Defaults to "voicemail", not "extension": pre-existing rows always routed
+    # straight to Voicemail(closed_destination@default,u) with no Dial() at all,
+    # so "voicemail" is the type that preserves that behavior after migration.
+    closed_dest_type: str = "voicemail"
 
 
 class Holiday(SQLModel, table=True):

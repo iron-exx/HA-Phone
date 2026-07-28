@@ -124,6 +124,10 @@ exten => {{ did }},1,NoOp(Inbound {{ did }} -> {{ route.destination_type }}:{{ r
 {% endif %}
 {% elif route.destination_type == 'ivr' %}
  same => n,Goto(ivr-{{ route.destination_id }},s,1)
+{% elif route.destination_type == 'voicemail' %}
+ same => n,Voicemail({{ route.destination_id }}@default,u)
+{% elif route.destination_type == 'hangup' %}
+ same => n,Hangup()
 {% else %}
  same => n,Dial(PJSIP/{{ route.destination_id }},30)
  same => n,Voicemail({{ route.destination_id }}@default,u)
@@ -155,16 +159,56 @@ exten => _+X.,1,NoOp(Inbound (fallback +): ${EXTEN})
 {% else %} same => n,Congestion()
 {% endif %} same => n,Hangup()
 {% endif %}
+{#
+  TimeCondition destination targets share Route's convention (not IVR options'):
+  ring_group/ivr targets are the DB id (matches ring_group_dials keying and the
+  [from-trunk] Route block above), extension/voicemail targets are the
+  extension NUMBER (there is no separate "id" concept for extensions in the
+  dialplan - PJSIP/{number} is always the dialable identifier).
+#}
 {% for condition in time_conditions %}
 
 [open-{{ condition.id }}]
+{% if condition.open_dest_type == 'ring_group' %}
+{% if ring_group_dials.get(condition.open_destination, '') %}
+exten => 1,1,Dial({{ ring_group_dials.get(condition.open_destination, '') }},30)
+{% else %}
+exten => 1,1,Congestion()
+{% endif %}
+ same => n,Hangup()
+{% elif condition.open_dest_type == 'ivr' %}
+exten => 1,1,Goto(ivr-{{ condition.open_destination }},s,1)
+{% elif condition.open_dest_type == 'voicemail' %}
+exten => 1,1,Voicemail({{ condition.open_destination }}@default,u)
+ same => n,Hangup()
+{% elif condition.open_dest_type == 'hangup' %}
+exten => 1,1,Hangup()
+{% else %}
 exten => 1,1,Dial(PJSIP/{{ condition.open_destination }},30)
  same => n,Voicemail({{ condition.open_destination }}@default,u)
  same => n,Hangup()
+{% endif %}
 
 [closed-{{ condition.id }}]
+{% if condition.closed_dest_type == 'ring_group' %}
+{% if ring_group_dials.get(condition.closed_destination, '') %}
+exten => 1,1,Dial({{ ring_group_dials.get(condition.closed_destination, '') }},30)
+{% else %}
+exten => 1,1,Congestion()
+{% endif %}
+ same => n,Hangup()
+{% elif condition.closed_dest_type == 'ivr' %}
+exten => 1,1,Goto(ivr-{{ condition.closed_destination }},s,1)
+{% elif condition.closed_dest_type == 'extension' %}
+exten => 1,1,Dial(PJSIP/{{ condition.closed_destination }},30)
+ same => n,Voicemail({{ condition.closed_destination }}@default,u)
+ same => n,Hangup()
+{% elif condition.closed_dest_type == 'hangup' %}
+exten => 1,1,Hangup()
+{% else %}
 exten => 1,1,Voicemail({{ condition.closed_destination }}@default,u)
  same => n,Hangup()
+{% endif %}
 {% endfor %}
 
 ; IVR menus (Interactive Voice Response / Digitaler Empfang)

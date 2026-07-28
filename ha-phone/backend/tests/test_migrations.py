@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlmodel import SQLModel, Session, select
 
 from backend.database import run_migrations
-from backend.models import Extension, Trunk, ProvisionedDevice, Holiday
+from backend.models import Extension, Trunk, ProvisionedDevice, Holiday, TimeCondition
 
 
 def _build_legacy_db(path):
@@ -39,6 +39,11 @@ def _build_legacy_db(path):
             "open_hours_start TEXT NOT NULL, open_hours_end TEXT NOT NULL, "
             "open_days TEXT NOT NULL, open_destination INTEGER NOT NULL, "
             "closed_destination INTEGER NOT NULL)"
+        ))
+        conn.execute(text(
+            "INSERT INTO timecondition (id, name, open_hours_start, open_hours_end, "
+            "open_days, open_destination, closed_destination) VALUES "
+            "(1, 'Legacy Condition', '09:00', '18:00', 'mon-fri', 11, 12)"
         ))
         conn.execute(text(
             "CREATE TABLE trunk ("
@@ -94,6 +99,7 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
 
     tc_cols = {c["name"] for c in inspector.get_columns("timecondition")}
     assert "did" in tc_cols
+    assert {"open_dest_type", "closed_dest_type"} <= tc_cols
 
     trunk_cols = {c["name"] for c in inspector.get_columns("trunk")}
     assert "codecs" in trunk_cols
@@ -121,6 +127,19 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
         assert display_name == "Legacy Ext"
         codecs = conn.execute(text("SELECT codecs FROM trunk WHERE id = 1")).scalar()
         assert codecs == "ulaw,alaw"
+        # A pre-existing time condition always Dial()ed open_destination as a
+        # plain extension and always sent closed_destination straight to
+        # Voicemail() with no Dial() at all - the new dest_type columns must
+        # default to the values that reproduce exactly that old behavior, not
+        # both default to "extension" (which would change closed's behavior).
+        open_dest_type = conn.execute(text("SELECT open_dest_type FROM timecondition WHERE id = 1")).scalar()
+        closed_dest_type = conn.execute(text("SELECT closed_dest_type FROM timecondition WHERE id = 1")).scalar()
+        assert open_dest_type == "extension"
+        assert closed_dest_type == "voicemail"
+        open_destination = conn.execute(text("SELECT open_destination FROM timecondition WHERE id = 1")).scalar()
+        closed_destination = conn.execute(text("SELECT closed_destination FROM timecondition WHERE id = 1")).scalar()
+        assert open_destination == 11
+        assert closed_destination == 12
 
     # The old provisioneddevice.extension_id (single number) must be backfilled
     # into the new extension_numbers (comma list) so pre-upgrade devices keep
@@ -162,6 +181,12 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
         holiday = session.exec(select(Holiday)).first()
         assert holiday.name == "Weihnachten"
         assert isinstance(holiday.year, int) and holiday.year >= 2024
+
+        condition = session.exec(select(TimeCondition)).first()
+        assert condition.open_destination == 11
+        assert condition.open_dest_type == "extension"
+        assert condition.closed_destination == 12
+        assert condition.closed_dest_type == "voicemail"
 
 
 def test_migrations_are_idempotent(tmp_path):

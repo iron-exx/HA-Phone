@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Pencil, Trash2, Upload, Volume2, PhoneIncoming } from "lucide-react";
 
-import { type Extension, type RingGroup, type IVRMenu, type IVROption } from "@/types/api";
+import { type Extension, type RingGroup, type IVRMenu, type IVROption, type DestinationType } from "@/types/api";
+import { DestinationField, formatDestination } from "@/components/DestinationField";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -33,13 +34,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // ---- Zod schema ----
 const ivrSchema = z.object({
@@ -51,30 +45,14 @@ const ivrSchema = z.object({
 
 type IVRFormValues = z.infer<typeof ivrSchema>;
 
-// ---- Format option destination for display ----
-function formatOptionTarget(
-  action: string,
-  target: number | undefined,
-  extensions: Extension[],
-  ringGroups: RingGroup[],
-  ivrs: IVRMenu[]
-): string {
-  if (action === "hangup") return "Auflegen";
-  if (action === "voicemail") return `Voicemail ${target}`;
-  if (action === "extension") {
-    const ext = extensions.find((e) => e.number === target);
-    return ext ? `${target} ${ext.display_name}` : `Nebenstelle ${target}`;
-  }
-  if (action === "ring_group") {
-    const rg = ringGroups.find((g) => g.number === target);
-    return rg ? `${target} ${rg.name}` : `Rufgruppe ${target}`;
-  }
-  if (action === "ivr") {
-    const ivr = ivrs.find((item) => item.number === target);
-    return ivr ? `${target} ${ivr.name}` : `IVR ${target}`;
-  }
-  return String(target ?? "");
-}
+const IVR_OPTION_ALLOWED_DESTINATION_TYPES: DestinationType[] = [
+  "extension",
+  "ring_group",
+  "ivr",
+  "voicemail",
+  "hangup",
+];
+
 
 // ---- Add IVR Dialog ----
 function AddIVRDialog({
@@ -116,6 +94,13 @@ function AddIVRDialog({
 
   function updateOption(idx: number, field: keyof IVROption, value: string | number | undefined) {
     setOptions(options.map((opt, i) => (i === idx ? { ...opt, [field]: value } : opt)));
+  }
+
+  // Atomic multi-field update (action + target together) - calling updateOption
+  // twice in a row for the same row would have both calls read the same stale
+  // `options` closure and the second call would clobber the first.
+  function updateOptionFields(idx: number, patch: Partial<IVROption>) {
+    setOptions((prev) => prev.map((opt, i) => (i === idx ? { ...opt, ...patch } : opt)));
   }
 
   async function onSubmit(values: IVRFormValues) {
@@ -241,53 +226,18 @@ function AddIVRDialog({
                           maxLength={2}
                         />
                       </div>
-                      <Select
-                        value={opt.action}
-                        onValueChange={(v) => updateOption(idx, "action", v)}
-                      >
-                        <SelectTrigger className="h-8 w-full sm:w-36">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="extension">Nebenstelle</SelectItem>
-                          <SelectItem value="ring_group">Rufgruppe</SelectItem>
-                          <SelectItem value="ivr">Untermenü</SelectItem>
-                          <SelectItem value="voicemail">Voicemail</SelectItem>
-                          <SelectItem value="hangup">Auflegen</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {opt.action !== "hangup" && (
-                        <Select
-                          value={opt.target ? String(opt.target) : ""}
-                          onValueChange={(v) => updateOption(idx, "target", Number(v))}
-                        >
-                          <SelectTrigger className="h-8 w-full sm:w-48">
-                            <SelectValue placeholder="Ziel wählen" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {opt.action === "extension" && extensions.map((e) => (
-                              <SelectItem key={e.number} value={String(e.number)}>
-                                {e.number} {e.display_name}
-                              </SelectItem>
-                            ))}
-                            {opt.action === "ring_group" && ringGroups.map((g) => (
-                              <SelectItem key={g.number} value={String(g.number)}>
-                                {g.number} {g.name}
-                              </SelectItem>
-                            ))}
-                            {opt.action === "ivr" && ivrs.map((menu) => (
-                              <SelectItem key={menu.number} value={String(menu.number)}>
-                                {menu.number} {menu.name}
-                              </SelectItem>
-                            ))}
-                            {opt.action === "voicemail" && extensions.map((e) => (
-                              <SelectItem key={e.number} value={String(e.number)}>
-                                {e.number} {e.display_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <DestinationField
+                        value={{ type: opt.action, target: opt.target }}
+                        onChange={(next) => updateOptionFields(idx, { action: next.type, target: next.target })}
+                        allowedTypes={IVR_OPTION_ALLOWED_DESTINATION_TYPES}
+                        extensions={extensions}
+                        ringGroups={ringGroups}
+                        ivrMenus={ivrs}
+                        keyBy="number"
+                        typeLabels={{ ivr: "Untermenü" }}
+                        label=""
+                        compact
+                      />
                       <Input
                         value={opt.label ?? ""}
                         onChange={(e) => updateOption(idx, "label", e.target.value)}
@@ -358,6 +308,13 @@ function EditIVRDialog({
 
   function updateOption(idx: number, field: keyof IVROption, value: string | number | undefined) {
     setOptions(options.map((opt, i) => (i === idx ? { ...opt, [field]: value } : opt)));
+  }
+
+  // Atomic multi-field update (action + target together) - calling updateOption
+  // twice in a row for the same row would have both calls read the same stale
+  // `options` closure and the second call would clobber the first.
+  function updateOptionFields(idx: number, patch: Partial<IVROption>) {
+    setOptions((prev) => prev.map((opt, i) => (i === idx ? { ...opt, ...patch } : opt)));
   }
 
   async function onSubmit(values: IVRFormValues) {
@@ -497,48 +454,18 @@ function EditIVRDialog({
                           maxLength={2}
                         />
                       </div>
-                      <Select
-                        value={opt.action}
-                        onValueChange={(v) => updateOption(idx, "action", v)}
-                      >
-                        <SelectTrigger className="h-8 w-full sm:w-36">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="extension">Nebenstelle</SelectItem>
-                          <SelectItem value="ring_group">Rufgruppe</SelectItem>
-                          <SelectItem value="ivr">Untermenü</SelectItem>
-                          <SelectItem value="voicemail">Voicemail</SelectItem>
-                          <SelectItem value="hangup">Auflegen</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {opt.action !== "hangup" && (
-                        <Select
-                          value={opt.target ? String(opt.target) : ""}
-                          onValueChange={(v) => updateOption(idx, "target", Number(v))}
-                        >
-                          <SelectTrigger className="h-8 w-full sm:w-48">
-                            <SelectValue placeholder="Ziel wählen" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(opt.action === "extension" || opt.action === "voicemail") && extensions.map((e) => (
-                              <SelectItem key={e.number} value={String(e.number)}>
-                                {e.number} {e.display_name}
-                              </SelectItem>
-                            ))}
-                            {opt.action === "ring_group" && ringGroups.map((g) => (
-                              <SelectItem key={g.number} value={String(g.number)}>
-                                {g.number} {g.name}
-                              </SelectItem>
-                            ))}
-                            {opt.action === "ivr" && ivrs.filter((menu) => menu.id !== ivr.id).map((menu) => (
-                              <SelectItem key={menu.number} value={String(menu.number)}>
-                                {menu.number} {menu.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <DestinationField
+                        value={{ type: opt.action, target: opt.target }}
+                        onChange={(next) => updateOptionFields(idx, { action: next.type, target: next.target })}
+                        allowedTypes={IVR_OPTION_ALLOWED_DESTINATION_TYPES}
+                        extensions={extensions}
+                        ringGroups={ringGroups}
+                        ivrMenus={ivrs.filter((menu) => menu.id !== ivr.id)}
+                        keyBy="number"
+                        typeLabels={{ ivr: "Untermenü" }}
+                        label=""
+                        compact
+                      />
                       <Input
                         value={opt.label ?? ""}
                         onChange={(e) => updateOption(idx, "label", e.target.value)}
@@ -660,7 +587,7 @@ export default function IVR() {
                         <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/10 text-xs font-mono">
                           <span className="font-bold">{opt.key}</span>
                           <span className="text-muted-foreground">→</span>
-                          <span>{formatOptionTarget(opt.action, opt.target, extensions, ringGroups, ivrs)}</span>
+                          <span>{formatDestination({ type: opt.action, target: opt.target }, extensions, ringGroups, ivrs, "number")}</span>
                         </span>
                       ))}
                     </div>

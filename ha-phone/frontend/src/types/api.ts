@@ -117,16 +117,19 @@ export interface PublicIPSettings {
 
 // Appended by Plan 04
 
+// Shared destination vocabulary across Route, IVROption, and TimeCondition.
+export type DestinationType = "extension" | "ring_group" | "ivr" | "voicemail" | "hangup";
+
 export interface Route {
   id: number;
   did: string;
-  destination_type: "extension" | "ring_group" | "ivr";
+  destination_type: DestinationType;
   destination_id: number;
 }
 
 export interface IVROption {
   key: string;        // "0"-"9", "*"
-  action: "extension" | "ring_group" | "ivr" | "voicemail" | "hangup";
+  action: DestinationType;
   target?: number;    // extension/ring_group/ivr number or voicemail extension
   label?: string;     // human-readable label
 }
@@ -171,8 +174,12 @@ export interface TimeCondition {
   open_hours_start: string; // "HH:MM"
   open_hours_end: string;   // "HH:MM"
   open_days: string;        // "mon-sun", "mon-fri", etc.
-  open_destination: number; // extension number
-  closed_destination: number; // extension number
+  // extension/voicemail targets are the extension number; ring_group/ivr
+  // targets are the ring group's/IVR menu's DB id (same convention as Route).
+  open_destination: number;
+  open_dest_type: DestinationType;
+  closed_destination: number;
+  closed_dest_type: DestinationType;
 }
 
 export interface Holiday {

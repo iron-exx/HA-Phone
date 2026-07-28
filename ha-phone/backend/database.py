@@ -33,6 +33,20 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE timecondition ADD COLUMN did TEXT NOT NULL DEFAULT ''")
                 )
                 conn.commit()
+            if "open_dest_type" not in cols:
+                # Pre-existing rows always Dial()ed open_destination as a plain
+                # extension (with voicemail fallback) - "extension" preserves that.
+                conn.execute(
+                    text("ALTER TABLE timecondition ADD COLUMN open_dest_type TEXT NOT NULL DEFAULT 'extension'")
+                )
+                conn.commit()
+            if "closed_dest_type" not in cols:
+                # Pre-existing rows always went straight to Voicemail(closed_destination)
+                # with no Dial() at all - "voicemail" preserves that behavior.
+                conn.execute(
+                    text("ALTER TABLE timecondition ADD COLUMN closed_dest_type TEXT NOT NULL DEFAULT 'voicemail'")
+                )
+                conn.commit()
         if "extension" in tables:
             cols = [c["name"] for c in inspector.get_columns("extension")]
             if "video_capable" not in cols:
