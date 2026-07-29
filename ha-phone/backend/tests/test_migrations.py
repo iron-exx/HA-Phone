@@ -117,6 +117,7 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
 
     rg_cols = {c["name"] for c in inspector.get_columns("ringgroup")}
     assert "number" in rg_cols
+    assert "extension_group_ids" in rg_cols
 
     device_cols = {c["name"] for c in inspector.get_columns("provisioneddevice")}
     assert "extension_numbers" in device_cols

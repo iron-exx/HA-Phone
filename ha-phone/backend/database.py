@@ -106,6 +106,11 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE ringgroup ADD COLUMN number INTEGER NOT NULL DEFAULT 0")
                 )
                 conn.commit()
+            if "extension_group_ids" not in cols:
+                conn.execute(
+                    text("ALTER TABLE ringgroup ADD COLUMN extension_group_ids TEXT NOT NULL DEFAULT ''")
+                )
+                conn.commit()
         if "provisioneddevice" in tables:
             cols = [c["name"] for c in inspector.get_columns("provisioneddevice")]
             if "extension_numbers" not in cols:

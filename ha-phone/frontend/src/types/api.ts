@@ -155,7 +155,14 @@ export interface RingGroup {
   number: number;
   name: string;
   extension_numbers: string;  // comma-separated e.g. "10,11,12"
+  extension_group_ids: string;  // comma-separated ExtensionGroup.id, additive to extension_numbers
   ring_timeout: number;
+}
+
+export interface ExtensionGroup {
+  id: number;
+  name: string;
+  extension_numbers: string;  // comma-separated e.g. "10,11,12"
 }
 
 export interface VoicemailSettings {

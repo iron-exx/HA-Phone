@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, Trunk, IVRMenu, Holiday
+from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, ExtensionGroup, Trunk, IVRMenu, Holiday
 from backend.conf_generator import render_conf
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.trunk import _to_e164
@@ -26,15 +26,33 @@ def _data_dir() -> Path:
     return Path(d) if d else Path("/data")
 
 
-def _build_dial_string(ring_group: RingGroup) -> str:
+def _build_dial_string(
+    ring_group: RingGroup, ext_groups_by_id: dict[int, ExtensionGroup] | None = None
+) -> str:
+    """Resolve a ring group's members into a Dial()-ready PJSIP/... & ... string.
+    Members come from two additive sources: direct extension_numbers, and any
+    nested ExtensionGroup referenced via extension_group_ids (each expanded to
+    its own extension_numbers). Deduplicated so an extension in both a direct
+    list and a referenced group only rings once."""
     numbers = [n.strip() for n in ring_group.extension_numbers.split(",") if n.strip()]
-    return "&".join(f"PJSIP/{n}" for n in numbers)
+    if ext_groups_by_id:
+        for raw_gid in ring_group.extension_group_ids.split(","):
+            raw_gid = raw_gid.strip()
+            if not raw_gid:
+                continue
+            group = ext_groups_by_id.get(int(raw_gid))
+            if group:
+                numbers.extend(n.strip() for n in group.extension_numbers.split(",") if n.strip())
+    deduped = list(dict.fromkeys(numbers))
+    return "&".join(f"PJSIP/{n}" for n in deduped)
 
 
-def _build_doorbell_dial_string(ring_groups: list[RingGroup]) -> str:
+def _build_doorbell_dial_string(
+    ring_groups: list[RingGroup], ext_groups_by_id: dict[int, ExtensionGroup] | None = None
+) -> str:
     targets: list[str] = []
     for ring_group in ring_groups:
-        dial_string = _build_dial_string(ring_group)
+        dial_string = _build_dial_string(ring_group, ext_groups_by_id)
         if dial_string:
             targets.extend(dial_string.split("&"))
     return "&".join(dict.fromkeys(targets))
@@ -77,7 +95,8 @@ def _regenerate_routing_conf(session: Session) -> None:
     inbound routes, outbound dial rules, and IVR menus (all editable via the web UI)."""
     time_conditions = session.exec(select(TimeCondition)).all()
     ring_groups_list = session.exec(select(RingGroup)).all()
-    ring_group_dials = {rg.id: _build_dial_string(rg) for rg in ring_groups_list}
+    ext_groups_by_id = {eg.id: eg for eg in session.exec(select(ExtensionGroup)).all()}
+    ring_group_dials = {rg.id: _build_dial_string(rg, ext_groups_by_id) for rg in ring_groups_list}
     routes = session.exec(select(Route)).all()
     outbound_rules = session.exec(
         select(OutboundRule).order_by(OutboundRule.priority)
@@ -139,7 +158,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "outbound_rules": outbound_rules,
             "extensions": extensions,
             "all_ext_dial": all_ext_dial,
-            "doorbell_dial": _build_doorbell_dial_string(ring_groups_list),
+            "doorbell_dial": _build_doorbell_dial_string(ring_groups_list, ext_groups_by_id),
             "trunk_callerid": trunk_callerid,
             "outbound_rule_cid": outbound_rule_cid,
             "ivr_menus": ivr_menus,

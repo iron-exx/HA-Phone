@@ -153,11 +153,27 @@ class OutboundRule(SQLModel, table=True):
     outbound_caller_id: str = Field(default="", max_length=32)
 
 
+class ExtensionGroup(SQLModel, table=True):
+    """A reusable named group of extensions (e.g. "Support-Team"), usable as
+    a single member inside one or more RingGroups alongside individual
+    extensions - not a call-handling construct itself (no ring strategy/
+    timeout of its own, unlike RingGroup)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=64)
+    extension_numbers: str = ""  # comma-separated list e.g. "10,11,12"
+
+
 class RingGroup(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     number: int = Field(default=0, ge=0, le=99)
     name: str = Field(max_length=64)
     extension_numbers: str = ""  # comma-separated list e.g. "10,11,12"
+    # Additive, not a replacement of extension_numbers above: comma-separated
+    # ExtensionGroup.id values whose members also get dialed. Kept as a
+    # separate field (not merged into extension_numbers) so existing rows/
+    # parsing code elsewhere (frontend split(",") call sites, dial-string
+    # building) keep working unchanged for groups that don't use this.
+    extension_group_ids: str = ""
     ring_timeout: int = 30
 
 

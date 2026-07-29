@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Check, Download, MoreHorizontal, Pencil, Trash2, Upload, X } from "lucide-react";
 
-import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu, type Holiday, type DestinationType } from "@/types/api";
+import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu, type Holiday, type DestinationType, type ExtensionGroup } from "@/types/api";
 import { DestinationField, formatDestination, DESTINATION_TYPE_LABELS, type DestinationValue } from "@/components/DestinationField";
 import { WEEKDAYS, WEEKDAY_LABELS, formatDays, formatDaysReadable, parseDays, type Weekday } from "@/lib/weekdays";
 import { Button } from "@/components/ui/button";
@@ -718,29 +718,251 @@ function DeleteTimeConditionDialog({
 }
 
 // ---- Ring groups ----
+// ---- Extension Groups (nested ring-group members) ----
+// A reusable named group of extensions (e.g. "Support-Team") selectable as a
+// single member inside one or more ring groups, alongside individual
+// extensions - no call-handling settings of its own (no ring strategy/
+// timeout, unlike RingGroup).
+function ExtensionGroupsSection({ onChanged }: { onChanged: () => void }) {
+  const [groups, setGroups] = useState<ExtensionGroup[]>([]);
+  const [extensions, setExtensions] = useState<Extension[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editSelectedNumbers, setEditSelectedNumbers] = useState<number[]>([]);
+
+  function load() {
+    Promise.all([
+      fetch("/api/extension-groups").then((r) => r.json()),
+      fetch("/api/extensions").then((r) => r.json()),
+    ])
+      .then(([groupData, extensionData]: [ExtensionGroup[], Extension[]]) => {
+        setGroups(groupData);
+        setExtensions(extensionData);
+        onChanged();
+      })
+      .catch(() => toast.error("Nebenstellen-Gruppen konnten nicht geladen werden."))
+      .finally(() => setLoading(false));
+  }
+  useEffect(load, []);
+
+  function toggle(number: number) {
+    setSelectedNumbers((current) =>
+      current.includes(number) ? current.filter((n) => n !== number) : [...current, number].sort((a, b) => a - b)
+    );
+  }
+  function toggleEdit(number: number) {
+    setEditSelectedNumbers((current) =>
+      current.includes(number) ? current.filter((n) => n !== number) : [...current, number].sort((a, b) => a - b)
+    );
+  }
+
+  function startEdit(group: ExtensionGroup) {
+    setEditingId(group.id);
+    setEditName(group.name);
+    setEditSelectedNumbers(group.extension_numbers.split(",").map((n) => Number(n.trim())).filter(Boolean));
+  }
+  function cancelEdit() {
+    setEditingId(null);
+    setEditName("");
+    setEditSelectedNumbers([]);
+  }
+
+  async function addGroup() {
+    if (!name.trim()) {
+      toast.error("Name ist erforderlich.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const resp = await fetch("/api/extension-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), extension_numbers: selectedNumbers.join(",") }),
+      });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
+      setName(""); setSelectedNumbers([]);
+      load();
+      toast.success("Nebenstellen-Gruppe angelegt.");
+    } catch (error) {
+      toast.error(toErrorMessage(error, "Speichern fehlgeschlagen."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveGroup(id: number) {
+    if (!editName.trim()) {
+      toast.error("Name ist erforderlich.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const resp = await fetch(`/api/extension-groups/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName.trim(), extension_numbers: editSelectedNumbers.join(",") }),
+      });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
+      cancelEdit();
+      load();
+      toast.success("Nebenstellen-Gruppe gespeichert.");
+    } catch (error) {
+      toast.error(toErrorMessage(error, "Speichern fehlgeschlagen."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteGroup(id: number) {
+    try {
+      const resp = await fetch(`/api/extension-groups/${id}`, { method: "DELETE" });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => null);
+        throw new Error(body?.detail || "Fehler beim Löschen.");
+      }
+      setGroups((gs) => gs.filter((g) => g.id !== id));
+      onChanged();
+      toast.success("Nebenstellen-Gruppe gelöscht.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fehler beim Löschen.");
+    }
+  }
+
+  function ExtensionToggles({ selected, onToggle }: { selected: number[]; onToggle: (n: number) => void }) {
+    if (extensions.length === 0) {
+      return <span className="text-sm text-muted-foreground">Erst Nebenstellen anlegen</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-2">
+        {extensions.map((extension) => {
+          const on = selected.includes(extension.number);
+          return (
+            <button
+              key={extension.id}
+              type="button"
+              onClick={() => onToggle(extension.number)}
+              className={[
+                "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                on
+                  ? "border-violet-500/60 bg-violet-500/20 text-violet-100"
+                  : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+              ].join(" ")}
+            >
+              {extension.number} {extension.display_name}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Separator className="my-8" />
+      <div className="mb-2">
+        <h2 className="text-xl font-semibold">Nebenstellen-Gruppen</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Benannte Gruppen von Nebenstellen (z.B. "Support-Team"), die als ein Mitglied innerhalb
+          von Rufgruppen ausgewählt werden können - zusätzlich zu einzelnen Nebenstellen.
+        </p>
+      </div>
+      {loading ? (
+        <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Nebenstellen</TableHead>
+              <TableHead className="text-right">Aktionen</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {groups.map((g) => (
+              <TableRow key={g.id}>
+                {editingId === g.id ? (
+                  <>
+                    <TableCell>
+                      <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-9" />
+                    </TableCell>
+                    <TableCell>
+                      <ExtensionToggles selected={editSelectedNumbers} onToggle={toggleEdit} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Speichern" onClick={() => saveGroup(g.id)} disabled={saving}>
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Abbrechen" onClick={cancelEdit} disabled={saving}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell className="font-medium">{g.name}</TableCell>
+                    <TableCell className="font-mono">{g.extension_numbers || "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Gruppe ${g.name} bearbeiten`} onClick={() => startEdit(g)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`Gruppe ${g.name} löschen`} onClick={() => deleteGroup(g.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </>
+                )}
+              </TableRow>
+            ))}
+            <TableRow>
+              <TableCell><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Support-Team" className="h-9" /></TableCell>
+              <TableCell><ExtensionToggles selected={selectedNumbers} onToggle={toggle} /></TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" onClick={addGroup} disabled={saving}>{saving ? "…" : "Hinzufügen"}</Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      )}
+    </>
+  );
+}
+
 function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
   const [groups, setGroups] = useState<RingGroup[]>([]);
   const [extensions, setExtensions] = useState<Extension[]>([]);
+  const [extGroups, setExtGroups] = useState<ExtensionGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [number, setNumber] = useState("");
   const [name, setName] = useState("");
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
   const [timeout, setTimeoutVal] = useState("30");
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editNumber, setEditNumber] = useState("");
   const [editName, setEditName] = useState("");
   const [editSelectedNumbers, setEditSelectedNumbers] = useState<number[]>([]);
+  const [editSelectedGroupIds, setEditSelectedGroupIds] = useState<number[]>([]);
   const [editTimeout, setEditTimeout] = useState("30");
 
   function load() {
     Promise.all([
       fetch("/api/ring-groups").then((r) => r.json()),
       fetch("/api/extensions").then((r) => r.json()),
+      fetch("/api/extension-groups").then((r) => r.json()),
     ])
-      .then(([groupData, extensionData]: [RingGroup[], Extension[]]) => {
+      .then(([groupData, extensionData, extGroupData]: [RingGroup[], Extension[], ExtensionGroup[]]) => {
         setGroups(groupData);
         setExtensions(extensionData);
+        setExtGroups(extGroupData);
         onChanged();
       })
       .catch(() => toast.error("Rufgruppen konnten nicht geladen werden."))
@@ -764,6 +986,18 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
     );
   }
 
+  function toggleExtGroup(id: number) {
+    setSelectedGroupIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id].sort((a, b) => a - b)
+    );
+  }
+
+  function toggleEditExtGroup(id: number) {
+    setEditSelectedGroupIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id].sort((a, b) => a - b)
+    );
+  }
+
   function parseGroupNumbers(value: string) {
     return value.split(",").map((item) => Number(item.trim())).filter(Boolean);
   }
@@ -773,6 +1007,7 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
     setEditNumber(String(group.number || ""));
     setEditName(group.name);
     setEditSelectedNumbers(parseGroupNumbers(group.extension_numbers));
+    setEditSelectedGroupIds(parseGroupNumbers(group.extension_group_ids));
     setEditTimeout(String(group.ring_timeout));
   }
 
@@ -781,12 +1016,13 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
     setEditNumber("");
     setEditName("");
     setEditSelectedNumbers([]);
+    setEditSelectedGroupIds([]);
     setEditTimeout("30");
   }
 
   async function addGroup() {
-    if (!number.trim() || !name.trim() || selectedNumbers.length === 0) {
-      toast.error("Durchwahl, Name und mindestens eine Nebenstelle sind erforderlich.");
+    if (!number.trim() || !name.trim() || (selectedNumbers.length === 0 && selectedGroupIds.length === 0)) {
+      toast.error("Durchwahl, Name und mindestens ein Mitglied sind erforderlich.");
       return;
     }
     setSaving(true);
@@ -798,11 +1034,12 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
           number: Number(number),
           name: name.trim(),
           extension_numbers: selectedNumbers.join(","),
+          extension_group_ids: selectedGroupIds.join(","),
           ring_timeout: Number(timeout) || 30,
         }),
       });
       if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
-      setNumber(""); setName(""); setSelectedNumbers([]); setTimeoutVal("30");
+      setNumber(""); setName(""); setSelectedNumbers([]); setSelectedGroupIds([]); setTimeoutVal("30");
       load();
       toast.success("Rufgruppe angelegt.");
     } catch (error) {
@@ -813,8 +1050,8 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
   }
 
   async function saveGroup(id: number) {
-    if (!editNumber.trim() || !editName.trim() || editSelectedNumbers.length === 0) {
-      toast.error("Durchwahl, Name und mindestens eine Nebenstelle sind erforderlich.");
+    if (!editNumber.trim() || !editName.trim() || (editSelectedNumbers.length === 0 && editSelectedGroupIds.length === 0)) {
+      toast.error("Durchwahl, Name und mindestens ein Mitglied sind erforderlich.");
       return;
     }
     setSaving(true);
@@ -826,6 +1063,7 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
           number: Number(editNumber),
           name: editName.trim(),
           extension_numbers: editSelectedNumbers.join(","),
+          extension_group_ids: editSelectedGroupIds.join(","),
           ring_timeout: Number(editTimeout) || 30,
         }),
       });
@@ -909,6 +1147,28 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
                           );
                         })}
                       </div>
+                      {extGroups.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {extGroups.map((eg) => {
+                            const selected = editSelectedGroupIds.includes(eg.id);
+                            return (
+                              <button
+                                key={eg.id}
+                                type="button"
+                                onClick={() => toggleEditExtGroup(eg.id)}
+                                className={[
+                                  "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                                  selected
+                                    ? "border-sky-500/60 bg-sky-500/20 text-sky-100"
+                                    : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                                ].join(" ")}
+                              >
+                                {eg.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Input value={editTimeout} onChange={(e) => setEditTimeout(e.target.value)} type="number" min={1} className="h-9 w-20 font-mono" />
@@ -928,7 +1188,17 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
                   <>
                     <TableCell className="font-mono font-medium">{g.number || "-"}</TableCell>
                     <TableCell className="font-medium">{g.name}</TableCell>
-                    <TableCell className="font-mono">{g.extension_numbers}</TableCell>
+                    <TableCell className="font-mono">
+                      {g.extension_numbers}
+                      {g.extension_group_ids && (
+                        <span className="ml-2 text-sky-300">
+                          [{g.extension_group_ids
+                            .split(",")
+                            .map((id) => extGroups.find((eg) => eg.id === Number(id))?.name || `#${id}`)
+                            .join(", ")}]
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono">{g.ring_timeout}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -967,6 +1237,28 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
                           ].join(" ")}
                         >
                           {extension.number} {extension.display_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {extGroups.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {extGroups.map((eg) => {
+                      const selected = selectedGroupIds.includes(eg.id);
+                      return (
+                        <button
+                          key={eg.id}
+                          type="button"
+                          onClick={() => toggleExtGroup(eg.id)}
+                          className={[
+                            "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                            selected
+                              ? "border-sky-500/60 bg-sky-500/20 text-sky-100"
+                              : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          {eg.name}
                         </button>
                       );
                     })}
@@ -1509,6 +1801,7 @@ export default function Routing() {
       )}
 
       {/* ─── Ring groups section ─────────────────────────────────────────── */}
+      <ExtensionGroupsSection onChanged={loadRoutingTargets} />
       <RingGroupsSection onChanged={loadRoutingTargets} />
 
       {/* ─── Outbound dial rules section ─────────────────────────────────── */}

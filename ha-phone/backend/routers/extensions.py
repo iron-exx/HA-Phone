@@ -12,6 +12,7 @@ from backend.database import get_session
 from backend.models import (
     Extension,
     ExtensionCreateOut,
+    ExtensionGroup,
     ExtensionOut,
     ExtensionUpdate,
     PhonebookEntry,
@@ -70,28 +71,37 @@ def _regenerate_extension_bundle(session: Session, source: str) -> dict:
 
 
 def _remove_extension_from_ring_groups(session: Session, extension_number: int) -> None:
-    ring_groups = session.exec(select(RingGroup)).all()
-    for ring_group in ring_groups:
-        numbers = [n.strip() for n in ring_group.extension_numbers.split(",") if n.strip()]
+    # ExtensionGroup.extension_numbers has the identical comma-separated-number
+    # shape as RingGroup's, so it needs the same cleanup - otherwise deleting an
+    # extension leaves a dangling number in any ExtensionGroup that referenced it.
+    groups: list[RingGroup | ExtensionGroup] = [
+        *session.exec(select(RingGroup)).all(),
+        *session.exec(select(ExtensionGroup)).all(),
+    ]
+    for group in groups:
+        numbers = [n.strip() for n in group.extension_numbers.split(",") if n.strip()]
         filtered = [number for number in numbers if number != str(extension_number)]
         if filtered == numbers:
             continue
-        ring_group.extension_numbers = ",".join(filtered)
-        session.add(ring_group)
+        group.extension_numbers = ",".join(filtered)
+        session.add(group)
 
 
 def _replace_extension_in_ring_groups(
     session: Session, old_number: int, new_number: int
 ) -> None:
-    ring_groups = session.exec(select(RingGroup)).all()
-    for ring_group in ring_groups:
-        numbers = [n.strip() for n in ring_group.extension_numbers.split(",") if n.strip()]
+    groups: list[RingGroup | ExtensionGroup] = [
+        *session.exec(select(RingGroup)).all(),
+        *session.exec(select(ExtensionGroup)).all(),
+    ]
+    for group in groups:
+        numbers = [n.strip() for n in group.extension_numbers.split(",") if n.strip()]
         replaced = [str(new_number) if n == str(old_number) else n for n in numbers]
         deduped = sorted({int(n) for n in replaced})
         next_numbers = ",".join(str(number) for number in deduped)
-        if next_numbers != ring_group.extension_numbers:
-            ring_group.extension_numbers = next_numbers
-            session.add(ring_group)
+        if next_numbers != group.extension_numbers:
+            group.extension_numbers = next_numbers
+            session.add(group)
 
 
 def _ensure_provisioning_token(extension: Extension, session: Session) -> Extension:

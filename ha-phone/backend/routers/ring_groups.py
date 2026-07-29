@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import Extension, RingGroup, Route
+from backend.models import Extension, ExtensionGroup, RingGroup, Route
 from backend.numbering import validate_number
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 # Use the canonical routing regen (includes inbound routes, outbound rules, CLIP).
@@ -55,6 +55,31 @@ def _validate_ring_group_number(rg: RingGroup, session: Session, existing_id: in
     validate_number(session, rg.number, kind="ring_group", exclude_id=existing_id)
 
 
+def _validate_extension_group_ids(extension_group_ids: str, session: Session) -> list[int]:
+    """Same shape as _validate_extension_numbers, for the nested extension-group
+    member list. Always allows empty - a ring group need not use any groups."""
+    raw = (extension_group_ids or "").strip()
+    if not raw:
+        return []
+    try:
+        ids = [int(g.strip()) for g in raw.split(",") if g.strip()]
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="extension_group_ids must be comma-separated integers",
+        ) from exc
+    if len(ids) != len(set(ids)):
+        raise HTTPException(status_code=422, detail="extension_group_ids must not contain duplicates")
+    existing = set(session.exec(select(ExtensionGroup.id)).all())
+    missing = [gid for gid in ids if gid not in existing]
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown extension_group_ids: {','.join(str(gid) for gid in missing)}",
+        )
+    return sorted(ids)
+
+
 @router.get("/ring-groups", response_model=List[RingGroup])
 def list_ring_groups(session: Session = Depends(get_session)):
     return session.exec(select(RingGroup)).all()
@@ -63,8 +88,15 @@ def list_ring_groups(session: Session = Depends(get_session)):
 @router.post("/ring-groups", response_model=RingGroup)
 async def create_ring_group(rg: RingGroup, session: Session = Depends(get_session)):
     _validate_ring_group_number(rg, session)
-    numbers = _validate_extension_numbers(rg.extension_numbers, session)
+    # A member can come from either list now (a ring group of pure extension
+    # groups is valid) - allow_empty on both, then require at least one member
+    # overall so an empty ring group (dials nobody) isn't silently created.
+    numbers = _validate_extension_numbers(rg.extension_numbers, session, allow_empty=True)
+    group_ids = _validate_extension_group_ids(rg.extension_group_ids, session)
+    if not numbers and not group_ids:
+        raise HTTPException(status_code=422, detail="extension_numbers must not be empty")
     rg.extension_numbers = ",".join(str(number) for number in numbers)
+    rg.extension_group_ids = ",".join(str(gid) for gid in group_ids)
     rg.id = None
     session.add(rg)
     session.commit()
@@ -89,7 +121,9 @@ async def update_ring_group(rg_id: int, rg_data: RingGroup, session: Session = D
             setattr(existing, field, value)
     _validate_ring_group_number(existing, session, existing_id=rg_id)
     numbers = _validate_extension_numbers(existing.extension_numbers, session, allow_empty=True)
+    group_ids = _validate_extension_group_ids(existing.extension_group_ids, session)
     existing.extension_numbers = ",".join(str(number) for number in numbers)
+    existing.extension_group_ids = ",".join(str(gid) for gid in group_ids)
     session.add(existing)
     session.commit()
     session.refresh(existing)
