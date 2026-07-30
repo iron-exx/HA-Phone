@@ -75,7 +75,7 @@ export default function Login() {
             </label>
             <Input id="password" type="password" value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoFocus required className="h-11 font-mono text-base" placeholder="••••••••" />
+              autoFocus required autoComplete="new-password" className="h-11 font-mono text-base" placeholder="••••••••" />
           </div>
 
           {error && (

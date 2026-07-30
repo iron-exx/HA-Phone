@@ -89,7 +89,7 @@ export default function ChangePassword() {
             </label>
             <Input id="new-password" type="password" value={pw}
               onChange={(e) => setPw(e.target.value)}
-              autoFocus required className="h-11 font-mono text-base" />
+              autoFocus required autoComplete="new-password" className="h-11 font-mono text-base" />
           </div>
 
           <div className="space-y-1.5">
@@ -99,7 +99,7 @@ export default function ChangePassword() {
             </label>
             <Input id="confirm-password" type="password" value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              required className="h-11 font-mono text-base" />
+              required autoComplete="new-password" className="h-11 font-mono text-base" />
           </div>
 
           {/* Password strength hint */}
