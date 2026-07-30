@@ -61,7 +61,7 @@ def _regenerate_trunk_conf(trunk: Trunk) -> None:
     output_path = _data_dir() / "asterisk" / "pjsip_trunk.conf"
     render_conf(
         "pjsip_trunk.conf.j2",
-        {"trunk": trunk, "caller_e164": _to_e164(trunk.phone_number)},
+        {"trunk": trunk},
         output_path,
     )
 

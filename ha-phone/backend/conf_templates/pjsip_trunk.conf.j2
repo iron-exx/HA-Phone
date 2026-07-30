@@ -70,9 +70,20 @@ outbound_auth = trunk-auth
 aors = trunk-aor
 from_user = {{ reg_user }}
 from_domain = {{ sip_domain }}
-; CallerID in E.164 → drives the P-Asserted-Identity so the callee actually sees
-; the number (CLIP). The From-URI user stays the registered (national) identity.
-callerid = {{ caller_e164 }} <{{ caller_e164 }}>
+{#
+  Deliberately NO static `callerid` here. Asterisk's inbound identity logic
+  (res_pjsip.c ast_sip_set_id_from_invite) only consults P-Asserted-Identity/
+  Remote-Party-ID when trust_id_inbound=yes; if NEITHER header is present (our
+  provider, aarenet/AareSwitch/DG, sends plain "From: <sip:CALLER@...>" with no
+  PAI/RPID for at least some calls - confirmed live via SIP capture + "core
+  show channel" on 2026-07-30), it falls back to this endpoint's own static
+  callerid IF one is configured, and only parses the plain From header when
+  that static callerid is itself empty. A configured callerid here therefore
+  silently discards the real caller's number on every inbound call lacking
+  PAI/RPID, showing "Anonymous" downstream instead. Outbound CLIP does not
+  need this field - [outbound-pstn] in extensions_routing.conf.j2 already
+  Sets CALLERID(all) explicitly before Dial()ing into this endpoint.
+#}
 ; P-Asserted-Identity / P-Preferred-Identity für CLIP No Screening
 send_pai = yes
 send_rpid = yes
