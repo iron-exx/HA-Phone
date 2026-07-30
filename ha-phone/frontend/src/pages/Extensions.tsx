@@ -11,11 +11,15 @@ import {
   type Extension,
   type ExtensionStatus,
   type RingGroup,
+  type IVRMenu,
+  type PresenceForwardingRule,
   type LinphoneProvisioningInfo,
 } from "@/types/api";
+import { DestinationField, formatDestination, type DestinationValue } from "@/components/DestinationField";
 import { Button } from "@/components/ui/button";
 import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -47,6 +51,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -71,10 +82,19 @@ const extensionSchema = z.object({
 
 type ExtensionFormValues = z.infer<typeof extensionSchema>;
 
+const PRESENCE_STATUSES: { value: string; label: string }[] = [
+  { value: "available", label: "Verfügbar" },
+  { value: "away", label: "Abwesend" },
+  { value: "lunch", label: "Mittagspause" },
+  { value: "do_not_disturb", label: "Nicht stören" },
+  { value: "off_work", label: "Feierabend" },
+];
+
 const editSchema = extensionSchema.extend({
   sip_password: z
     .string()
     .refine((v) => v === "" || v.length >= 8, "Min 8 characters if provided"),
+  presence_status: z.string().default("available"),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -429,6 +449,7 @@ function EditExtensionDialog({
       video_capable: extension.video_capable ?? false,
       internal_only: extension.internal_only ?? false,
       numeric_callerid: extension.numeric_callerid ?? false,
+      presence_status: extension.presence_status || "available",
     },
   });
   const [saving, setSaving] = useState(false);
@@ -438,12 +459,13 @@ function EditExtensionDialog({
 
   async function onSubmit(values: EditFormValues) {
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; presence_status: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
       internal_only: values.internal_only,
       numeric_callerid: values.numeric_callerid,
+      presence_status: values.presence_status,
     };
     if (values.sip_password && values.sip_password.length > 0) {
       body.sip_password = values.sip_password;
@@ -552,6 +574,32 @@ function EditExtensionDialog({
                   checked={field.value}
                   onToggle={field.onChange}
                 />
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="presence_status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Presence-Status</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PRESENCE_STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Bestimmt, welche Weiterleitungsregel (falls konfiguriert) für diesen Status
+                    gilt — siehe Weiterleitungsregeln unten in der Nebenstellen-Liste.
+                  </p>
+                  <FormMessage />
+                </FormItem>
               )}
             />
             {ringGroups.length > 0 && (
@@ -823,6 +871,232 @@ function contactHost(uri: string): string {
 }
 
 // ---- Main page ----
+const DIRECTION_LABELS: Record<string, string> = { internal: "Intern", external: "Extern" };
+const MODE_LABELS: Record<string, string> = {
+  ring_then_dest: "Klingeln, dann weiterleiten",
+  always_dest: "Sofort weiterleiten",
+};
+const PRESENCE_STATUS_ALLOWED_DESTINATION_TYPES = ["extension", "ring_group", "ivr", "voicemail", "hangup"] as const;
+
+// ---- Presence-based forwarding rules ----
+// Configures what happens to a call reaching a specific extension while it is
+// in a specific presence status, separately for internal vs external calls.
+// No rule for a given (extension, status, direction) = the extension's
+// unchanged default behavior (ring, then its own voicemail on no-answer).
+function PresenceRulesSection() {
+  const [extensions, setExtensions] = useState<Extension[]>([]);
+  const [ringGroups, setRingGroups] = useState<RingGroup[]>([]);
+  const [ivrMenus, setIvrMenus] = useState<IVRMenu[]>([]);
+  const [rules, setRules] = useState<PresenceForwardingRule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [extensionId, setExtensionId] = useState<number | "">("");
+  const [status, setStatus] = useState(PRESENCE_STATUSES[0].value);
+  const [direction, setDirection] = useState<"internal" | "external">("internal");
+  const [mode, setMode] = useState<"ring_then_dest" | "always_dest">("ring_then_dest");
+  const [ringTimeout, setRingTimeout] = useState("20");
+  const [dest, setDest] = useState<DestinationValue>({ type: "voicemail", target: undefined });
+
+  function load() {
+    Promise.all([
+      fetch("/api/extensions").then((r) => r.json()),
+      fetch("/api/ring-groups").then((r) => r.json()),
+      fetch("/api/ivrs").then((r) => r.json()),
+      fetch("/api/presence-rules").then((r) => r.json()),
+    ])
+      .then(([extData, rgData, ivrData, ruleData]: [Extension[], RingGroup[], IVRMenu[], PresenceForwardingRule[]]) => {
+        setExtensions(extData);
+        setRingGroups(rgData);
+        setIvrMenus(ivrData);
+        setRules(ruleData);
+      })
+      .catch(() => toast.error("Weiterleitungsregeln konnten nicht geladen werden."))
+      .finally(() => setLoading(false));
+  }
+  useEffect(load, []);
+
+  function extensionLabel(id: number) {
+    const ext = extensions.find((e) => e.id === id);
+    return ext ? `${ext.number} ${ext.display_name}` : `#${id}`;
+  }
+
+  async function addRule() {
+    if (extensionId === "") {
+      toast.error("Nebenstelle ist erforderlich.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const resp = await fetch("/api/presence-rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          extension_id: extensionId,
+          status,
+          direction,
+          mode,
+          dest_type: dest.type,
+          dest_target: dest.target ?? 0,
+          ring_timeout: Number(ringTimeout) || 20,
+        }),
+      });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
+      load();
+      toast.success("Regel gespeichert.");
+    } catch (error) {
+      toast.error(toErrorMessage(error, "Speichern fehlgeschlagen."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteRule(id: number) {
+    try {
+      const resp = await fetch(`/api/presence-rules/${id}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      setRules((rs) => rs.filter((r) => r.id !== id));
+      toast.success("Regel gelöscht.");
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
+    }
+  }
+
+  return (
+    <div className="mt-8">
+      <Separator className="mb-8" />
+      <div className="mb-2">
+        <h2 className="text-xl font-semibold">Presence-Weiterleitung</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Legt fest, wohin ein Anruf geht, solange eine Nebenstelle in einem bestimmten
+          Presence-Status ist (getrennt nach internen und externen Anrufen). Ohne Regel bleibt
+          das Standardverhalten (klingeln, dann eigene Voicemail) unverändert.
+        </p>
+      </div>
+      {loading ? (
+        <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nebenstelle</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Richtung</TableHead>
+              <TableHead>Verhalten</TableHead>
+              <TableHead>Ziel</TableHead>
+              <TableHead className="text-right">Aktionen</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rules.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell className="font-medium">{extensionLabel(r.extension_id)}</TableCell>
+                <TableCell>{PRESENCE_STATUSES.find((s) => s.value === r.status)?.label || r.status}</TableCell>
+                <TableCell>{DIRECTION_LABELS[r.direction] || r.direction}</TableCell>
+                <TableCell>
+                  {MODE_LABELS[r.mode] || r.mode}
+                  {r.mode === "ring_then_dest" && <span className="text-muted-foreground"> ({r.ring_timeout}s)</span>}
+                </TableCell>
+                <TableCell>{formatDestination({ type: r.dest_type, target: r.dest_target }, extensions, ringGroups, ivrMenus, "id")}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    aria-label="Regel löschen"
+                    onClick={() => deleteRule(r.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {!loading && (
+        <div className="mt-4 grid grid-cols-1 gap-3 rounded-md border border-white/10 bg-white/[0.02] p-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <label className="text-xs text-muted-foreground">Nebenstelle</label>
+            <select
+              value={extensionId}
+              onChange={(e) => setExtensionId(e.target.value ? Number(e.target.value) : "")}
+              className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              <option value="">Wählen…</option>
+              {extensions.map((ext) => (
+                <option key={ext.id} value={ext.id}>{ext.number} {ext.display_name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              {PRESENCE_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Richtung</label>
+            <select
+              value={direction}
+              onChange={(e) => setDirection(e.target.value as "internal" | "external")}
+              className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              <option value="internal">Intern</option>
+              <option value="external">Extern</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Verhalten</label>
+            <select
+              value={mode}
+              onChange={(e) => setMode(e.target.value as "ring_then_dest" | "always_dest")}
+              className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              <option value="ring_then_dest">Klingeln, dann weiterleiten</option>
+              <option value="always_dest">Sofort weiterleiten</option>
+            </select>
+          </div>
+          {mode === "ring_then_dest" && (
+            <div>
+              <label className="text-xs text-muted-foreground">Klingeldauer (Sekunden)</label>
+              <input
+                type="number"
+                min={1}
+                value={ringTimeout}
+                onChange={(e) => setRingTimeout(e.target.value)}
+                className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              />
+            </div>
+          )}
+          <div className="sm:col-span-2 lg:col-span-3">
+            <DestinationField
+              value={dest}
+              onChange={setDest}
+              allowedTypes={[...PRESENCE_STATUS_ALLOWED_DESTINATION_TYPES]}
+              extensions={extensions}
+              ringGroups={ringGroups}
+              ivrMenus={ivrMenus}
+              keyBy="id"
+              label="Zieltyp"
+            />
+          </div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <Button size="sm" onClick={addRule} disabled={saving}>{saving ? "…" : "Regel speichern"}</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Extensions() {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [ringGroups, setRingGroups] = useState<RingGroup[]>([]);
@@ -1108,6 +1382,8 @@ export default function Extensions() {
           </Table>
         </div>
       )}
+
+      <PresenceRulesSection />
 
       {dialogMode === "add" && (
         <AddExtensionDialog

@@ -6,7 +6,19 @@ export interface Extension {
   internal_only?: boolean;
   numeric_callerid?: boolean;
   video_capable?: boolean;
+  presence_status?: string;
   // sip_password is never returned by the API
+}
+
+export interface PresenceForwardingRule {
+  id: number;
+  extension_id: number;
+  status: string;
+  direction: "internal" | "external";
+  mode: "ring_then_dest" | "always_dest";
+  dest_type: DestinationType;
+  dest_target: number;
+  ring_timeout: number;
 }
 
 export interface LinphoneProvisioningInfo {

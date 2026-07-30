@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from backend.database import get_session
-from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, ExtensionGroup, Trunk, IVRMenu, Holiday
+from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, ExtensionGroup, Trunk, IVRMenu, Holiday, PresenceForwardingRule
 from backend.conf_generator import render_conf
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.trunk import _to_e164
@@ -121,6 +121,65 @@ def _regenerate_routing_conf(session: Session) -> None:
             ivr_number_to_id[ivr.number] = ivr.id
     # dial-all-extensions string for the no-route inbound fallback
     all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions if e.enabled)
+    # Presence-based forwarding: resolve, once per regeneration, what each
+    # extension's landing context should do for internal/external calls given
+    # its CURRENT presence_status. No matching rule = "default" (today's
+    # unchanged ring-then-own-voicemail behavior).
+    presence_rules_by_key = {
+        (r.extension_id, r.status, r.direction): r
+        for r in session.exec(select(PresenceForwardingRule)).all()
+    }
+
+    def _resolve_landing(ext: Extension | None) -> dict[str, dict]:
+        landing: dict[str, dict] = {}
+        for direction in ("internal", "external"):
+            rule = presence_rules_by_key.get((ext.id, ext.presence_status, direction)) if ext else None
+            if rule is None:
+                landing[direction] = {"mode": "default"}
+            else:
+                landing[direction] = {
+                    "mode": rule.mode,
+                    "dest_type": rule.dest_type,
+                    "dest_target": rule.dest_target,
+                    "ring_timeout": rule.ring_timeout,
+                }
+        return landing
+
+    # Landing contexts are generated for every NUMBER referenced as an
+    # "extension"-type destination anywhere (Route/TimeCondition/IVR option),
+    # not just numbers with a real Extension row. A Route etc. can point at a
+    # number whose Extension was since deleted (nothing today cleans up those
+    # references, same as before this feature) - previously that just
+    # Dial()ed a nonexistent PJSIP endpoint and failed gracefully at the SIP
+    # level; a Goto() to a context that doesn't exist at all is a harder
+    # dialplan error, so every referenced number gets a (possibly default-only)
+    # landing context to Goto() into, even without a matching Extension.
+    extensions_by_number = {e.number: e for e in extensions}
+    referenced_numbers = set(extensions_by_number)
+    for route in routes:
+        if route.destination_type == "extension":
+            referenced_numbers.add(route.destination_id)
+    for condition in time_conditions:
+        if condition.open_dest_type == "extension":
+            referenced_numbers.add(condition.open_destination)
+        if condition.closed_dest_type == "extension":
+            referenced_numbers.add(condition.closed_destination)
+    for ivr_data in ivr_menus:
+        for opt in ivr_data["parsed_options"]:
+            if opt.get("action") == "extension" and opt.get("target"):
+                referenced_numbers.add(opt["target"])
+
+    ext_landing_entries = []
+    for number in sorted(referenced_numbers):
+        ext = extensions_by_number.get(number)
+        landing = _resolve_landing(ext)
+        ext_landing_entries.append({
+            "number": number,
+            "display_name": ext.display_name if ext else "",
+            "presence_status": ext.presence_status if ext else "available",
+            "internal": landing["internal"],
+            "external": landing["external"],
+        })
     # Holidays (Roadmap Phase B.3): checked BEFORE the normal open_hours/open_days
     # GotoIfTime for every time condition, so a holiday always wins regardless of
     # what hours/days are configured ("klare Regelprioritaet").
@@ -161,6 +220,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "doorbell_dial": _build_doorbell_dial_string(ring_groups_list, ext_groups_by_id),
             "trunk_callerid": trunk_callerid,
             "outbound_rule_cid": outbound_rule_cid,
+            "ext_landing_entries": ext_landing_entries,
             "ivr_menus": ivr_menus,
             "ivr_number_to_id": ivr_number_to_id,
             "ivr_sounds_dir": ivr_sounds_dir,

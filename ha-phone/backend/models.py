@@ -23,6 +23,11 @@ class Extension(SQLModel, table=True):
     # name. Old clients (e.g. Android's discontinued native SIP) reject
     # non-numeric caller names and show "Anonymous" instead.
     numeric_callerid: bool = False
+    # Manually-set presence status ("available" | "away" | "lunch" |
+    # "do_not_disturb" | "off_work") - looked up against PresenceForwardingRule
+    # at dialplan-generation time (not a live per-call lookup: the dialplan is
+    # regenerated whenever this changes, same pattern as every other setting).
+    presence_status: str = Field(default="available", max_length=32)
 
 
 class ExtensionUpdate(SQLModel):
@@ -34,6 +39,7 @@ class ExtensionUpdate(SQLModel):
     video_capable: Optional[bool] = None
     internal_only: Optional[bool] = None
     numeric_callerid: Optional[bool] = None
+    presence_status: Optional[str] = Field(default=None, max_length=32)
 
 
 class ExtensionOut(SQLModel):
@@ -44,10 +50,40 @@ class ExtensionOut(SQLModel):
     video_capable: bool = False
     internal_only: bool = False
     numeric_callerid: bool = False
+    presence_status: str = "available"
 
 
 class ExtensionCreateOut(ExtensionOut):
     sip_password: str
+
+
+class PresenceForwardingRule(SQLModel, table=True):
+    """Overrides what happens to a call reaching this extension while it is
+    in a specific presence status, separately for internal vs external calls.
+    At most one row per (extension_id, status, direction) - resolved once at
+    dialplan-generation time against the extension's CURRENT presence_status
+    (not a live per-call lookup, per the "manual toggle" design: changing
+    presence_status regenerates the dialplan, same as every other setting).
+
+    No row for a given (extension, status, direction) = today's unchanged
+    default behavior (ring the extension, then its own voicemail on no-answer).
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    extension_id: int
+    status: str = Field(max_length=32)  # matches Extension.presence_status values
+    direction: str = Field(max_length=16)  # "internal" | "external"
+    # "ring_then_dest": ring the extension for ring_timeout seconds, then go to
+    # dest_type/dest_target on no-answer (like today's default, but to a
+    # different destination than the extension's own voicemail).
+    # "always_dest": skip ringing entirely, go straight to dest_type/dest_target.
+    mode: str = Field(default="ring_then_dest", max_length=16)
+    # Shared destination vocabulary with Route/IVRMenu.options/TimeCondition:
+    # "extension" | "ring_group" | "ivr" | "voicemail" | "hangup". Targets use
+    # the same convention as Route/TimeCondition (extension/voicemail by
+    # number, ring_group/ivr by DB id).
+    dest_type: str = Field(default="voicemail", max_length=16)
+    dest_target: int = 0
+    ring_timeout: int = 20
 
 
 class ProvisioningTemplate(SQLModel, table=True):

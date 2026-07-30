@@ -78,6 +78,11 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1")
                 )
                 conn.commit()
+            if "presence_status" not in cols:
+                conn.execute(
+                    text("ALTER TABLE extension ADD COLUMN presence_status TEXT NOT NULL DEFAULT 'available'")
+                )
+                conn.commit()
         if "trunk" in tables:
             cols = [c["name"] for c in inspector.get_columns("trunk")]
             if "codecs" not in cols:

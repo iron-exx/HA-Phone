@@ -104,6 +104,7 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
 
     ext_cols = {c["name"] for c in inspector.get_columns("extension")}
     assert {"video_capable", "internal_only", "provisioning_token", "numeric_callerid"} <= ext_cols
+    assert "presence_status" in ext_cols
 
     tc_cols = {c["name"] for c in inspector.get_columns("timecondition")}
     assert "did" in tc_cols
@@ -168,6 +169,7 @@ def test_legacy_database_migrates_to_head_without_manual_sql(tmp_path):
         ext = session.exec(select(Extension)).first()
         assert ext.sip_password == "plaintext-legacy-pw"
         assert ext.numeric_callerid is False
+        assert ext.presence_status == "available"
 
         trunk = session.exec(select(Trunk)).first()
         assert trunk.password == "legacy-trunk-pw"
