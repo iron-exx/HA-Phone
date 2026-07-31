@@ -249,7 +249,7 @@ Abhaengigkeit: keine, kann sofort starten.
 - ~~Routing-Regressionstests ausbauen (Phase A.3, A.4)~~ - erledigt 0.7.67/0.7.68/0.7.70
 - ~~CI/Build/Release-Prozess absichern (Phase A.5)~~ - erledigt 0.7.64
 - ~~IVR-Audio-Upload robust machen (Phase A.6)~~ - erledigt 0.7.66
-- **UI-Konsistenz fuer Routing, IVR und Rufgruppen (Phase A.7) - einziger noch offener Phase-A-Punkt.** Manuelle Checkliste, kein automatischer Test moeglich (dunkles Theme, Dropdowns, Editing-Flows angleichen).
+- ~~UI-Konsistenz fuer Routing, IVR und Rufgruppen (Phase A.7)~~ - Code erledigt 2026-07-30 (siehe Ticket 2), Live-Verifikation auf der Box steht noch aus.
 - ~~Migrationskanten schliessen (Phase A.8)~~ - erledigt 0.7.70
 
 ### v0.8.x - Betriebsreife
@@ -298,7 +298,7 @@ Sie erzeugen viel technische Last, bevor die Kernanlage wirklich stabil und ange
 Reihenfolge nach Abhaengigkeit, nicht nach Wunsch. Erledigt seit der letzten Fassung: Config-Regenerierung (D6, 0.7.63), CI-Haertung (D10, 0.7.64), Numbering-Space-Dienst (D5, 0.7.65), IVR-Audio-Normalisierung (D7, 0.7.66), referenzielle Integritaet beim Loeschen (0.7.67), kombinierter Dialplan-Regressionstest (0.7.68), Secrets-Verschluesselung + Mehrfach-Nebenstellen pro Geraet (D8, 0.7.69), Migrations-Testabdeckung + Fehlertexte in der UI (0.7.70), Backup/Restore (0.7.71), Feiertage + Business-Hours-UI (0.7.72/0.7.73), Telefonbuch (0.7.74) - Phase A ist bis auf Punkt 7 (UI-Konsistenz, manuelle Checkliste) fertig, Phase B ist praktisch durch, und das erste "Prioritaet Hoch"-Feature (Telefonbuch) ist live.
 
 1. ~~Externe Anrufe zeigen "Anonymous" trotz uebermittelter Rufnummer klaeren (D15-Folgefehler, neu 2026-07-06)~~ - Root Cause gefunden + Fix deployed 2026-07-30 (statische `callerid` auf `trunk-endpoint` blockierte die Auswertung des `From`-Headers bei PAI/RPID-losen Anrufen, siehe Abschnitt 3). Noch offen: finale Bestaetigung durch einen echten Anruf NACH dem Fix.
-2. UI-Konsistenz-Durchgang (Phase A.7, letzter offener Phase-A-Punkt) - manuelle Checkliste durch alle Dialoge/Dropdowns/Tabellen
+2. ~~UI-Konsistenz-Durchgang (Phase A.7, letzter offener Phase-A-Punkt)~~ - alle 7 Audit-Punkte umgesetzt 2026-07-30 (geteilter `DeleteConfirmDialog` statt 5 Einzelloesungen + 2 duplizierter Custom-Dialoge in Routing.tsx, `ToggleSwitch` statt nativer Checkboxen, Empty-States fuer alle Listen-Sektionen, `emerald-400` statt vereinzeltem `green-500`, `glass`-Card-Wrapping fuer Routing.tsx/IVR.tsx). tsc + Produktions-Build lokal gruen, commit `0a95ce7` gepusht. Live-Verifikation auf 192.168.7.10 steht noch aus (Box war ausserhalb des Netzwerks nicht per SSH erreichbar - hassio.ahrens-chaos.de laeuft ueber Cloudflare und exponiert nur Port 443, kein SSH).
 3. Telefonbuch-CallerID-Abgleich fuer eingehende Anrufe (natuerliche Folge-Erweiterung aus 0.7.74)
 4. Sprachansagen als wiederverwendbare Objekte einfuehren
 
