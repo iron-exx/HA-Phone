@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Trash2 } from "lucide-react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 
 // ---- Zod schema ----
 const trunkSchema = z.object({
@@ -114,6 +115,7 @@ function TrunkDidsSection() {
   const [did, setDid] = useState("");
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<TrunkDid | null>(null);
 
   function load() {
     fetch("/api/trunk/dids")
@@ -148,14 +150,13 @@ function TrunkDidsSection() {
   }
 
   async function deleteDid(id: number) {
-    try {
-      const resp = await fetch(`/api/trunk/dids/${id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
-      setDids((ds) => ds.filter((d) => d.id !== id));
-      toast.success("Rufnummer gelöscht.");
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
+    const resp = await fetch(`/api/trunk/dids/${id}`, { method: "DELETE" });
+    if (!resp.ok) {
+      toast.error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      throw new Error("delete failed");
     }
+    setDids((ds) => ds.filter((d) => d.id !== id));
+    toast.success("Rufnummer gelöscht.");
   }
 
   return (
@@ -174,7 +175,11 @@ function TrunkDidsSection() {
         {loading ? (
           <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
         ) : (
-          <Table>
+          <>
+            {dids.length === 0 && (
+              <p className="mb-3 text-sm text-muted-foreground">Noch keine weiteren Rufnummern hinterlegt.</p>
+            )}
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Rufnummer</TableHead>
@@ -193,7 +198,7 @@ function TrunkDidsSection() {
                       size="icon"
                       className="h-8 w-8 text-destructive"
                       aria-label={`Rufnummer ${d.did} löschen`}
-                      onClick={() => deleteDid(d.id)}
+                      onClick={() => setDeleteTarget(d)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -217,8 +222,17 @@ function TrunkDidsSection() {
               </TableRow>
             </TableBody>
           </Table>
+          </>
         )}
       </div>
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title={`Rufnummer ${deleteTarget.did} löschen?`}
+          description="Diese Rufnummer wird aus dem Trunk entfernt und steht nicht mehr für Routen oder Anrufer-ID zur Verfügung."
+          onConfirm={() => deleteDid(deleteTarget.id)}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }

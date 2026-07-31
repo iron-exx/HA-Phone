@@ -6,13 +6,7 @@ import { Copy, Trash2, Plus, Save, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { type Extension, type ProvisionedDevice as Device, type ProvisioningTemplate as Template } from "@/types/api";
 interface ExtensionDiagnostic {
   number: string;
@@ -56,7 +50,6 @@ export default function Provisioning() {
   const [dTpl, setDTpl] = useState<number | "">("");
   const [savingDev, setSavingDev] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Device | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   // template editor
   const [editTpl, setEditTpl] = useState<Template | null>(null);
@@ -155,7 +148,6 @@ export default function Provisioning() {
 
   async function confirmDeleteDevice() {
     if (!deleteTarget) return;
-    setDeleting(true);
     try {
       const resp = await fetch(`/api/provisioning/devices/${deleteTarget.id}`, { method: "DELETE" });
       if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
@@ -167,11 +159,9 @@ export default function Provisioning() {
           ? `Gerät gelöscht, ${data.hung_up_calls} aktive(s) Gespräch(e) getrennt.`
           : "Gerät gelöscht."
       );
-      setDeleteTarget(null);
     } catch (err) {
       toast.error(toErrorMessage(err, "Fehler beim Löschen."));
-    } finally {
-      setDeleting(false);
+      throw err;
     }
   }
 
@@ -396,26 +386,14 @@ export default function Provisioning() {
       </div>
 
       {/* Delete confirmation */}
-      <Dialog open={deleteTarget !== null} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Gerät "{deleteTarget?.name || deleteTarget?.mac}" löschen?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Ein laufendes Gespräch auf diesem Gerät wird sofort getrennt. Ein aktuell nur
-            registriertes (nicht telefonierendes) Gerät bleibt technisch angemeldet, bis seine
-            Registrierung planmäßig ausläuft (hier bis zu 2 Stunden) oder es neu gestartet wird -
-            Asterisk bietet keine Möglichkeit, eine bestehende, inaktive SIP-Registrierung sofort
-            zwangsweise zu beenden.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>Abbrechen</Button>
-            <Button variant="destructive" onClick={confirmDeleteDevice} disabled={deleting}>
-              {deleting ? "Löscht…" : "Löschen"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title={`Gerät "${deleteTarget.name || deleteTarget.mac}" löschen?`}
+          description="Ein laufendes Gespräch auf diesem Gerät wird sofort getrennt. Ein aktuell nur registriertes (nicht telefonierendes) Gerät bleibt technisch angemeldet, bis seine Registrierung planmäßig ausläuft (hier bis zu 2 Stunden) oder es neu gestartet wird - Asterisk bietet keine Möglichkeit, eine bestehende, inaktive SIP-Registrierung sofort zwangsweise zu beenden."
+          onConfirm={confirmDeleteDevice}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }

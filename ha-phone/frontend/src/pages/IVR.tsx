@@ -8,6 +8,7 @@ import { Pencil, Trash2, Upload, Volume2, PhoneIncoming } from "lucide-react";
 
 import { type Extension, type RingGroup, type IVRMenu, type IVROption, type DestinationType } from "@/types/api";
 import { DestinationField, formatDestination } from "@/components/DestinationField";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -418,7 +419,7 @@ function EditIVRDialog({
                 </Button>
                 {ivr.greeting_file && (
                   <div className="flex items-center gap-2">
-                    <Volume2 className="h-4 w-4 text-green-500" />
+                    <Volume2 className="h-4 w-4 text-emerald-400" />
                     <span className="text-sm">{ivr.greeting_file}</span>
                     <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={deleteGreeting}>
                       <Trash2 className="h-3 w-3" />
@@ -530,8 +531,8 @@ export default function IVR() {
       toast.success("IVR-Menü gelöscht.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Fehler beim Löschen.");
+      throw err;
     }
-    setDeleteTarget(null);
   }
 
   return (
@@ -549,11 +550,11 @@ export default function IVR() {
       </p>
 
       {loading ? (
-        <div className="space-y-2">
+        <div className="glass rounded-xl p-6 space-y-2">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
         </div>
       ) : ivrs.length === 0 ? (
-        <div className="text-center py-16">
+        <div className="glass rounded-xl text-center py-16">
           <PhoneIncoming className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-xl font-semibold mb-2">Noch keine IVR-Menüs</h2>
           <p className="text-muted-foreground text-sm max-w-sm mx-auto">
@@ -561,6 +562,7 @@ export default function IVR() {
           </p>
         </div>
       ) : (
+        <div className="glass overflow-hidden rounded-xl">
         <Table>
           <TableHeader>
             <TableRow>
@@ -595,7 +597,7 @@ export default function IVR() {
                   <TableCell className="font-mono">{ivr.timeout}s</TableCell>
                   <TableCell>
                     {ivr.greeting_file ? (
-                      <span className="inline-flex items-center gap-1 text-green-500 text-xs">
+                      <span className="inline-flex items-center gap-1 text-emerald-400 text-xs">
                         <Volume2 className="h-3 w-3" />
                         Vorhanden
                       </span>
@@ -618,6 +620,7 @@ export default function IVR() {
             })}
           </TableBody>
         </Table>
+        </div>
       )}
 
       {/* Add IVR Dialog */}
@@ -649,20 +652,12 @@ export default function IVR() {
 
       {/* Delete Confirmation Dialog */}
       {deleteTarget && (
-        <Dialog open onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>IVR-Menü löschen?</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Möchten Sie das IVR-Menü "{deleteTarget.name}" wirklich löschen?
-            </p>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteTarget(null)}>Abbrechen</Button>
-              <Button variant="destructive" onClick={handleDelete}>Löschen</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <DeleteConfirmDialog
+          title="IVR-Menü löschen?"
+          description={`Möchten Sie das IVR-Menü "${deleteTarget.name}" wirklich löschen?`}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

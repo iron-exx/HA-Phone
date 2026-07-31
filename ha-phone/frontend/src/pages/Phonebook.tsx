@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { copyToClipboard } from "@/lib/clipboard";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 
 const EMPTY_FORM = { name: "", number: "", notes: "" };
 
@@ -117,6 +118,7 @@ export default function Phonebook() {
   const [editId, setEditId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PhonebookEntry | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function load() {
@@ -163,14 +165,13 @@ export default function Phonebook() {
   }
 
   async function deleteEntry(id: number) {
-    try {
-      const resp = await fetch(`/api/phonebook/${id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
-      setEntries((prev) => prev.filter((e) => e.id !== id));
-      toast.success("Eintrag gelöscht.");
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
+    const resp = await fetch(`/api/phonebook/${id}`, { method: "DELETE" });
+    if (!resp.ok) {
+      toast.error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      throw new Error("delete failed");
     }
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    toast.success("Eintrag gelöscht.");
   }
 
   async function exportCsv() {
@@ -281,7 +282,7 @@ export default function Phonebook() {
                   <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`${e.name} bearbeiten`} onClick={() => startEdit(e)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`${e.name} löschen`} onClick={() => deleteEntry(e.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`${e.name} löschen`} onClick={() => setDeleteTarget(e)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TableCell>
@@ -324,6 +325,14 @@ export default function Phonebook() {
             </TableRow>
           </TableBody>
         </Table>
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title={`Eintrag "${deleteTarget.name}" löschen?`}
+          onConfirm={() => deleteEntry(deleteTarget.id)}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

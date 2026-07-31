@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ToggleSwitch } from "@/components/ToggleSwitch";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -21,13 +22,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -46,50 +40,28 @@ function DeleteMessageDialog({
   onClose: () => void;
   onDeleted: (filename: string) => void;
 }) {
-  const [loading, setLoading] = useState(false);
-
   async function handleDelete() {
-    setLoading(true);
-    try {
-      const resp = await fetch(
-        `/api/voicemail/messages/${extNum}/${filename}`,
-        { method: "DELETE" }
-      );
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to delete message. Check that the PBX is running and try again."));
-      onDeleted(filename);
-      toast.success("Message deleted.");
-      onClose();
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Failed to delete message. Check that the PBX is running and try again."));
-      setLoading(false);
+    const resp = await fetch(
+      `/api/voicemail/messages/${extNum}/${filename}`,
+      { method: "DELETE" }
+    );
+    if (!resp.ok) {
+      toast.error(await apiErrorMessage(resp, "Failed to delete message. Check that the PBX is running and try again."));
+      throw new Error("delete failed");
     }
+    onDeleted(filename);
+    toast.success("Message deleted.");
   }
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o && !loading) onClose(); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete this message?</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          This voicemail message will be permanently deleted.
-        </p>
-        <DialogFooter>
-          {!loading && (
-            <Button variant="outline" onClick={onClose}>
-              Keep
-            </Button>
-          )}
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={loading}
-          >
-            {loading ? "Deleting..." : "Delete Message"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <DeleteConfirmDialog
+      title="Delete this message?"
+      description="This voicemail message will be permanently deleted."
+      confirmLabel="Delete Message"
+      cancelLabel="Keep"
+      onConfirm={handleDelete}
+      onClose={onClose}
+    />
   );
 }
 
@@ -281,7 +253,7 @@ function VoicemailCard({
             {hasCustomGreeting === null ? (
               <Skeleton className="h-5 w-16" />
             ) : hasCustomGreeting ? (
-              <Badge variant="outline" className="text-green-500 border-green-500">
+              <Badge variant="outline" className="text-emerald-400 border-emerald-400">
                 Custom
               </Badge>
             ) : (

@@ -16,6 +16,7 @@ import {
   type LinphoneProvisioningInfo,
 } from "@/types/api";
 import { DestinationField, formatDestination, type DestinationValue } from "@/components/DestinationField";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -662,48 +663,23 @@ function DeleteExtensionDialog({
   onClose: () => void;
   onDeleted: (id: number) => void;
 }) {
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
   async function handleDelete() {
-    setDeleteLoading(true);
-    try {
-      const resp = await fetch(`/api/extensions/${extension.id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
-      onDeleted(extension.id);
-      toast.success("Nebenstelle gelöscht.");
-      onClose();
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
-      setDeleteLoading(false);
+    const resp = await fetch(`/api/extensions/${extension.id}`, { method: "DELETE" });
+    if (!resp.ok) {
+      toast.error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      throw new Error("delete failed");
     }
+    onDeleted(extension.id);
+    toast.success("Nebenstelle gelöscht.");
   }
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o && !deleteLoading) onClose(); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nebenstelle {extension.number} löschen?</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Das entfernt die SIP-Registrierung. Das Telefon muss sich mit neuen Zugangsdaten neu anmelden.
-        </p>
-        <DialogFooter>
-          {!deleteLoading && (
-            <Button variant="outline" onClick={onClose} className="cursor-pointer">
-              Behalten
-            </Button>
-          )}
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleteLoading}
-            className="cursor-pointer"
-          >
-            {deleteLoading ? "Löscht…" : "Löschen"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <DeleteConfirmDialog
+      title={`Nebenstelle ${extension.number} löschen?`}
+      description="Das entfernt die SIP-Registrierung. Das Telefon muss sich mit neuen Zugangsdaten neu anmelden."
+      onConfirm={handleDelete}
+      onClose={onClose}
+    />
   );
 }
 

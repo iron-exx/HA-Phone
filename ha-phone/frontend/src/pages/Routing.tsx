@@ -9,6 +9,7 @@ import { Check, Download, MoreHorizontal, Pencil, Trash2, Upload, X } from "luci
 import { type Extension, type RingGroup, type Route, type TimeCondition, type IVRMenu, type Holiday, type DestinationType, type ExtensionGroup } from "@/types/api";
 import { DestinationField, formatDestination, DESTINATION_TYPE_LABELS, type DestinationValue } from "@/components/DestinationField";
 import { WEEKDAYS, WEEKDAY_LABELS, formatDays, formatDaysReadable, parseDays, type Weekday } from "@/lib/weekdays";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -303,60 +304,6 @@ function EditRouteDialog({
             </DialogFooter>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ---- Delete Route confirmation dialog ----
-function DeleteRouteDialog({
-  route,
-  onClose,
-  onDeleted,
-}: {
-  route: Route;
-  onClose: () => void;
-  onDeleted: (id: number) => void;
-}) {
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
-  async function handleDelete() {
-    setDeleteLoading(true);
-    try {
-      const resp = await fetch(`/api/routes/${route.id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
-      onDeleted(route.id);
-      toast.success("Route deleted.");
-      onClose();
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
-      setDeleteLoading(false);
-    }
-  }
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o && !deleteLoading) onClose(); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete this route?</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Delete this route? Inbound calls matching this DID will no longer be routed.
-        </p>
-        <DialogFooter>
-          {!deleteLoading && (
-            <Button variant="outline" onClick={onClose}>
-              Keep Route
-            </Button>
-          )}
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleteLoading}
-          >
-            {deleteLoading ? "Deleting..." : "Delete"}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -670,53 +617,6 @@ function EditTimeConditionDialog({
 }
 
 // ---- Delete Time Condition Dialog ----
-function DeleteTimeConditionDialog({
-  condition,
-  onClose,
-  onDeleted,
-}: {
-  condition: TimeCondition;
-  onClose: () => void;
-  onDeleted: (id: number) => void;
-}) {
-  const [deleting, setDeleting] = useState(false);
-
-  async function handleDelete() {
-    setDeleting(true);
-    try {
-      const resp = await fetch(`/api/time-conditions/${condition.id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
-      onDeleted(condition.id);
-      toast.success("Time condition deleted.");
-      onClose();
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
-      setDeleting(false);
-    }
-  }
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o && !deleting) onClose(); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete this time condition?</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Inbound calls matching {condition.did} will use the fallback catch-all routing.
-        </p>
-        <DialogFooter>
-          {!deleting && (
-            <Button variant="outline" onClick={onClose}>Keep</Button>
-          )}
-          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-            {deleting ? "Deleting..." : "Delete Condition"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ---- Ring groups ----
 // ---- Extension Groups (nested ring-group members) ----
 // A reusable named group of extensions (e.g. "Support-Team") selectable as a
@@ -733,6 +633,7 @@ function ExtensionGroupsSection({ onChanged }: { onChanged: () => void }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editSelectedNumbers, setEditSelectedNumbers] = useState<number[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<ExtensionGroup | null>(null);
 
   function load() {
     Promise.all([
@@ -818,18 +719,14 @@ function ExtensionGroupsSection({ onChanged }: { onChanged: () => void }) {
   }
 
   async function deleteGroup(id: number) {
-    try {
-      const resp = await fetch(`/api/extension-groups/${id}`, { method: "DELETE" });
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => null);
-        throw new Error(body?.detail || "Fehler beim Löschen.");
-      }
-      setGroups((gs) => gs.filter((g) => g.id !== id));
-      onChanged();
-      toast.success("Nebenstellen-Gruppe gelöscht.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fehler beim Löschen.");
+    const resp = await fetch(`/api/extension-groups/${id}`, { method: "DELETE" });
+    if (!resp.ok) {
+      toast.error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      throw new Error("delete failed");
     }
+    setGroups((gs) => gs.filter((g) => g.id !== id));
+    onChanged();
+    toast.success("Nebenstellen-Gruppe gelöscht.");
   }
 
   function ExtensionToggles({ selected, onToggle }: { selected: number[]; onToggle: (n: number) => void }) {
@@ -863,17 +760,28 @@ function ExtensionGroupsSection({ onChanged }: { onChanged: () => void }) {
   return (
     <>
       <Separator className="my-8" />
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold">Nebenstellen-Gruppen</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Benannte Gruppen von Nebenstellen (z.B. "Support-Team"), die als ein Mitglied innerhalb
-          von Rufgruppen ausgewählt werden können - zusätzlich zu einzelnen Nebenstellen.
-        </p>
+      <div className="glass rounded-xl">
+      <div
+        className="flex items-center gap-3 border-b px-6 py-4"
+        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+      >
+        <div>
+          <span className="text-sm font-semibold text-foreground">Nebenstellen-Gruppen</span>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Benannte Gruppen von Nebenstellen (z.B. "Support-Team"), die als ein Mitglied innerhalb
+            von Rufgruppen ausgewählt werden können - zusätzlich zu einzelnen Nebenstellen.
+          </p>
+        </div>
       </div>
+      <div className="p-6">
       {loading ? (
         <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
       ) : (
-        <Table>
+        <>
+          {groups.length === 0 && (
+            <p className="mb-3 text-sm text-muted-foreground">Noch keine Nebenstellen-Gruppen angelegt.</p>
+          )}
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -912,7 +820,7 @@ function ExtensionGroupsSection({ onChanged }: { onChanged: () => void }) {
                         <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Gruppe ${g.name} bearbeiten`} onClick={() => startEdit(g)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`Gruppe ${g.name} löschen`} onClick={() => deleteGroup(g.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`Gruppe ${g.name} löschen`} onClick={() => setDeleteTarget(g)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -929,7 +837,18 @@ function ExtensionGroupsSection({ onChanged }: { onChanged: () => void }) {
               </TableCell>
             </TableRow>
           </TableBody>
-        </Table>
+          </Table>
+        </>
+      )}
+      </div>
+      </div>
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title={`Nebenstellen-Gruppe "${deleteTarget.name}" löschen?`}
+          description="Rufgruppen, die diese Gruppe als Mitglied verwenden, verlieren dieses Mitglied."
+          onConfirm={() => deleteGroup(deleteTarget.id)}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </>
   );
@@ -952,6 +871,7 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
   const [editSelectedNumbers, setEditSelectedNumbers] = useState<number[]>([]);
   const [editSelectedGroupIds, setEditSelectedGroupIds] = useState<number[]>([]);
   const [editTimeout, setEditTimeout] = useState("30");
+  const [deleteTarget, setDeleteTarget] = useState<RingGroup | null>(null);
 
   function load() {
     Promise.all([
@@ -1079,33 +999,40 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
   }
 
   async function deleteGroup(id: number) {
-    try {
-      const resp = await fetch(`/api/ring-groups/${id}`, { method: "DELETE" });
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => null);
-        throw new Error(body?.detail || "Fehler beim Löschen.");
-      }
-      setGroups((gs) => gs.filter((g) => g.id !== id));
-      onChanged();
-      toast.success("Rufgruppe gelöscht.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fehler beim Löschen.");
+    const resp = await fetch(`/api/ring-groups/${id}`, { method: "DELETE" });
+    if (!resp.ok) {
+      toast.error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      throw new Error("delete failed");
     }
+    setGroups((gs) => gs.filter((g) => g.id !== id));
+    onChanged();
+    toast.success("Rufgruppe gelöscht.");
   }
 
   return (
     <>
       <Separator className="my-8" />
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold">Rufgruppen</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Mehrere Nebenstellen gleichzeitig klingeln lassen. Als Ziel einer eingehenden Route wählbar.
-        </p>
+      <div className="glass rounded-xl">
+      <div
+        className="flex items-center gap-3 border-b px-6 py-4"
+        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+      >
+        <div>
+          <span className="text-sm font-semibold text-foreground">Rufgruppen</span>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Mehrere Nebenstellen gleichzeitig klingeln lassen. Als Ziel einer eingehenden Route wählbar.
+          </p>
+        </div>
       </div>
+      <div className="p-6">
       {loading ? (
         <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
       ) : (
-        <Table>
+        <>
+          {groups.length === 0 && (
+            <p className="mb-3 text-sm text-muted-foreground">Noch keine Rufgruppen angelegt.</p>
+          )}
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Durchwahl</TableHead>
@@ -1205,7 +1132,7 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
                         <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Rufgruppe ${g.name} bearbeiten`} onClick={() => startEdit(g)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`Rufgruppe ${g.name} löschen`} onClick={() => deleteGroup(g.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={`Rufgruppe ${g.name} löschen`} onClick={() => setDeleteTarget(g)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -1271,7 +1198,18 @@ function RingGroupsSection({ onChanged }: { onChanged: () => void }) {
               </TableCell>
             </TableRow>
           </TableBody>
-        </Table>
+          </Table>
+        </>
+      )}
+      </div>
+      </div>
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title={`Rufgruppe "${deleteTarget.name}" löschen?`}
+          description="Eingehende Routen, die auf diese Rufgruppe zeigen, müssen danach neu zugewiesen werden."
+          onConfirm={() => deleteGroup(deleteTarget.id)}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </>
   );
@@ -1303,6 +1241,7 @@ function OutboundRulesSection() {
   const [saving, setSaving] = useState(false);
   const [trunkDefaultDid, setTrunkDefaultDid] = useState("");
   const [dids, setDids] = useState<TrunkDid[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<OutboundRule | null>(null);
 
   function load() {
     fetch("/api/outbound-rules")
@@ -1348,14 +1287,13 @@ function OutboundRulesSection() {
   }
 
   async function deleteRule(id: number) {
-    try {
-      const resp = await fetch(`/api/outbound-rules/${id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
-      setRules((rs) => rs.filter((r) => r.id !== id));
-      toast.success("Regel gelöscht.");
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
+    const resp = await fetch(`/api/outbound-rules/${id}`, { method: "DELETE" });
+    if (!resp.ok) {
+      toast.error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      throw new Error("delete failed");
     }
+    setRules((rs) => rs.filter((r) => r.id !== id));
+    toast.success("Regel gelöscht.");
   }
 
   async function updateRuleCid(id: number, outbound_caller_id: string) {
@@ -1398,19 +1336,30 @@ function OutboundRulesSection() {
   return (
     <>
       <Separator className="my-8" />
-      <div className="mb-2">
-        <h2 className="text-xl font-semibold">Ausgehende Regeln</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Gewählte Nummern werden vor dem Trunk umgeschrieben: <span className="font-mono">Muster</span> matcht,
-          <span className="font-mono"> Entfernen</span> streicht führende Ziffern, <span className="font-mono">Voranstellen</span> ergänzt.
-          Beispiel: <span className="font-mono">0.</span> · Entfernen <span className="font-mono">1</span> · Voranstellen <span className="font-mono">+49</span>.
-        </p>
+      <div className="glass rounded-xl">
+      <div
+        className="flex items-center gap-3 border-b px-6 py-4"
+        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+      >
+        <div>
+          <span className="text-sm font-semibold text-foreground">Ausgehende Regeln</span>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Gewählte Nummern werden vor dem Trunk umgeschrieben: <span className="font-mono">Muster</span> matcht,
+            <span className="font-mono"> Entfernen</span> streicht führende Ziffern, <span className="font-mono">Voranstellen</span> ergänzt.
+            Beispiel: <span className="font-mono">0.</span> · Entfernen <span className="font-mono">1</span> · Voranstellen <span className="font-mono">+49</span>.
+          </p>
+        </div>
       </div>
 
+      <div className="p-6">
       {loading ? (
         <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
       ) : (
-        <Table>
+        <>
+          {rules.length === 0 && (
+            <p className="mb-3 text-sm text-muted-foreground">Noch keine ausgehenden Regeln angelegt.</p>
+          )}
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Muster</TableHead>
@@ -1435,7 +1384,7 @@ function OutboundRulesSection() {
                     size="icon"
                     className="h-8 w-8 text-destructive"
                     aria-label={`Regel ${r.pattern} löschen`}
-                    onClick={() => deleteRule(r.id)}
+                    onClick={() => setDeleteTarget(r)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1466,7 +1415,17 @@ function OutboundRulesSection() {
               </TableCell>
             </TableRow>
           </TableBody>
-        </Table>
+          </Table>
+        </>
+      )}
+      </div>
+      </div>
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title={`Regel "${deleteTarget.pattern}" löschen?`}
+          onConfirm={() => deleteRule(deleteTarget.id)}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </>
   );
@@ -1488,6 +1447,7 @@ function HolidaysSection() {
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Holiday | null>(null);
 
   function load() {
     fetch("/api/holidays")
@@ -1522,14 +1482,13 @@ function HolidaysSection() {
   }
 
   async function deleteHoliday(id: number) {
-    try {
-      const resp = await fetch(`/api/holidays/${id}`, { method: "DELETE" });
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
-      setHolidays((hs) => hs.filter((h) => h.id !== id));
-      toast.success("Feiertag gelöscht.");
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Fehler beim Löschen."));
+    const resp = await fetch(`/api/holidays/${id}`, { method: "DELETE" });
+    if (!resp.ok) {
+      toast.error(await apiErrorMessage(resp, "Fehler beim Löschen."));
+      throw new Error("delete failed");
     }
+    setHolidays((hs) => hs.filter((h) => h.id !== id));
+    toast.success("Feiertag gelöscht.");
   }
 
   async function exportCsv() {
@@ -1575,10 +1534,14 @@ function HolidaysSection() {
   return (
     <>
       <Separator className="my-8" />
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+      <div className="glass rounded-xl">
+      <div
+        className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4"
+        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+      >
         <div>
-          <h2 className="text-xl font-semibold">Feiertage</h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          <span className="text-sm font-semibold text-foreground">Feiertage</span>
+          <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
             An diesen Tagen gilt für <strong>alle</strong> Zeitbedingungen automatisch "geschlossen",
             unabhängig von den eingestellten Öffnungszeiten. Feiertage sind{" "}
             <strong>einmalige Termine</strong> (Jahr + Monat + Tag) und wiederholen sich{" "}
@@ -1609,10 +1572,15 @@ function HolidaysSection() {
         </div>
       </div>
 
+      <div className="p-6">
       {loading ? (
         <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-11 w-full" />)}</div>
       ) : (
-        <Table>
+        <>
+          {holidays.length === 0 && (
+            <p className="mb-3 text-sm text-muted-foreground">Noch keine Feiertage angelegt.</p>
+          )}
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -1631,7 +1599,7 @@ function HolidaysSection() {
                     size="icon"
                     className="h-9 w-9 text-destructive"
                     aria-label={`Feiertag ${h.name} löschen`}
-                    onClick={() => deleteHoliday(h.id)}
+                    onClick={() => setDeleteTarget(h)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -1669,7 +1637,17 @@ function HolidaysSection() {
               </TableCell>
             </TableRow>
           </TableBody>
-        </Table>
+          </Table>
+        </>
+      )}
+      </div>
+      </div>
+      {deleteTarget && (
+        <DeleteConfirmDialog
+          title={`Feiertag "${deleteTarget.name}" löschen?`}
+          onConfirm={() => deleteHoliday(deleteTarget.id)}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </>
   );
@@ -1919,13 +1897,21 @@ export default function Routing() {
 
       {/* Delete Route Confirmation Dialog */}
       {deleteTarget && (
-        <DeleteRouteDialog
-          route={deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          onDeleted={(id) => {
-            setRoutes((prev) => prev.filter((r) => r.id !== id));
-            setDeleteTarget(null);
+        <DeleteConfirmDialog
+          title="Delete this route?"
+          description="Inbound calls matching this DID will no longer be routed."
+          confirmLabel="Delete"
+          cancelLabel="Keep Route"
+          onConfirm={async () => {
+            const resp = await fetch(`/api/routes/${deleteTarget.id}`, { method: "DELETE" });
+            if (!resp.ok) {
+              toast.error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
+              throw new Error("delete failed");
+            }
+            setRoutes((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+            toast.success("Route deleted.");
           }}
+          onClose={() => setDeleteTarget(null)}
         />
       )}
 
@@ -1973,13 +1959,21 @@ export default function Routing() {
 
       {/* Delete Time Condition Dialog */}
       {tcDeleteTarget && (
-        <DeleteTimeConditionDialog
-          condition={tcDeleteTarget}
-          onClose={() => setTcDeleteTarget(null)}
-          onDeleted={(id) => {
-            setTimeConditions((prev) => prev.filter((tc) => tc.id !== id));
-            setTcDeleteTarget(null);
+        <DeleteConfirmDialog
+          title="Delete this time condition?"
+          description={`Inbound calls matching ${tcDeleteTarget.did} will use the fallback catch-all routing.`}
+          confirmLabel="Delete Condition"
+          cancelLabel="Keep"
+          onConfirm={async () => {
+            const resp = await fetch(`/api/time-conditions/${tcDeleteTarget.id}`, { method: "DELETE" });
+            if (!resp.ok) {
+              toast.error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
+              throw new Error("delete failed");
+            }
+            setTimeConditions((prev) => prev.filter((tc) => tc.id !== tcDeleteTarget.id));
+            toast.success("Time condition deleted.");
           }}
+          onClose={() => setTcDeleteTarget(null)}
         />
       )}
     </div>

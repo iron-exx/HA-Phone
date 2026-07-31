@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleSwitch } from "@/components/ToggleSwitch";
 
 interface SmtpConfig {
   host: string;
@@ -190,11 +191,14 @@ export default function PublicIP() {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={smtp.enabled}
-              onChange={(e) => setSmtp({ ...smtp, enabled: e.target.checked })} />
+          <div className="flex items-center gap-3 text-sm">
+            <ToggleSwitch
+              checked={smtp.enabled}
+              ariaLabel="Voicemail-E-Mail aktivieren"
+              onToggle={() => setSmtp({ ...smtp, enabled: !smtp.enabled })}
+            />
             Voicemail-E-Mail aktivieren
-          </label>
+          </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2 space-y-1.5">

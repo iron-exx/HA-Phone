@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 
 export default function Backup() {
@@ -154,14 +155,14 @@ export default function Backup() {
               autoComplete="new-password"
             />
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-3 text-sm">
+            <ToggleSwitch
               checked={confirmRestore}
-              onChange={(e) => setConfirmRestore(e.target.checked)}
+              ariaLabel="Bestätigen, dass die aktuelle Konfiguration ersetzt wird"
+              onToggle={() => setConfirmRestore((c) => !c)}
             />
             Mir ist bewusst, dass die aktuelle Konfiguration ersetzt wird.
-          </label>
+          </div>
           <div className="flex justify-end">
             <Button
               variant="destructive"
