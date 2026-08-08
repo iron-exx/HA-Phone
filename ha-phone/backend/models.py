@@ -28,6 +28,8 @@ class Extension(SQLModel, table=True):
     # at dialplan-generation time (not a live per-call lookup: the dialplan is
     # regenerated whenever this changes, same pattern as every other setting).
     presence_status: str = Field(default="available", max_length=32)
+    transport: str = "udp"  # udp | tls  (D-06: TLS/SRTP test extension provisioning)
+    media_encryption: str = "none"  # none | sdes | dtls
 
 
 class ExtensionUpdate(SQLModel):
@@ -40,6 +42,8 @@ class ExtensionUpdate(SQLModel):
     internal_only: Optional[bool] = None
     numeric_callerid: Optional[bool] = None
     presence_status: Optional[str] = Field(default=None, max_length=32)
+    transport: Optional[str] = Field(default=None, max_length=8)
+    media_encryption: Optional[str] = Field(default=None, max_length=8)
 
 
 class ExtensionOut(SQLModel):

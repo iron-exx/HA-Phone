@@ -49,6 +49,9 @@ send_rpid         = yes
 auth              = {{ ext.number }}-auth
 aors              = {{ ext.number }}
 callerid          = {{ ext.display_name }} <{{ ext.number }}>
+{% if ext.media_encryption and ext.media_encryption != "none" %}
+media_encryption = {{ ext.media_encryption }}
+{% endif %}
 
 [{{ ext.number }}-auth]
 type              = auth

@@ -47,6 +47,30 @@ def test_extension_crud(client, tmp_data_dir):
     assert "[20]" in content
 
 
+def test_extension_tls_srtp_media_encryption_in_conf(client, tmp_data_dir):
+    """D-06: a TLS/SRTP extension gets media_encryption rendered, no transport= line."""
+    resp = client.post(
+        "/api/extensions",
+        json={
+            "number": 89,
+            "display_name": "Phase2 PJSIP Test",
+            "sip_password": "securepass1234567",
+            "transport": "tls",
+            "media_encryption": "sdes",
+        },
+    )
+    assert resp.status_code == 200
+
+    conf_path = tmp_data_dir / "asterisk" / "pjsip_extensions.conf"
+    content = conf_path.read_text()
+    stanza_start = content.index("[89]")
+    stanza_end = content.index("[89-auth]")
+    stanza = content[stanza_start:stanza_end]
+
+    assert "media_encryption = sdes" in stanza
+    assert "transport" not in stanza.lower()
+
+
 def test_trunk_save(client, tmp_data_dir):
     """POST /api/trunk saves to DB and writes pjsip_trunk.conf."""
     resp = client.post(
