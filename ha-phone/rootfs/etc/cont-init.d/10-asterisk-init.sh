@@ -26,6 +26,21 @@ if [ ! -f /data/.initialized ]; then
         bashio::log.info "AMI secret written to /data/asterisk/ami_secret."
     fi
 
+    # Generate self-signed TLS cert for the Phase 2 PJSIP test transport (D-06).
+    # Dev-only, local-network-only per D-05 -- see 02-CONTEXT.md. Idempotent:
+    # only generated once, same shape as the AMI secret above.
+    mkdir -p /data/asterisk/tls
+    if [ ! -f /data/asterisk/tls/asterisk.crt ]; then
+        bashio::log.info "Generating self-signed TLS cert for PJSIP test transport..."
+        openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /data/asterisk/tls/asterisk.key \
+            -out /data/asterisk/tls/asterisk.crt \
+            -days 3650 -subj "/CN=ha-phone-pjsip-test" \
+            || bashio::log.warning "TLS cert generation failed -- transport-tls will not be written."
+        [ -f /data/asterisk/tls/asterisk.key ] && chmod 600 /data/asterisk/tls/asterisk.key
+        [ -f /data/asterisk/tls/asterisk.crt ] && bashio::log.info "TLS cert written to /data/asterisk/tls/asterisk.crt."
+    fi
+
     # Placeholder generated confs (GAP-PJSIP-INCLUDE) — pjsip.conf and extensions.conf
     # #include these files, but the backend only generates them once an extension/trunk/
     # route is saved. On a fresh /data they are missing → Asterisk spams "#include does
@@ -200,6 +215,25 @@ else
 ; External IP detection failed — Asterisk running in LAN-only mode
 ; No externip configured. Restart the add-on to retry detection.
 HEREDOC
+fi
+
+# ── [transport-tls] -- D-06 ────────────────────────────────────────────
+if [ -f /data/asterisk/tls/asterisk.crt ] && [ -f /data/asterisk/tls/asterisk.key ]; then
+    if ! grep -q '^\[transport-tls\]' "$PJSIP_LOCAL" 2>/dev/null; then
+        cat >> "$PJSIP_LOCAL" <<HEREDOC
+
+[transport-tls]
+type       = transport
+protocol   = tls
+bind       = 0.0.0.0:5061
+cert_file  = /data/asterisk/tls/asterisk.crt
+priv_key_file = /data/asterisk/tls/asterisk.key
+method     = tlsv1_2
+HEREDOC
+        bashio::log.info "ha-phone: appended [transport-tls] to pjsip_local.conf."
+    fi
+else
+    bashio::log.warning "ha-phone: TLS cert missing -- [transport-tls] not written, TLS test extension unreachable."
 fi
 
 bashio::log.info "ha-phone: init script done."
