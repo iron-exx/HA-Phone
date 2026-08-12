@@ -300,17 +300,12 @@ The README contains the main installation and remote-use guide. Additional proje
 
 Issues and questions: [github.com/iron-exx/HA-Phone/issues](https://github.com/iron-exx/HA-Phone/issues)
 
-## License
-
-HA-Phone's own code (backend, frontend, add-on config, templates) is released under the [MIT License](LICENSE).
-
-The container image bundles **Asterisk** (GPLv2, © Sangoma Technologies), built from the official source at downloads.asterisk.org. Asterisk runs as a separate process — HA-Phone talks to it only via AMI and generated config files (mere aggregation). Other bundled components (FastAPI, React, …) keep their own licenses. See [LICENSE](LICENSE) for details.
 
 
 ## License
 
 Copyright (C) 2026 Sandro Ahrens
 
-HA-Phone App is licensed under the GNU General Public License v3.0 (GPL-3.0-only).
+HA-Phone is licensed under the GNU General Public License v3.0 (GPL-3.0-only).
 
 See the LICENSE file for details.
