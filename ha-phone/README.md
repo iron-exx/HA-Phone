@@ -31,11 +31,14 @@ See [DOCS.md](DOCS.md) for network setup, SIP trunk configuration, and softphone
 
 ## License
 
-HA-Phone's own code (backend, frontend, add-on config, templates) is released
-under the [MIT License](LICENSE).
+Copyright (C) 2026 Sandro Ahrens. All Rights Reserved. HA-Phone's own code
+(backend, frontend, add-on config, templates) is source-available for viewing
+only — no license to use, copy, modify, or distribute it, commercially or
+otherwise, is granted. See [LICENSE](LICENSE) for details.
 
 The container image bundles **Asterisk** (GPLv2, © Sangoma Technologies), built
 from the official source at downloads.asterisk.org. Asterisk runs as a separate
 process — HA-Phone talks to it only via AMI and generated config files (mere
-aggregation). Other bundled components (FastAPI, React, …) keep their own
-licenses. See [LICENSE](LICENSE) for details.
+aggregation), and remains under its own GPLv2 terms regardless of the above.
+Other bundled components (FastAPI, React, …) keep their own licenses. See
+[LICENSE](LICENSE) for details.

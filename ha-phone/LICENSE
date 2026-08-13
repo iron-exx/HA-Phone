@@ -1,24 +1,26 @@
-MIT License
+Copyright (C) 2026 Sandro Ahrens
+All Rights Reserved.
 
-Copyright (c) 2026 iron-exx
+This add-on is source-available for viewing purposes only. No license,
+express or implied, to any intellectual property rights is granted by
+making this source code visible on a public code hosting platform.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Without the prior written permission of the copyright holder, no part
+of this software (source code, documentation, assets, or any other
+content in this repository) may be:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+- used, executed, or deployed, in whole or in part, for any purpose;
+- copied, reproduced, or redistributed, in whole or in part, in any
+  form or by any means;
+- modified, translated, or used to create derivative works;
+- sold, sublicensed, rented, or otherwise exploited commercially, in
+  whole or in part, under any circumstances.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Unauthorized use, copying, modification, or distribution of this
+software is strictly prohibited and may result in civil and/or
+criminal legal action.
+
+For licensing inquiries, contact: ahrens@systemwerk.de
 
 ---
 
@@ -29,8 +31,12 @@ under the GNU General Public License version 2 (GPLv2), © Sangoma Technologies.
 Asterisk runs as a separate process; HA-Phone interacts with it only via its
 AMI interface and generated configuration files (mere aggregation, not a
 derivative work). Asterisk source is obtained from the official distribution:
-https://downloads.asterisk.org/pub/telephony/asterisk/
+https://downloads.asterisk.org/pub/telephony/asterisk/ -- Asterisk's own
+COPYING/LICENSE files ship unmodified inside this image alongside the compiled
+binary. Asterisk itself remains under its own GPLv2 terms regardless of this
+add-on's own license.
 
 Other bundled components retain their respective licenses (e.g. FastAPI — MIT,
-React — MIT). The MIT license above applies to the HA-Phone project's own code
-(backend, frontend, add-on configuration, and templates).
+React — MIT). The All Rights Reserved terms above apply only to the HA-Phone
+project's own code (backend, frontend, add-on configuration, and templates) —
+not to any bundled third-party component listed here.

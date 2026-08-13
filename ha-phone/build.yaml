@@ -6,4 +6,4 @@ labels:
   org.opencontainers.image.title: "ha-phone"
   org.opencontainers.image.description: "Asterisk PBX HA add-on"
   org.opencontainers.image.source: "https://github.com/iron-exx/HA-Phone"
-  org.opencontainers.image.licenses: "MIT"
+  org.opencontainers.image.licenses: "Proprietary"

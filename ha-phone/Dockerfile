@@ -134,6 +134,14 @@ RUN make -j1 third-party && \
     make install DESTDIR=/opt/asterisk && \
     rm -rf /opt/asterisk/var/run
 
+# Preserve Asterisk's own license/notice files inside the image (GPL-2.0
+# compliance for bundling its unmodified, compiled binary as a separate
+# process): the source tarball's COPYING (full GPLv2 text) and LICENSE
+# (bundled third-party component notices) ship alongside the compiled
+# binary rather than being discarded with the rest of the source tree.
+RUN mkdir -p /opt/asterisk/usr/share/doc/asterisk && \
+    cp COPYING LICENSE /opt/asterisk/usr/share/doc/asterisk/
+
 # ── Stage 1b: Frontend build ────────────────────────────────────────────────
 FROM node:20-slim AS frontend-build
 
@@ -202,6 +210,9 @@ RUN mkdir -p \
 
 # Copy rootfs (s6 scripts + Asterisk configs)
 COPY rootfs /
+
+# License + bundled-software (Asterisk, GPL-2.0) notice for this add-on
+COPY LICENSE /usr/share/doc/ha-phone/LICENSE
 
 # Ensure s6 service scripts are executable
 RUN chmod +x \
