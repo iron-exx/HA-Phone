@@ -153,6 +153,22 @@ else:
 chown -R root:root /data/voicemail /data/logs /data/asterisk
 chmod -R 755 /data/voicemail /data/logs /data/asterisk
 
+# Code review CR-2 fix: the recursive chmod above applies to files as well
+# as directories, so on every single boot it silently reset the AMI
+# secret, session secret, and TLS private key back to world-readable
+# (755) immediately after the boot-time generation blocks above (lines
+# ~25, ~40, ~68) had already locked them down to 600 -- undoing that
+# protection every time this script ran. pjsip_extensions.conf (rendered
+# by backend/routers/extensions.py from pjsip_extensions.conf.j2, which
+# writes every extension's SIP password in plaintext) was exposed the
+# same way. Re-assert 600 on all of these after the broad chmod so the
+# narrower permissions from earlier in this script are the ones that
+# actually survive to the end of boot.
+[ -f /data/asterisk/ami_secret ] && chmod 600 /data/asterisk/ami_secret
+[ -f /data/asterisk/session_secret ] && chmod 600 /data/asterisk/session_secret
+[ -f /data/asterisk/tls/asterisk.key ] && chmod 600 /data/asterisk/tls/asterisk.key
+[ -f /data/asterisk/pjsip_extensions.conf ] && chmod 600 /data/asterisk/pjsip_extensions.conf
+
 # Update manager.conf secret from generated file (every boot — manager.conf is in image)
 if [ -f /data/asterisk/ami_secret ] && [ -f /etc/asterisk/manager.conf ]; then
     AMI_SECRET=$(cat /data/asterisk/ami_secret)
