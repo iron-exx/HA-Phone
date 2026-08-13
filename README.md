@@ -304,8 +304,6 @@ Issues and questions: [github.com/iron-exx/HA-Phone/issues](https://github.com/i
 
 ## License
 
-Copyright (C) 2026 Sandro Ahrens
+Copyright (C) 2026 Sandro Ahrens. All Rights Reserved.
 
-HA-Phone is licensed under the GNU General Public License v3.0 (GPL-3.0-only).
-
-See the LICENSE file for details.
+This repository is source-available for viewing only. No license to use, copy, modify, or distribute this software — commercially or otherwise — is granted. See the LICENSE file for details.

@@ -27,13 +27,13 @@ When submitting a Pull Request, please:
 
 ## License
 
-By submitting code, documentation, artwork or any other contribution to this repository, you agree that your contribution is licensed under the **GNU General Public License v3.0 (GPL-3.0-only)**.
+This project is proprietary, All Rights Reserved (see LICENSE) — it is not open source. By submitting code, documentation, artwork, or any other contribution to this repository, you agree that your contribution becomes part of the project under the same All Rights Reserved terms, with all rights assigned to the copyright holder (Sandro Ahrens).
 
 You confirm that:
 
 - You are the author of your contribution, or you have the legal right to submit it.
 - Your contribution does not knowingly infringe the rights of others.
-- You grant the project maintainers the right to distribute your contribution under the GPL-3.0-only license.
+- You grant the copyright holder full, exclusive rights to use, modify, and distribute your contribution as part of this proprietary project, without retaining any separate license of your own.
 
 ## Code of Conduct
 
