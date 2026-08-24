@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.96
+
+**UI - Auto-Provisioning: Gerät anlegen/bearbeiten in lesbarem Dialog**
+- Das Anlegen/Bearbeiten eines Geräts lief bisher über eine gequetschte Inline-Zeile in der Tabelle mit winzigen, kaum lesbaren Feldern - und es war unklar, wo man speichert. Ersetzt durch einen richtigen, breiten Dialog (wie bei den Nebenstellen): Name, Hersteller/Modell, MAC (mit Hinweis), gut lesbare Nebenstellen-Auswahl, Template-Auswahl und klarer "Speichern"-Button. Oben ein "Gerät hinzufügen"-Button; Bearbeiten öffnet denselben Dialog vorbefüllt.
+- Klarstellung im Hinweistext: HA-Phone "sendet" nichts aktiv ans Gerät - es speichert die Zuordnung und stellt die Konfiguration unter der Provisioning-URL bereit, die das Gerät selbst abruft.
+
+**Fix - Fehlende DB-Migration für extension.transport / media_encryption**
+- Die Spalten `transport` und `media_encryption` waren im Extension-Modell vorhanden, aber ohne passende Migration - ein Upgrade einer bestehenden Datenbank waere bei der ersten Nebenstellen-Abfrage abgestuerzt ("no such column: extension.transport"), und der Backend-Testlauf (und damit der Image-Build) war dadurch blockiert. Migration ergaenzt, analog zur bestehenden presence_status-Migration.
+
 ## 0.7.95
 
 **Fix - Schalter waren unsichtbar (nur Rahmen, kein anklickbarer Schalter)**

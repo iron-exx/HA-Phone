@@ -2,12 +2,20 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { copyToClipboard } from "@/lib/clipboard";
-import { Copy, Trash2, Plus, Save, Pencil, X } from "lucide-react";
+import { Copy, Trash2, Plus, Save, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { type Extension, type ProvisionedDevice as Device, type ProvisioningTemplate as Template } from "@/types/api";
+
 interface ExtensionDiagnostic {
   number: string;
   status: "Online" | "Offline";
@@ -24,10 +32,166 @@ function contactIp(contactUri: string): string {
   return match ? match[1] : "";
 }
 
-const inputCls = "h-9 font-mono";
-
 function normalizeMac(value: string) {
   return value.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+}
+
+/**
+ * Add/edit dialog for a provisioned device. A proper full-width form dialog
+ * (like the extensions dialog) instead of the previous cramped inline table
+ * row whose fields were too narrow to read. `device` null = add mode.
+ */
+function DeviceDialog({
+  device,
+  templates,
+  extensions,
+  onClose,
+  onSaved,
+}: {
+  device: Device | null;
+  templates: Template[];
+  extensions: Extension[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const isEdit = device !== null;
+  const [name, setName] = useState(device?.name ?? "");
+  const [manufacturer, setManufacturer] = useState(device?.manufacturer ?? "");
+  const [model, setModel] = useState(device?.model ?? "");
+  const [mac, setMac] = useState(device?.mac ?? "");
+  const [extNumbers, setExtNumbers] = useState<number[]>(device?.extension_numbers ?? []);
+  const [templateId, setTemplateId] = useState<number | "">(device?.template_id || "");
+  const [saving, setSaving] = useState(false);
+
+  function toggleExtNumber(number: number) {
+    setExtNumbers((prev) =>
+      prev.includes(number) ? prev.filter((n) => n !== number) : [...prev, number]
+    );
+  }
+
+  async function save() {
+    if (normalizeMac(mac).length !== 12) {
+      toast.error("MAC muss 12 Hex-Zeichen haben (z.B. AA:BB:CC:DD:EE:FF).");
+      return;
+    }
+    if (extNumbers.length === 0) {
+      toast.error("Mindestens eine Nebenstelle zuweisen.");
+      return;
+    }
+    if (templateId === "") {
+      toast.error("Bitte ein Template auswählen.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const resp = await fetch(
+        isEdit ? `/api/provisioning/devices/${device.id}` : "/api/provisioning/devices",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name, manufacturer, model, mac: normalizeMac(mac),
+            extension_numbers: extNumbers.join(","), template_id: Number(templateId),
+          }),
+        }
+      );
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
+      toast.success(isEdit ? "Gerät gespeichert." : "Gerät hinzugefügt.");
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(toErrorMessage(err, "Speichern fehlgeschlagen."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? `Gerät bearbeiten` : "Gerät hinzufügen"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Name</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Türklingel" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Hersteller</label>
+              <Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="z.B. Gigaset" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Modell</label>
+              <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="z.B. N510 IP PRO" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">MAC-Adresse</label>
+            <Input
+              value={mac}
+              onChange={(e) => setMac(e.target.value)}
+              placeholder="AA:BB:CC:DD:EE:FF"
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">12 Hex-Zeichen, mit oder ohne Doppelpunkte.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Nebenstellen</label>
+            <p className="text-xs text-muted-foreground">
+              Welche Nebenstelle(n) dieses Gerät bedient. Mehrere möglich (z.B. DECT-Basis mit mehreren Mobilteilen).
+            </p>
+            <div className="max-h-52 space-y-1 overflow-y-auto rounded-md border border-input bg-[#0b0e1a] p-3">
+              {extensions.length === 0 && (
+                <span className="text-sm text-muted-foreground">Keine Nebenstellen vorhanden.</span>
+              )}
+              {extensions.map((x) => (
+                <label
+                  key={x.id}
+                  className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-sm text-slate-200 hover:bg-white/5"
+                >
+                  <input
+                    type="checkbox"
+                    checked={extNumbers.includes(x.number)}
+                    onChange={() => toggleExtNumber(x.number)}
+                    className="h-4 w-4 cursor-pointer"
+                  />
+                  <span className="font-mono">{x.number}</span>
+                  <span className="text-muted-foreground">{x.display_name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Template</label>
+            <select
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : "")}
+              className="h-10 w-full rounded-md border border-input bg-[#0b0e1a] px-3 text-sm text-slate-200 [color-scheme:dark]"
+            >
+              <option value="">Template auswählen…</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Abbrechen</Button>
+          <Button onClick={save} disabled={saving} className="gap-1.5">
+            <Save className="h-4 w-4" /> {saving ? "Speichert…" : "Speichern"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function Provisioning() {
@@ -39,16 +203,8 @@ export default function Provisioning() {
   const [extStatus, setExtStatus] = useState<Record<string, ExtensionStatusInfo> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // add/edit-device form - shared between both flows, `editingDeviceId` set
-  // means the inline row edits an existing device instead of creating one.
-  const [editingDeviceId, setEditingDeviceId] = useState<number | null>(null);
-  const [dName, setDName] = useState("");
-  const [dManu, setDManu] = useState("");
-  const [dModel, setDModel] = useState("");
-  const [dMac, setDMac] = useState("");
-  const [dExtNumbers, setDExtNumbers] = useState<number[]>([]);
-  const [dTpl, setDTpl] = useState<number | "">("");
-  const [savingDev, setSavingDev] = useState(false);
+  // Device add/edit dialog: null = closed, {device:null} = add, {device} = edit.
+  const [deviceDialog, setDeviceDialog] = useState<{ device: Device | null } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Device | null>(null);
 
   // template editor
@@ -95,57 +251,6 @@ export default function Provisioning() {
     return () => clearInterval(interval);
   }, []);
 
-  function toggleExtNumber(number: number) {
-    setDExtNumbers((prev) =>
-      prev.includes(number) ? prev.filter((n) => n !== number) : [...prev, number]
-    );
-  }
-
-  function resetDeviceForm() {
-    setEditingDeviceId(null);
-    setDName(""); setDManu(""); setDModel(""); setDMac(""); setDExtNumbers([]); setDTpl("");
-  }
-
-  function startEditDevice(d: Device) {
-    setEditingDeviceId(d.id);
-    setDName(d.name); setDManu(d.manufacturer); setDModel(d.model); setDMac(d.mac);
-    setDExtNumbers(d.extension_numbers); setDTpl(d.template_id || "");
-  }
-
-  async function saveDevice() {
-    if (!dMac.trim() || dExtNumbers.length === 0 || dTpl === "") {
-      toast.error("MAC, mindestens eine Nebenstelle und Template sind erforderlich.");
-      return;
-    }
-    if (normalizeMac(dMac).length !== 12) {
-      toast.error("MAC muss 12 Hex-Zeichen haben (z.B. AA:BB:CC:DD:EE:FF).");
-      return;
-    }
-    setSavingDev(true);
-    try {
-      const isEdit = editingDeviceId !== null;
-      const resp = await fetch(
-        isEdit ? `/api/provisioning/devices/${editingDeviceId}` : "/api/provisioning/devices",
-        {
-          method: isEdit ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: dName, manufacturer: dManu, model: dModel, mac: normalizeMac(dMac),
-            extension_numbers: dExtNumbers.join(","), template_id: Number(dTpl),
-          }),
-        }
-      );
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen."));
-      resetDeviceForm();
-      loadAll();
-      toast.success(isEdit ? "Zuordnung gespeichert." : "Gerät hinzugefügt.");
-    } catch (err) {
-      toast.error(toErrorMessage(err, "Speichern fehlgeschlagen."));
-    } finally {
-      setSavingDev(false);
-    }
-  }
-
   async function confirmDeleteDevice() {
     if (!deleteTarget) return;
     try {
@@ -153,7 +258,6 @@ export default function Provisioning() {
       if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Fehler beim Löschen."));
       const data = await resp.json().catch(() => null);
       setDevices((ds) => ds.filter((d) => d.id !== deleteTarget.id));
-      if (editingDeviceId === deleteTarget.id) resetDeviceForm();
       toast.success(
         data?.hung_up_calls
           ? `Gerät gelöscht, ${data.hung_up_calls} aktive(s) Gespräch(e) getrennt.`
@@ -207,9 +311,19 @@ export default function Provisioning() {
 
       {/* Devices */}
       <div className="glass rounded-xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">Geräte</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Geräte</h2>
+          <Button size="sm" className="gap-1.5" onClick={() => setDeviceDialog({ device: null })}>
+            <Plus className="h-4 w-4" /> Gerät hinzufügen
+          </Button>
+        </div>
         {loading ? (
           <p className="text-sm text-muted-foreground">Lädt…</p>
+        ) : devices.length === 0 ? (
+          <p className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground"
+            style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+            Noch keine Geräte. Klicke auf „Gerät hinzufügen", um zu starten.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -218,7 +332,6 @@ export default function Provisioning() {
                   <th className="pb-2 pr-3">Name</th>
                   <th className="pb-2 pr-3">Hersteller / Modell</th>
                   <th className="pb-2 pr-3">MAC</th>
-                  <th className="pb-2 pr-3">Nebenstellen</th>
                   <th className="pb-2 pr-3">Status</th>
                   <th className="pb-2 pr-3">Provisioning-URL</th>
                   <th className="pb-2 text-right">Aktion</th>
@@ -227,11 +340,10 @@ export default function Provisioning() {
               <tbody>
                 {devices.map((d) => (
                   <tr key={d.id} className="border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                    <td className="py-2 pr-3">{d.name || "—"}</td>
-                    <td className="py-2 pr-3">{d.manufacturer} {d.model}</td>
-                    <td className="py-2 pr-3 font-mono text-xs">{d.mac}</td>
-                    <td className="py-2 pr-3 font-mono">{d.extension_numbers.join(", ") || "—"}</td>
-                    <td className="py-2 pr-3">
+                    <td className="py-3 pr-3">{d.name || "—"}</td>
+                    <td className="py-3 pr-3">{d.manufacturer} {d.model}</td>
+                    <td className="py-3 pr-3 font-mono text-xs">{d.mac}</td>
+                    <td className="py-3 pr-3">
                       <div className="flex flex-col gap-0.5">
                         {d.extension_numbers.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
                         {d.extension_numbers.map((num) => {
@@ -253,15 +365,15 @@ export default function Provisioning() {
                         })}
                       </div>
                     </td>
-                    <td className="py-2 pr-3">
+                    <td className="py-3 pr-3">
                       <button onClick={() => copy(d.provisioning_url)}
                         className="inline-flex items-center gap-1 font-mono text-xs text-violet-300 hover:text-violet-200">
                         <Copy className="h-3 w-3" /> {d.provisioning_url}
                       </button>
                     </td>
-                    <td className="py-2 text-right">
+                    <td className="py-3 text-right">
                       <Button variant="ghost" size="icon" className="h-8 w-8"
-                        onClick={() => startEditDevice(d)} aria-label="Gerät bearbeiten">
+                        onClick={() => setDeviceDialog({ device: d })} aria-label="Gerät bearbeiten">
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"
@@ -271,65 +383,14 @@ export default function Provisioning() {
                     </td>
                   </tr>
                 ))}
-                {/* add/edit row */}
-                <tr className="border-t" style={editingDeviceId !== null ? { borderColor: "rgba(139,92,246,0.4)", background: "rgba(139,92,246,0.05)" } : { borderColor: "rgba(255,255,255,0.06)" }}>
-                  <td className="py-2 pr-3"><Input value={dName} onChange={(e) => setDName(e.target.value)} placeholder="Name" className={inputCls} /></td>
-                  <td className="py-2 pr-3">
-                    <div className="flex gap-1">
-                      <Input value={dManu} onChange={(e) => setDManu(e.target.value)} placeholder="Hersteller" className={inputCls} />
-                      <Input value={dModel} onChange={(e) => setDModel(e.target.value)} placeholder="Modell" className={inputCls} />
-                    </div>
-                  </td>
-                  <td className="py-2 pr-3"><Input value={dMac} onChange={(e) => setDMac(e.target.value)} placeholder="AA:BB:CC:DD:EE:FF" className={inputCls} /></td>
-                  <td className="py-2 pr-3">
-                    <div
-                      className="max-h-24 w-36 space-y-1 overflow-y-auto rounded-md border border-input bg-[#0b0e1a] p-2"
-                      title="Mehrere Nebenstellen moeglich - je Mobilteil/Leitung eine (z.B. DECT-Basis)."
-                    >
-                      {extensions.length === 0 && <span className="text-xs text-muted-foreground">Keine Nebenstellen</span>}
-                      {extensions.map((x) => (
-                        <label key={x.id} className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-200">
-                          <input
-                            type="checkbox"
-                            checked={dExtNumbers.includes(x.number)}
-                            onChange={() => toggleExtNumber(x.number)}
-                            className="cursor-pointer"
-                          />
-                          {x.number} ({x.display_name})
-                        </label>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="py-2 pr-3" />
-                  <td className="py-2 pr-3">
-                    <select value={dTpl} onChange={(e) => setDTpl(e.target.value ? Number(e.target.value) : "")}
-                      className="h-9 w-full rounded-md border border-input bg-[#0b0e1a] px-2 text-sm text-slate-200 [color-scheme:dark]">
-                      <option value="">Template…</option>
-                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </td>
-                  <td className="py-2 text-right">
-                    <div className="flex justify-end gap-1">
-                      {editingDeviceId !== null && (
-                        <Button size="sm" variant="ghost" onClick={resetDeviceForm} aria-label="Bearbeiten abbrechen">
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      <Button size="sm" onClick={saveDevice} disabled={savingDev} className="gap-1">
-                        {editingDeviceId !== null
-                          ? <><Save className="h-3.5 w-3.5" /> {savingDev ? "…" : "Speichern"}</>
-                          : <><Plus className="h-3.5 w-3.5" /> {savingDev ? "…" : "Add"}</>}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
               </tbody>
             </table>
           </div>
         )}
         <p className="mt-4 text-xs text-muted-foreground">
-          Trage die Provisioning-URL im Gerät ein (Web-UI → Auto-Provisioning-Server) oder verteile sie per DHCP-Option 66.
-          Gigaset: <span className="font-mono">…/api/autoprovision/[MAC].xml</span> als Datenserver-URL.
+          Nach dem Speichern die angezeigte Provisioning-URL im Gerät eintragen (Web-UI → Auto-Provisioning-Server)
+          oder per DHCP-Option 66 verteilen. Das Gerät holt sich die Konfiguration dann selbst von dieser URL —
+          es wird nichts aktiv „gesendet".
         </p>
       </div>
 
@@ -384,6 +445,17 @@ export default function Provisioning() {
           </div>
         )}
       </div>
+
+      {/* Add/edit device dialog */}
+      {deviceDialog && (
+        <DeviceDialog
+          device={deviceDialog.device}
+          templates={templates}
+          extensions={extensions}
+          onClose={() => setDeviceDialog(null)}
+          onSaved={loadAll}
+        />
+      )}
 
       {/* Delete confirmation */}
       {deleteTarget && (

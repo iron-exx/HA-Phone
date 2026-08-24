@@ -83,6 +83,19 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN presence_status TEXT NOT NULL DEFAULT 'available'")
                 )
                 conn.commit()
+            # transport/media_encryption were added to the Extension model
+            # without matching migrations, so upgrading an existing DB crashed
+            # on the first extension query ("no such column: extension.transport").
+            if "transport" not in cols:
+                conn.execute(
+                    text("ALTER TABLE extension ADD COLUMN transport TEXT NOT NULL DEFAULT 'udp'")
+                )
+                conn.commit()
+            if "media_encryption" not in cols:
+                conn.execute(
+                    text("ALTER TABLE extension ADD COLUMN media_encryption TEXT NOT NULL DEFAULT 'none'")
+                )
+                conn.commit()
         if "trunk" in tables:
             cols = [c["name"] for c in inspector.get_columns("trunk")]
             if "codecs" not in cols:
