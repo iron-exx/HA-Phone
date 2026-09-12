@@ -354,6 +354,21 @@ exten => i,1,Set(IVR_INVALID_COUNT=$[${IVR_INVALID_COUNT} + 1])
 exten => t,1,Hangup()
 {% endfor %}
 
+; Per-extension caller-ID contexts for internal-only endpoints (door intercoms etc.).
+; Many SIP door stations send "Anonymous" in their From header; trust_id_inbound
+; faithfully passes that through. Each endpoint gets its own entry context that
+; forces CALLERID(name/num) from the configured display_name/number, then
+; delegates to from-internal-restricted for the actual call routing.
+{% for ext in extensions %}
+{% if ext.internal_only and ext.enabled %}
+[from-restricted-{{ ext.number }}]
+exten => _X.,1,NoOp(Internal-only call from {{ ext.display_name }} ({{ ext.number }}) to ${EXTEN})
+ same => n,Set(CALLERID(name)={{ ext.display_name }})
+ same => n,Set(CALLERID(num)={{ ext.number }})
+ same => n,Goto(from-internal-restricted,${EXTEN},1)
+{% endif %}
+{% endfor %}
+
 ; Doorbell ring-all context
 [doorbell-out]
 exten => _X.,1,NoOp(Doorbell ring: ${EXTEN})
