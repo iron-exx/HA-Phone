@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.97
+
+**Feature - Neues Provisioning-Template: Fanvil V65 (vollständig)**
+- Neues eingebautes Template "Fanvil V65 (vollständig)" ergänzt: enthält alle Einstellungen, die das Telefon beim Provisioning nicht überschreibt.
+- **Sprache & Region**: `PREFERENCE Language :German`, `PREFERENCE Active Tone :Germany` (deutsche Ruftöne/Amtston)
+- **Zeitzone & NTP**: `PREFERENCE Time Zone :Berlin(+1:00)`, SNTP-Server `pool.ntp.org`, `PREFERENCE Summer Time :Enable`
+- **Early Media**: `SIP1 Early Media :1` (183 Session Progress mit SDP, wichtig für korrekte Klingelsignalisierung)
+- **DTMF**: `SIP1 DTMF Type :2` (RFC2833)
+- **6 Funktionstasten (DSS Keys)**: Alle leer vorbelegt mit Kommentar-Anleitung (Typen, BLF-Beispiel). Über das Template-Feld in der Provisioning-Seite editierbar.
+- Das bestehende einfache "Fanvil"-Template bleibt unverändert (rückwärtskompatibel).
+
 ## 0.7.96
 
 **UI - Auto-Provisioning: Gerät anlegen/bearbeiten in lesbarem Dialog**
