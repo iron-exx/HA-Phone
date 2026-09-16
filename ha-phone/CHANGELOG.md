@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.99
+
+**Feature - Gerätespezifische Einstellungen im Provisioning-Dialog (Fanvil V65)**
+- Neues `extra_vars`-Feld pro Gerät: JSON-Wörterbuch mit gerätespezifischen Template-Variablen.
+- Fanvil V65 Template jetzt parametrisiert: Sprache, Klingeltöne (Land), Zeitzone, Early Media und 6 Funktionstasten (DSS Keys) können pro Gerät konfiguriert werden.
+- Im Gerät-Bearbeiten-Dialog erscheint bei Auswahl eines "Fanvil V65"-Templates ein neuer Bereich mit allen konfigurierbaren Feldern (Sprache, Klingeltöne, Zeitzone, Early Media, 6 × DSS-Tasten mit Typ/Wert/Label/Pickup/Leitung).
+- Bestehende Installationen: Das 0.7.97 Fanvil-V65-Template wird beim Start automatisch auf die parametrisierte Version aktualisiert (sofern nicht manuell bearbeitet).
+- Datenbankschema: Spalte `extra_vars` (TEXT JSON) in `provisioneddevice` hinzugefügt (automatische Migration).
+
 ## 0.7.98
 
 **Fix - Asterisk 22.11.0 (Build-Fix)**

@@ -1,3 +1,4 @@
+import json
 import re
 import socket
 from typing import List, Optional
@@ -169,11 +170,11 @@ BUILTIN_TEMPLATES = [
             "\n"
             "<PREFERENCE MODULE>\n"
             "## Sprache: German, English, French, Spanish, Italian, Portuguese, Russian, Turkish\n"
-            "PREFERENCE Language :German\n"
+            "PREFERENCE Language :{{fanvil_language | default('German')}}\n"
             "## Landeswahl für Ruftöne/Amtston: Germany, UK, USA, France, Spain, Italy, ...\n"
-            "PREFERENCE Active Tone :Germany\n"
+            "PREFERENCE Active Tone :{{fanvil_tone | default('Germany')}}\n"
             "## Zeitzone: z.B. Berlin(+1:00), Vienna(+1:00), Zurich(+1:00)\n"
-            "PREFERENCE Time Zone :Berlin(+1:00)\n"
+            "PREFERENCE Time Zone :{{fanvil_timezone | default('Berlin(+1:00)')}}\n"
             "## NTP-Zeitserver für automatische Uhrzeitsynchronisation\n"
             "PREFERENCE SNTP Server :pool.ntp.org\n"
             "PREFERENCE SNTP Port :123\n"
@@ -189,7 +190,7 @@ BUILTIN_TEMPLATES = [
             "SIP1 Register Port :{{sip_port}}\n"
             "SIP1 Register Enable :1\n"
             "## Early Media (183 Session Progress mit SDP): 1=aktiviert, 0=deaktiviert\n"
-            "SIP1 Early Media :1\n"
+            "SIP1 Early Media :{{fanvil_early_media | default('1')}}\n"
             "## DTMF-Modus: 0=INBAND, 2=RFC2833, 4=SIP INFO\n"
             "SIP1 DTMF Type :2\n"
             "\n"
@@ -199,36 +200,36 @@ BUILTIN_TEMPLATES = [
             "##         6=Voice Mail, 9=DTMF, 13=Transfer, 14=Hold, 16=Park\n"
             "## Zeile: 1 = SIP-Konto 1\n"
             "## BLF-Beispiel: Type=2, Value=102, PickupValue=**102, Label=Buero\n"
-            "Memory DSS Key1 Type :0\n"
-            "Memory DSS Key1 Value :\n"
-            "Memory DSS Key1 Line :1\n"
-            "Memory DSS Key1 PickupValue :\n"
-            "Memory DSS Key1 Label :\n"
-            "Memory DSS Key2 Type :0\n"
-            "Memory DSS Key2 Value :\n"
-            "Memory DSS Key2 Line :1\n"
-            "Memory DSS Key2 PickupValue :\n"
-            "Memory DSS Key2 Label :\n"
-            "Memory DSS Key3 Type :0\n"
-            "Memory DSS Key3 Value :\n"
-            "Memory DSS Key3 Line :1\n"
-            "Memory DSS Key3 PickupValue :\n"
-            "Memory DSS Key3 Label :\n"
-            "Memory DSS Key4 Type :0\n"
-            "Memory DSS Key4 Value :\n"
-            "Memory DSS Key4 Line :1\n"
-            "Memory DSS Key4 PickupValue :\n"
-            "Memory DSS Key4 Label :\n"
-            "Memory DSS Key5 Type :0\n"
-            "Memory DSS Key5 Value :\n"
-            "Memory DSS Key5 Line :1\n"
-            "Memory DSS Key5 PickupValue :\n"
-            "Memory DSS Key5 Label :\n"
-            "Memory DSS Key6 Type :0\n"
-            "Memory DSS Key6 Value :\n"
-            "Memory DSS Key6 Line :1\n"
-            "Memory DSS Key6 PickupValue :\n"
-            "Memory DSS Key6 Label :\n"
+            "Memory DSS Key1 Type :{{fanvil_dss1_type | default('0')}}\n"
+            "Memory DSS Key1 Value :{{fanvil_dss1_value | default('')}}\n"
+            "Memory DSS Key1 Line :{{fanvil_dss1_line | default('1')}}\n"
+            "Memory DSS Key1 PickupValue :{{fanvil_dss1_pickup | default('')}}\n"
+            "Memory DSS Key1 Label :{{fanvil_dss1_label | default('')}}\n"
+            "Memory DSS Key2 Type :{{fanvil_dss2_type | default('0')}}\n"
+            "Memory DSS Key2 Value :{{fanvil_dss2_value | default('')}}\n"
+            "Memory DSS Key2 Line :{{fanvil_dss2_line | default('1')}}\n"
+            "Memory DSS Key2 PickupValue :{{fanvil_dss2_pickup | default('')}}\n"
+            "Memory DSS Key2 Label :{{fanvil_dss2_label | default('')}}\n"
+            "Memory DSS Key3 Type :{{fanvil_dss3_type | default('0')}}\n"
+            "Memory DSS Key3 Value :{{fanvil_dss3_value | default('')}}\n"
+            "Memory DSS Key3 Line :{{fanvil_dss3_line | default('1')}}\n"
+            "Memory DSS Key3 PickupValue :{{fanvil_dss3_pickup | default('')}}\n"
+            "Memory DSS Key3 Label :{{fanvil_dss3_label | default('')}}\n"
+            "Memory DSS Key4 Type :{{fanvil_dss4_type | default('0')}}\n"
+            "Memory DSS Key4 Value :{{fanvil_dss4_value | default('')}}\n"
+            "Memory DSS Key4 Line :{{fanvil_dss4_line | default('1')}}\n"
+            "Memory DSS Key4 PickupValue :{{fanvil_dss4_pickup | default('')}}\n"
+            "Memory DSS Key4 Label :{{fanvil_dss4_label | default('')}}\n"
+            "Memory DSS Key5 Type :{{fanvil_dss5_type | default('0')}}\n"
+            "Memory DSS Key5 Value :{{fanvil_dss5_value | default('')}}\n"
+            "Memory DSS Key5 Line :{{fanvil_dss5_line | default('1')}}\n"
+            "Memory DSS Key5 PickupValue :{{fanvil_dss5_pickup | default('')}}\n"
+            "Memory DSS Key5 Label :{{fanvil_dss5_label | default('')}}\n"
+            "Memory DSS Key6 Type :{{fanvil_dss6_type | default('0')}}\n"
+            "Memory DSS Key6 Value :{{fanvil_dss6_value | default('')}}\n"
+            "Memory DSS Key6 Line :{{fanvil_dss6_line | default('1')}}\n"
+            "Memory DSS Key6 PickupValue :{{fanvil_dss6_pickup | default('')}}\n"
+            "Memory DSS Key6 Label :{{fanvil_dss6_label | default('')}}\n"
         ),
     },
     {
@@ -435,6 +436,79 @@ _N510_PROVIDERFRAME_PRE_LDAP_CONTENT = (
     "</ProviderFrame>\n"
 )
 
+# The 0.7.97 Fanvil V65 content: hardcoded German language/tone/timezone and
+# fixed early-media=1. Replaced in 0.7.99 by a parameterized version that
+# reads per-device extra_vars (fanvil_language, fanvil_tone, fanvil_timezone,
+# fanvil_early_media, fanvil_dssN_{type,value,line,pickup,label}).
+_FANVIL_V65_FULL_NAME = "Fanvil V65 (vollständig)"
+_FANVIL_V65_LEGACY_CONTENT = (
+    "<<VOIP CONFIG FILE>>Version:2.0000\n"
+    "## HA-Phone auto-provisioning — Fanvil V65. Editierbar.\n"
+    "\n"
+    "<PREFERENCE MODULE>\n"
+    "## Sprache: German, English, French, Spanish, Italian, Portuguese, Russian, Turkish\n"
+    "PREFERENCE Language :German\n"
+    "## Landeswahl für Ruftöne/Amtston: Germany, UK, USA, France, Spain, Italy, ...\n"
+    "PREFERENCE Active Tone :Germany\n"
+    "## Zeitzone: z.B. Berlin(+1:00), Vienna(+1:00), Zurich(+1:00)\n"
+    "PREFERENCE Time Zone :Berlin(+1:00)\n"
+    "## NTP-Zeitserver für automatische Uhrzeitsynchronisation\n"
+    "PREFERENCE SNTP Server :pool.ntp.org\n"
+    "PREFERENCE SNTP Port :123\n"
+    "## Sommerzeit: Enable / Disable\n"
+    "PREFERENCE Summer Time :Enable\n"
+    "\n"
+    "<SIP CONFIG MODULE>\n"
+    "SIP1 Phone Number :{{sip_username}}\n"
+    "SIP1 Display Name :{{display_name}}\n"
+    "SIP1 Register User :{{sip_username}}\n"
+    "SIP1 Register Pswd :{{sip_password}}\n"
+    "SIP1 Register Addr :{{sip_server}}\n"
+    "SIP1 Register Port :{{sip_port}}\n"
+    "SIP1 Register Enable :1\n"
+    "## Early Media (183 Session Progress mit SDP): 1=aktiviert, 0=deaktiviert\n"
+    "SIP1 Early Media :1\n"
+    "## DTMF-Modus: 0=INBAND, 2=RFC2833, 4=SIP INFO\n"
+    "SIP1 DTMF Type :2\n"
+    "\n"
+    "<DSSKEY MODULE>\n"
+    "## --- Funktionstasten (DSS Keys) ---\n"
+    "## Typen: 0=Leer, 1=Speed Dial, 2=BLF, 3=URL, 4=Group Pickup,\n"
+    "##         6=Voice Mail, 9=DTMF, 13=Transfer, 14=Hold, 16=Park\n"
+    "## Zeile: 1 = SIP-Konto 1\n"
+    "## BLF-Beispiel: Type=2, Value=102, PickupValue=**102, Label=Buero\n"
+    "Memory DSS Key1 Type :0\n"
+    "Memory DSS Key1 Value :\n"
+    "Memory DSS Key1 Line :1\n"
+    "Memory DSS Key1 PickupValue :\n"
+    "Memory DSS Key1 Label :\n"
+    "Memory DSS Key2 Type :0\n"
+    "Memory DSS Key2 Value :\n"
+    "Memory DSS Key2 Line :1\n"
+    "Memory DSS Key2 PickupValue :\n"
+    "Memory DSS Key2 Label :\n"
+    "Memory DSS Key3 Type :0\n"
+    "Memory DSS Key3 Value :\n"
+    "Memory DSS Key3 Line :1\n"
+    "Memory DSS Key3 PickupValue :\n"
+    "Memory DSS Key3 Label :\n"
+    "Memory DSS Key4 Type :0\n"
+    "Memory DSS Key4 Value :\n"
+    "Memory DSS Key4 Line :1\n"
+    "Memory DSS Key4 PickupValue :\n"
+    "Memory DSS Key4 Label :\n"
+    "Memory DSS Key5 Type :0\n"
+    "Memory DSS Key5 Value :\n"
+    "Memory DSS Key5 Line :1\n"
+    "Memory DSS Key5 PickupValue :\n"
+    "Memory DSS Key5 Label :\n"
+    "Memory DSS Key6 Type :0\n"
+    "Memory DSS Key6 Value :\n"
+    "Memory DSS Key6 Line :1\n"
+    "Memory DSS Key6 PickupValue :\n"
+    "Memory DSS Key6 Label :\n"
+)
+
 # Every superseded shipped revision of a builtin template, by name. A row is
 # auto-upgraded to the current BUILTIN_TEMPLATES content ONLY if it still
 # exactly matches one of these - user-edited templates are never touched.
@@ -443,6 +517,7 @@ _OUTDATED_BUILTIN_CONTENTS: dict[str, list[str]] = {
         _N510_PROVIDERFRAME_BROKEN_CONTENT,
         _N510_PROVIDERFRAME_PRE_LDAP_CONTENT,
     ],
+    _FANVIL_V65_FULL_NAME: [_FANVIL_V65_LEGACY_CONTENT],
 }
 
 
@@ -545,6 +620,7 @@ class DeviceOut(BaseModel):
     mac: str
     extension_numbers: List[int]
     template_id: int
+    extra_vars: dict
     provisioning_url: str
 
 
@@ -555,6 +631,7 @@ class DeviceCreate(BaseModel):
     mac: str
     extension_numbers: str
     template_id: int
+    extra_vars: Optional[dict] = None
 
 
 class DeviceUpdate(BaseModel):
@@ -564,6 +641,7 @@ class DeviceUpdate(BaseModel):
     mac: Optional[str] = None
     extension_numbers: Optional[str] = None
     template_id: Optional[int] = None
+    extra_vars: Optional[dict] = None
 
 
 def _ensure_template_exists(template_id: int, session: Session) -> None:
@@ -575,9 +653,15 @@ def _device_out(d: ProvisionedDevice, session: Session, lan_ip: str) -> DeviceOu
     tpl = session.get(ProvisioningTemplate, d.template_id)
     fname = (tpl.file_pattern if tpl else "{mac}").replace("{mac}", d.mac)
     base = f"http://{lan_ip}" if lan_ip else "http://<PBX-IP>"
+    try:
+        extra = json.loads(d.extra_vars or "{}")
+    except (ValueError, TypeError):
+        extra = {}
     return DeviceOut(
         id=d.id, name=d.name, manufacturer=d.manufacturer, model=d.model, mac=d.mac,
-        extension_numbers=_parse_extension_numbers(d.extension_numbers, allow_empty=True), template_id=d.template_id,
+        extension_numbers=_parse_extension_numbers(d.extension_numbers, allow_empty=True),
+        template_id=d.template_id,
+        extra_vars=extra,
         provisioning_url=f"{base}/api/autoprovision/{fname}",
     )
 
@@ -602,6 +686,7 @@ def create_device(data: DeviceCreate, session: Session = Depends(get_session)):
         mac=mac,
         extension_numbers=extension_numbers,
         template_id=data.template_id,
+        extra_vars=json.dumps(data.extra_vars or {}),
     )
     session.add(device)
     session.commit()
@@ -623,6 +708,8 @@ def update_device(device_id: int, data: DeviceUpdate, session: Session = Depends
         existing.template_id = payload["template_id"]
     if "extension_numbers" in payload:
         existing.extension_numbers = _validate_extension_numbers(payload["extension_numbers"], session)
+    if "extra_vars" in payload and payload["extra_vars"] is not None:
+        existing.extra_vars = json.dumps(payload["extra_vars"])
     if "mac" in payload:
         existing.mac = _norm_mac(payload["mac"])
         if len(existing.mac) != 12:
@@ -703,6 +790,10 @@ def serve_provisioning(path: str, session: Session = Depends(get_session)):
         "gigaset_slots": _gigaset_slots(accounts),
         "gigaset_sip_port_hex": hex(int(sip_port)),
     }
+    try:
+        subs.update(json.loads(device.extra_vars or "{}"))
+    except (ValueError, TypeError):
+        pass
     body = _render(tpl.content, subs)
     media = "application/xml" if path.lower().endswith(".xml") else "text/plain"
     return Response(content=body, media_type=media)

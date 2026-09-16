@@ -157,6 +157,11 @@ def run_migrations(engine: Engine) -> None:
             if "extension_id" in cols:
                 conn.execute(text("ALTER TABLE provisioneddevice DROP COLUMN extension_id"))
                 conn.commit()
+            if "extra_vars" not in cols:
+                conn.execute(
+                    text("ALTER TABLE provisioneddevice ADD COLUMN extra_vars TEXT NOT NULL DEFAULT '{}'")
+                )
+                conn.commit()
         if "holiday" in tables:
             cols = [c["name"] for c in inspector.get_columns("holiday")]
             if "year" not in cols:

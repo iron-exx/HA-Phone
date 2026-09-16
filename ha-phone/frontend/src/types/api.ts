@@ -45,6 +45,7 @@ export interface ProvisionedDevice {
   mac: string;
   extension_numbers: number[];
   template_id: number;
+  extra_vars: Record<string, string>;
   provisioning_url: string;
 }
 
