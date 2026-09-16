@@ -36,6 +36,21 @@ function normalizeMac(value: string) {
   return value.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
 }
 
+const FANVIL_LANGUAGES = ["German", "English", "French", "Spanish", "Italian", "Portuguese", "Russian", "Turkish"];
+const FANVIL_TONES = ["Germany", "UK", "USA", "France", "Spain", "Italy", "Switzerland", "Austria", "Netherlands", "Belgium"];
+const FANVIL_DSS_TYPES = [
+  { value: "0", label: "Leer" },
+  { value: "1", label: "Speed Dial" },
+  { value: "2", label: "BLF" },
+  { value: "3", label: "URL" },
+  { value: "4", label: "Group Pickup" },
+  { value: "6", label: "Voicemail" },
+  { value: "9", label: "DTMF" },
+  { value: "13", label: "Transfer" },
+  { value: "14", label: "Hold" },
+  { value: "16", label: "Park" },
+];
+
 /**
  * Add/edit dialog for a provisioned device. A proper full-width form dialog
  * (like the extensions dialog) instead of the previous cramped inline table
@@ -61,7 +76,15 @@ function DeviceDialog({
   const [mac, setMac] = useState(device?.mac ?? "");
   const [extNumbers, setExtNumbers] = useState<number[]>(device?.extension_numbers ?? []);
   const [templateId, setTemplateId] = useState<number | "">(device?.template_id || "");
+  const [extraVars, setExtraVars] = useState<Record<string, string>>(device?.extra_vars ?? {});
   const [saving, setSaving] = useState(false);
+
+  const selectedTemplate = templates.find(t => t.id === Number(templateId));
+  const isFanvilV65 = selectedTemplate?.name.includes("Fanvil V65") ?? false;
+
+  function setVar(key: string, value: string) {
+    setExtraVars(prev => ({ ...prev, [key]: value }));
+  }
 
   function toggleExtNumber(number: number) {
     setExtNumbers((prev) =>
@@ -92,6 +115,7 @@ function DeviceDialog({
           body: JSON.stringify({
             name, manufacturer, model, mac: normalizeMac(mac),
             extension_numbers: extNumbers.join(","), template_id: Number(templateId),
+            extra_vars: extraVars,
           }),
         }
       );
@@ -181,6 +205,81 @@ function DeviceDialog({
               ))}
             </select>
           </div>
+
+          {isFanvilV65 && (
+            <div className="space-y-3 rounded-md border border-input bg-[#0b0e1a] p-3">
+              <p className="text-sm font-medium text-slate-200">Fanvil V65 – Geräteeinstellungen</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Sprache</label>
+                  <select
+                    value={extraVars.fanvil_language ?? "German"}
+                    onChange={e => setVar("fanvil_language", e.target.value)}
+                    className="h-8 w-full rounded-md border border-input bg-[#0d1020] px-2 text-sm text-slate-200 [color-scheme:dark]"
+                  >
+                    {FANVIL_LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Klingeltöne (Land)</label>
+                  <select
+                    value={extraVars.fanvil_tone ?? "Germany"}
+                    onChange={e => setVar("fanvil_tone", e.target.value)}
+                    className="h-8 w-full rounded-md border border-input bg-[#0d1020] px-2 text-sm text-slate-200 [color-scheme:dark]"
+                  >
+                    {FANVIL_TONES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Zeitzone</label>
+                  <Input
+                    value={extraVars.fanvil_timezone ?? "Berlin(+1:00)"}
+                    onChange={e => setVar("fanvil_timezone", e.target.value)}
+                    placeholder="Berlin(+1:00)"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Early Media</label>
+                  <select
+                    value={extraVars.fanvil_early_media ?? "1"}
+                    onChange={e => setVar("fanvil_early_media", e.target.value)}
+                    className="h-8 w-full rounded-md border border-input bg-[#0d1020] px-2 text-sm text-slate-200 [color-scheme:dark]"
+                  >
+                    <option value="1">An (1)</option>
+                    <option value="0">Aus (0)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Funktionstasten (DSS Keys)</p>
+                <div className="grid grid-cols-[1.25rem_5.5rem_1fr_1fr_1fr_2rem] gap-1 px-0.5 text-xs text-muted-foreground">
+                  <span>#</span><span>Typ</span><span>Wert/Nst.</span><span>Label</span><span>Pickup</span><span className="text-center">Ln</span>
+                </div>
+                {[1, 2, 3, 4, 5, 6].map(n => (
+                  <div key={n} className="grid grid-cols-[1.25rem_5.5rem_1fr_1fr_1fr_2rem] gap-1 items-center">
+                    <span className="text-xs text-muted-foreground text-center">{n}</span>
+                    <select
+                      value={extraVars[`fanvil_dss${n}_type`] ?? "0"}
+                      onChange={e => setVar(`fanvil_dss${n}_type`, e.target.value)}
+                      className="h-7 rounded border border-input bg-[#0d1020] px-1 text-xs text-slate-200 [color-scheme:dark]"
+                    >
+                      {FANVIL_DSS_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    <Input value={extraVars[`fanvil_dss${n}_value`] ?? ""} onChange={e => setVar(`fanvil_dss${n}_value`, e.target.value)} className="h-7 text-xs" placeholder="102" />
+                    <Input value={extraVars[`fanvil_dss${n}_label`] ?? ""} onChange={e => setVar(`fanvil_dss${n}_label`, e.target.value)} className="h-7 text-xs" placeholder="Büro" />
+                    <Input value={extraVars[`fanvil_dss${n}_pickup`] ?? ""} onChange={e => setVar(`fanvil_dss${n}_pickup`, e.target.value)} className="h-7 text-xs" placeholder="**102" />
+                    <Input value={extraVars[`fanvil_dss${n}_line`] ?? "1"} onChange={e => setVar(`fanvil_dss${n}_line`, e.target.value)} className="h-7 text-xs text-center" placeholder="1" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

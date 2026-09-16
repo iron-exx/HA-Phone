@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import ConfigDict
 from sqlalchemy import Column
 from sqlmodel import SQLModel, Field
@@ -121,6 +121,7 @@ class ProvisionedDevice(SQLModel, table=True):
     # on for any handset beyond the first.
     extension_numbers: str = ""
     template_id: int = 0
+    extra_vars: str = Field(default="{}")  # JSON dict of per-device template variables
 
 
 class Trunk(SQLModel, table=True):
@@ -292,3 +293,119 @@ class AdminUser(SQLModel, table=True):
     username: str = "admin"          # always "admin" — single-user setup
     hashed_password: bytes           # bcrypt output — SQLModel maps bytes to BLOB
     must_change_password: bool = True
+
+# ============================================================
+# MOBILE APP PROVISIONING (Phase 3: QR Code / JWT based)
+# ============================================================
+
+import secrets
+from datetime import datetime, timedelta
+
+class MobileDevice(SQLModel, table=True):
+    """A mobile device (iOS/Android) provisioned via QR code.
+    Linked to an Extension, stores FCM/APNs push token and device identity.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    extension_id: int = Field(foreign_key="extension.id")
+    # Platform: "ios" | "android"
+    platform: str = Field(max_length=16)
+    # FCM token (Android) or APNs token (iOS) - encrypted at rest
+    push_token: str = Field(default="", sa_column=Column(EncryptedString()))
+    # Unique device identifier from OS (Android: ANDROID_ID, iOS: identifierForVendor)
+    os_device_id: str = Field(default="", max_length=128)
+    # App version that provisioned this device
+    app_version: str = Field(default="", max_length=32)
+    # Human-readable device name (e.g. "Sandro's iPhone 15")
+    device_name: str = Field(default="", max_length=96)
+    # Provisioning status: "pending" | "active" | "revoked"
+    status: str = Field(default="pending", max_length=16)
+    # JWT token used for provisioning (one-time, short-lived)
+    provisioning_jwt_jti: str = Field(default="", max_length=64)
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    last_seen_at: Optional[datetime] = None
+    # Optional: last known IP for diagnostics
+    last_ip: str = Field(default="", max_length=45)
+
+
+class ProvisioningToken(SQLModel):
+    """Request model for POST /api/mobile/provision/start"""
+    extension_number: int
+    platform: str  # "ios" | "android"
+    device_name: str = ""
+    # Optional: app version
+    app_version: str = ""
+
+
+class ProvisioningTokenOut(SQLModel):
+    """Response model for POST /api/mobile/provision/start"""
+    provisioning_token: str  # JWT token (Ed25519 signed)
+    qr_code_url: str  # haphone://provision?t=<JWT> or https://...
+    expires_at: datetime
+
+
+class ProvisioningCompleteIn(SQLModel):
+    """Request model for POST /api/mobile/provision/complete"""
+    provisioning_token: str  # JWT from QR code
+    push_token: str  # FCM token (Android) or APNs token (iOS)
+    os_device_id: str
+    app_version: str = ""
+    device_name: str = ""
+
+
+class ProvisioningCompleteOut(SQLModel):
+    """Response model for POST /api/mobile/provision/complete"""
+    success: bool
+    device_id: int
+    extension_number: int
+    sip_domain: str
+    sip_username: str
+    sip_password: str
+    sip_port: int
+    transport: str  # "tls"
+    stun_servers: List[str]
+    turn_servers: List[str]
+    codecs: List[str]
+    config_version: int
+
+
+class DeviceRegisterIn(SQLModel):
+    """Request model for POST /api/mobile/device/register"""
+    device_id: int
+    push_token: str
+    os_device_id: str
+    app_version: str = ""
+
+
+class DeviceRegisterOut(SQLModel):
+    success: bool
+    device_id: int
+
+
+class DeviceRevokeIn(SQLModel):
+    """Request model for POST /api/mobile/device/revoke"""
+    device_id: int
+    extension_number: int  # for authorization
+
+
+class PushTokenRefreshIn(SQLModel):
+    """Request model for POST /api/mobile/device/refresh-token"""
+    device_id: int
+    push_token: str
+    os_device_id: str
+
+
+class MobileDeviceOut(SQLModel):
+    """Output model for device listing"""
+    id: int
+    extension_number: int
+    platform: str
+    device_name: str
+    status: str
+    app_version: str
+    created_at: datetime
+    last_seen_at: Optional[datetime]
+    last_ip: str
+
+

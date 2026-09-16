@@ -748,7 +748,7 @@ def test_non_video_extension_conf(client, mock_ami, tmp_data_dir):
 
 
 def test_internal_only_extension_conf(client, mock_ami, tmp_data_dir):
-    """internal_only=True uses the restricted dial context regardless of video support."""
+    """internal_only=True uses a per-extension context so caller ID is always overridden."""
     resp = client.post("/api/extensions", json={
         "number": 95, "display_name": "Nur intern", "sip_password": "internalpass12345",
         "video_capable": True, "internal_only": True
@@ -756,8 +756,25 @@ def test_internal_only_extension_conf(client, mock_ami, tmp_data_dir):
     assert resp.status_code == 200
     conf_path = tmp_data_dir / "asterisk" / "pjsip_extensions.conf"
     stanza = _get_extension_stanza(conf_path.read_text(), 95)
-    assert "context           = from-internal-restricted" in stanza
+    # Per-extension context so the dialplan can force CALLERID before routing.
+    assert "context           = from-restricted-95" in stanza
     assert "allow             = h264" in stanza
+
+
+def test_internal_only_callerid_override_dialplan(client, mock_ami, tmp_data_dir):
+    """internal_only extension gets a [from-restricted-NN] dialplan context that
+    forces the configured display_name/number as CALLERID before delegating to
+    from-internal-restricted — fixes anonymous display on door-intercom calls."""
+    resp = client.post("/api/extensions", json={
+        "number": 94, "display_name": "Haustuer", "sip_password": "doorpass123456",
+        "internal_only": True
+    })
+    assert resp.status_code == 200
+    routing_conf = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
+    assert "[from-restricted-94]" in routing_conf
+    assert "Set(CALLERID(name)=Haustuer)" in routing_conf
+    assert "Set(CALLERID(num)=94)" in routing_conf
+    assert "Goto(from-internal-restricted,${EXTEN},1)" in routing_conf
 
 
 def test_ring_group_crud(client, mock_ami):

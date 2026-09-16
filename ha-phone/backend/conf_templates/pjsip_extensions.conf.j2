@@ -5,7 +5,11 @@
 ; --- Extension {{ ext.number }} ({{ ext.display_name }}) ---
 [{{ ext.number }}]
 type              = endpoint
-context           = {% if ext.internal_only %}from-internal-restricted{% else %}from-internal{% endif %}
+; Internal-only endpoints get a per-extension context so the dialplan can
+; force the configured display_name/number as caller ID before routing.
+; Many door intercoms send Anonymous in their From header; trust_id_inbound
+; faithfully forwards that — the per-extension context overrides it explicitly.
+context           = {% if ext.internal_only %}from-restricted-{{ ext.number }}{% else %}from-internal{% endif %}
 
 disallow          = all
 allow             = alaw,ulaw,g722

@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.7.99
+
+**Feature - Gerätespezifische Einstellungen im Provisioning-Dialog (Fanvil V65)**
+- Neues `extra_vars`-Feld pro Gerät: JSON-Wörterbuch mit gerätespezifischen Template-Variablen.
+- Fanvil V65 Template jetzt parametrisiert: Sprache, Klingeltöne (Land), Zeitzone, Early Media und 6 Funktionstasten (DSS Keys) können pro Gerät konfiguriert werden.
+- Im Gerät-Bearbeiten-Dialog erscheint bei Auswahl eines "Fanvil V65"-Templates ein neuer Bereich mit allen konfigurierbaren Feldern (Sprache, Klingeltöne, Zeitzone, Early Media, 6 × DSS-Tasten mit Typ/Wert/Label/Pickup/Leitung).
+- Bestehende Installationen: Das 0.7.97 Fanvil-V65-Template wird beim Start automatisch auf die parametrisierte Version aktualisiert (sofern nicht manuell bearbeitet).
+- Datenbankschema: Spalte `extra_vars` (TEXT JSON) in `provisioneddevice` hinzugefügt (automatische Migration).
+
+## 0.7.98
+
+**Fix - Asterisk 22.11.0 (Build-Fix)**
+- Asterisk 22.10.1 wurde von downloads.asterisk.org entfernt — Docker-Build schlug mit wget-Fehler fehl. Auf 22.11.0 aktualisiert.
+
+## 0.7.97
+
+**Feature - Neues Provisioning-Template: Fanvil V65 (vollständig)**
+- Neues eingebautes Template "Fanvil V65 (vollständig)" ergänzt: enthält alle Einstellungen, die das Telefon beim Provisioning nicht überschreibt.
+- **Sprache & Region**: `PREFERENCE Language :German`, `PREFERENCE Active Tone :Germany` (deutsche Ruftöne/Amtston)
+- **Zeitzone & NTP**: `PREFERENCE Time Zone :Berlin(+1:00)`, SNTP-Server `pool.ntp.org`, `PREFERENCE Summer Time :Enable`
+- **Early Media**: `SIP1 Early Media :1` (183 Session Progress mit SDP, wichtig für korrekte Klingelsignalisierung)
+- **DTMF**: `SIP1 DTMF Type :2` (RFC2833)
+- **6 Funktionstasten (DSS Keys)**: Alle leer vorbelegt mit Kommentar-Anleitung (Typen, BLF-Beispiel). Über das Template-Feld in der Provisioning-Seite editierbar.
+- Das bestehende einfache "Fanvil"-Template bleibt unverändert (rückwärtskompatibel).
+
 ## 0.7.96
 
 **UI - Auto-Provisioning: Gerät anlegen/bearbeiten in lesbarem Dialog**
