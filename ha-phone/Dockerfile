@@ -3,7 +3,7 @@ ARG BUILD_FROM=ghcr.io/hassio-addons/debian-base:7.3.0
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
 FROM ${BUILD_FROM} AS build
 
-ARG ASTERISK_VERSION=22.10.1
+ARG ASTERISK_VERSION=22.11.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.98
+
+**Fix - Asterisk 22.11.0 (Build-Fix)**
+- Asterisk 22.10.1 wurde von downloads.asterisk.org entfernt — Docker-Build schlug mit wget-Fehler fehl. Auf 22.11.0 aktualisiert.
+
 ## 0.7.97
 
 **Feature - Neues Provisioning-Template: Fanvil V65 (vollständig)**
