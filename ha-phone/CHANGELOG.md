@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.100
+
+**Feature - Echte QR-Code-Kopplung für die native HA-Phone-App**
+- Die App-Kopplung per QR-Code (`/api/mobile/provision/...`) war seit ihrer Einführung nie erreichbar: doppeltes `/api`-Präfix (main.py hängte nochmal `/api` vor den Router, der selbst schon `/api/mobile` gesetzt hatte), die komplette Route war fälschlich hinter Admin-Login gesperrt (das Handy hat aber nie eine Admin-Session, nur den einmaligen QR-Token), und der QR-Code-Inhalt enthielt keine Adresse der eigenen Box. Alle drei behoben.
+- Zusätzlich zwei Bugs gefunden, die die Kopplung trotz obiger Fixes immer noch stumm hätten scheitern lassen: die JWT-Ablaufzeit wurde mit `datetime.utcnow()` berechnet, was auf einem nicht-UTC-Host (z.B. CEST) die Tokens bereits ~2h "abgelaufen" erzeugte; und die Dev-Signaturschlüssel waren zwei unabhängig erfundene Platzhalter-Strings, die zwar geparst wurden, aber kein zusammengehöriges Schlüsselpaar bildeten, wodurch jede Signaturprüfung fehlschlug.
+- Auf der Nebenstellen-Seite ersetzt ein neuer "HA-Phone App QR"-Dialog den bisherigen "Linphone QR"-Dialog (Notlösung mit dem generischen Linphone-Client, unzuverlässig im Hintergrund). Erzeugt einen echten, 5 Minuten gültigen Kopplungs-Code für die native App.
+- `PyJWT` war in `backend/requirements.txt` nie eingetragen (lief lokal nur, weil zufällig systemweit auf dem Build-Host vorhanden) - der CI-Build war dadurch rot. Ergänzt.
+
 ## 0.7.99
 
 **Feature - Gerätespezifische Einstellungen im Provisioning-Dialog (Fanvil V65)**
