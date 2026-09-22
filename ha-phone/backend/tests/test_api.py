@@ -5,6 +5,31 @@ from pathlib import Path
 from unittest.mock import patch
 
 
+def _set_provisioning_token(extension_id: int) -> str:
+    """Directly stamp a provisioning token on an extension row.
+
+    The admin-facing /extensions/{id}/linphone-qr metadata endpoint (which
+    used to lazily generate this token) was removed along with the Linphone
+    QR admin UI - the remaining public XML/vcard provisioning endpoints below
+    are otherwise unrelated and untouched, so exercise them directly against
+    the DB instead of via the removed endpoint.
+    """
+    import secrets
+
+    from sqlmodel import Session, select
+
+    from backend.database import get_engine
+    from backend.models import Extension
+
+    with Session(get_engine()) as session:
+        extension = session.exec(select(Extension).where(Extension.id == extension_id)).first()
+        extension.provisioning_token = secrets.token_urlsafe(24)
+        session.add(extension)
+        session.commit()
+        session.refresh(extension)
+        return extension.provisioning_token
+
+
 def _ensure_extension(client, number: int, name: str | None = None):
     existing = client.get("/api/extensions")
     if existing.status_code == 200:
@@ -119,7 +144,7 @@ def test_extension_status(client):
     assert isinstance(data, list)
 
 
-def test_linphone_qr_metadata_and_public_provisioning(client):
+def test_linphone_public_provisioning(client):
     phonebook_resp = client.post(
         "/api/phonebook",
         json={"name": "Taxi Zentrale", "number": "+49 3333 5555", "notes": "24h; Stadt"},
@@ -139,14 +164,7 @@ def test_linphone_qr_metadata_and_public_provisioning(client):
     assert resp.status_code == 200
     extension = resp.json()
 
-    qr_resp = client.get(f"/api/extensions/{extension['id']}/linphone-qr")
-    assert qr_resp.status_code == 200
-    payload = qr_resp.json()
-    assert payload["extension_number"] == 21
-    assert payload["display_name"] == "Linphone User"
-    assert payload["provisioning_path"].startswith("/api/linphone/provision/")
-
-    token = payload["provisioning_path"].rsplit("/", 1)[-1]
+    token = _set_provisioning_token(extension["id"])
     xml_resp = client.get(f"/api/linphone/provision/{token}")
     assert xml_resp.status_code == 200
     assert xml_resp.headers["content-type"].startswith("application/xml")
@@ -205,8 +223,7 @@ def test_linphone_contacts_url_never_points_at_ha_ingress(client):
     assert resp.status_code == 200
     extension = resp.json()
 
-    qr_resp = client.get(f"/api/extensions/{extension['id']}/linphone-qr")
-    token = qr_resp.json()["provisioning_path"].rsplit("/", 1)[-1]
+    token = _set_provisioning_token(extension["id"])
     xml_resp = client.get(
         f"/api/linphone/provision/{token}",
         headers={

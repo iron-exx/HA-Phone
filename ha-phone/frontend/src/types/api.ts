@@ -21,11 +21,11 @@ export interface PresenceForwardingRule {
   ring_timeout: number;
 }
 
-export interface LinphoneProvisioningInfo {
-  extension_id: number;
-  extension_number: number;
-  display_name: string;
-  provisioning_path: string;
+// Mobile app QR pairing (POST /api/mobile/provision/start response)
+export interface ProvisioningTokenOut {
+  provisioning_token: string;
+  qr_code_url: string;
+  expires_at: string;
 }
 
 export interface ProvisioningTemplate {

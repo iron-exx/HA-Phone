@@ -13,7 +13,7 @@ import {
   type RingGroup,
   type IVRMenu,
   type PresenceForwardingRule,
-  type LinphoneProvisioningInfo,
+  type ProvisioningTokenOut,
 } from "@/types/api";
 import { DestinationField, formatDestination, type DestinationValue } from "@/components/DestinationField";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
@@ -63,11 +63,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  buildLinphoneConfigUri,
-  buildLinphoneQrPayload,
-  buildProvisioningUrl,
-} from "@/lib/linphoneProvisioning";
 import { copyToClipboard } from "@/lib/clipboard";
 
 // ---- Zod schema ----
@@ -683,7 +678,14 @@ function DeleteExtensionDialog({
   );
 }
 
-function LinphoneQrDialog({
+// QR pairing dialog for the native HA-Phone companion app (Android for now -
+// the iOS app doesn't exist yet, see the note in the dialog body). Replaces
+// the old LinphoneQrDialog, which provisioned the generic third-party
+// Linphone app; that path is unreliable for background calls, which is
+// exactly why the native app exists. This dialog starts a fresh, short-lived
+// (5 min) pairing token per open via POST /api/mobile/provision/start rather
+// than reusing a long-lived per-extension token like Linphone's did.
+function MobileAppQrDialog({
   extension,
   onClose,
 }: {
@@ -692,24 +694,27 @@ function LinphoneQrDialog({
 }) {
   const [loading, setLoading] = useState(true);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
-  const [provisioning, setProvisioning] = useState<LinphoneProvisioningInfo | null>(null);
+  const [provisioning, setProvisioning] = useState<ProvisioningTokenOut | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const resp = await fetch(`/api/extensions/${extension.id}/linphone-qr`);
-        if (!resp.ok) throw new Error();
-        const data: LinphoneProvisioningInfo = await resp.json();
+        const resp = await fetch("/api/mobile/provision/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            extension_number: extension.number,
+            platform: "android",
+            device_name: "",
+          }),
+        });
+        if (!resp.ok) throw new Error(await apiErrorMessage(resp, "QR-Code konnte nicht erstellt werden."));
+        const data: ProvisioningTokenOut = await resp.json();
         if (cancelled) return;
         setProvisioning(data);
-        // Linphone's IN-APP QR scanner ("Scan QR Code" in the assistant) expects
-        // the RAW http(s) provisioning URL as QR payload — NOT the
-        // "linphone-config:" wrapped form, which it rejects as "invalid URI".
-        // The linphone-config: scheme is only for clickable links that launch
-        // the app via the OS (see openInLinphone below).
-        const dataUrl = await QRCode.toDataURL(buildLinphoneQrPayload(data.provisioning_path), {
+        const dataUrl = await QRCode.toDataURL(data.qr_code_url, {
           width: 320,
           margin: 2,
           color: {
@@ -718,8 +723,8 @@ function LinphoneQrDialog({
           },
         });
         if (!cancelled) setQrCodeDataUrl(dataUrl);
-      } catch {
-        if (!cancelled) toast.error("Linphone-QR konnte nicht geladen werden.");
+      } catch (err) {
+        if (!cancelled) toast.error(toErrorMessage(err, "QR-Code konnte nicht erstellt werden."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -729,37 +734,18 @@ function LinphoneQrDialog({
     return () => {
       cancelled = true;
     };
-  }, [extension.id]);
+  }, [extension.id, extension.number]);
 
   async function copyProvisioningLink() {
     if (!provisioning) return;
-    await copyToClipboard(buildProvisioningUrl(provisioning.provisioning_path), "Provisioning-Link kopiert.");
-  }
-
-  function openInLinphone() {
-    if (!provisioning) return;
-    const uri = buildLinphoneConfigUri(provisioning.provisioning_path);
-    // Inside Home Assistant's ingress <iframe>, navigating window.location only
-    // moves the iframe - the browser never sees it as a top-level navigation, so
-    // it won't offer to hand the custom "linphone-config:" scheme to the OS/app.
-    // Navigate the top window instead (same-origin under ingress), falling back
-    // to the local window if that's blocked (e.g. direct, non-ingress access).
-    try {
-      if (window.top && window.top !== window) {
-        window.top.location.href = uri;
-        return;
-      }
-    } catch {
-      // cross-origin or blocked - fall through
-    }
-    window.location.href = uri;
+    await copyToClipboard(provisioning.qr_code_url, "Provisioning-Link kopiert.");
   }
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Linphone QR fuer Nebenstelle {extension.number}</DialogTitle>
+          <DialogTitle>HA-Phone App fuer Nebenstelle {extension.number}</DialogTitle>
         </DialogHeader>
 
         {loading ? (
@@ -776,7 +762,7 @@ function LinphoneQrDialog({
               {qrCodeDataUrl ? (
                 <img
                   src={qrCodeDataUrl}
-                  alt={`Linphone QR fuer Extension ${provisioning.extension_number}`}
+                  alt={`HA-Phone Kopplungs-QR fuer Nebenstelle ${extension.number}`}
                   className="h-72 w-72 rounded-lg"
                 />
               ) : (
@@ -786,10 +772,11 @@ function LinphoneQrDialog({
 
             <div className="space-y-2">
               <p className="text-sm text-foreground">
-                {provisioning.display_name} ({provisioning.extension_number})
+                {extension.display_name} ({extension.number})
               </p>
               <p className="text-xs text-muted-foreground">
-                In Linphone "Scan QR Code" waehlen. Fuer die manuelle Einrichtung unten den Provisioning-Link in Linphone unter "Provisioning Link" einfuegen.
+                In der HA-Phone App auf "QR-Code scannen" tippen. Der Code ist 5 Minuten gueltig.
+                Aktuell nur fuer Android - die iOS-App folgt.
               </p>
             </div>
 
@@ -798,7 +785,7 @@ function LinphoneQrDialog({
               <div className="flex gap-2">
                 <Input
                   readOnly
-                  value={buildProvisioningUrl(provisioning.provisioning_path)}
+                  value={provisioning.qr_code_url}
                   className="font-mono text-xs"
                 />
                 <Button type="button" variant="outline" onClick={copyProvisioningLink} className="cursor-pointer shrink-0">
@@ -806,12 +793,6 @@ function LinphoneQrDialog({
                   Kopieren
                 </Button>
               </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button type="button" variant="outline" onClick={openInLinphone} className="cursor-pointer">
-                In Linphone oeffnen
-              </Button>
             </div>
           </div>
         ) : null}
@@ -1083,7 +1064,7 @@ export default function Extensions() {
   const [dialogMode, setDialogMode] = useState<"add" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<Extension | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Extension | null>(null);
-  const [qrTarget, setQrTarget] = useState<Extension | null>(null);
+  const [mobileQrTarget, setMobileQrTarget] = useState<Extension | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchDevices() {
@@ -1327,10 +1308,10 @@ export default function Extensions() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           className="cursor-pointer"
-                          onClick={() => setQrTarget(ext)}
+                          onClick={() => setMobileQrTarget(ext)}
                         >
                           <QrCode className="mr-2 h-4 w-4" />
-                          Linphone QR
+                          HA-Phone App QR
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="cursor-pointer"
@@ -1396,10 +1377,10 @@ export default function Extensions() {
         />
       )}
 
-      {qrTarget && (
-        <LinphoneQrDialog
-          extension={qrTarget}
-          onClose={() => setQrTarget(null)}
+      {mobileQrTarget && (
+        <MobileAppQrDialog
+          extension={mobileQrTarget}
+          onClose={() => setMobileQrTarget(null)}
         />
       )}
     </div>

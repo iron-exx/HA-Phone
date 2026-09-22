@@ -104,16 +104,6 @@ def _replace_extension_in_ring_groups(
             session.add(group)
 
 
-def _ensure_provisioning_token(extension: Extension, session: Session) -> Extension:
-    if extension.provisioning_token:
-        return extension
-    extension.provisioning_token = secrets.token_urlsafe(24)
-    session.add(extension)
-    session.commit()
-    session.refresh(extension)
-    return extension
-
-
 def _request_host(request: Request) -> str:
     forwarded_host = request.headers.get("x-forwarded-host", "")
     if forwarded_host:
@@ -278,9 +268,9 @@ def _extension_out(extension: Extension) -> ExtensionOut:
 
 
 def _extension_create_out(extension: Extension) -> ExtensionCreateOut:
-    return ExtensionCreateOut(
-        **_extension_out(extension).model_dump(),
-        sip_password=extension.sip_password,
+    return ExtensionCreateOut.model_validate(
+        _extension_out(extension).model_dump(),
+        update={"sip_password": extension.sip_password},
     )
 
 
@@ -293,20 +283,6 @@ def generate_password() -> dict:
 @router.get("/extensions", response_model=List[ExtensionOut])
 def list_extensions(session: Session = Depends(get_session)):
     return [_extension_out(extension) for extension in session.exec(select(Extension)).all()]
-
-
-@router.get("/extensions/{extension_id}/linphone-qr")
-def get_linphone_qr(extension_id: int, session: Session = Depends(get_session)):
-    extension = session.get(Extension, extension_id)
-    if not extension:
-        raise HTTPException(status_code=404, detail="Extension not found")
-    extension = _ensure_provisioning_token(extension, session)
-    return {
-        "extension_id": extension.id,
-        "extension_number": extension.number,
-        "display_name": extension.display_name,
-        "provisioning_path": f"/api/linphone/provision/{extension.provisioning_token}",
-    }
 
 
 @router.post("/extensions", response_model=ExtensionCreateOut)
