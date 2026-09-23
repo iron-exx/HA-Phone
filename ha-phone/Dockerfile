@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     subversion \
     unixodbc-dev \
+    unzip \
     uuid-dev \
     wget \
   && rm -rf /var/lib/apt/lists/*
@@ -128,6 +129,8 @@ RUN make menuselect.makeopts && \
       --enable codec_g722 \
       --enable format_wav \
       --enable format_wav_gsm \
+      --enable format_pcm \
+      --enable format_g722 \
       --enable pbx_config \
       --enable cdr_csv \
       --enable CORE-SOUNDS-EN-WAV \
@@ -138,6 +141,17 @@ RUN make -j1 third-party && \
     make -j$(nproc) all && \
     make install DESTDIR=/opt/asterisk && \
     rm -rf /opt/asterisk/var/run
+
+# German prompts (Asterisk ships none): joni1802/asterisk-sound-generator, MIT.
+# Only A-law + G.722, the codecs the extensions use, so no transcoding and ~30 MB.
+ARG SOUNDS_DE_VERSION=0.2.3
+ARG SOUNDS_DE_SHA256=0c166d640f1e0ee896f55073a15b8abcf79bff7126f92d40c51d70c4a0c32713
+RUN wget -q -O /tmp/core-sounds-de.zip \
+      "https://github.com/joni1802/asterisk-sound-generator/releases/download/v${SOUNDS_DE_VERSION}/core-sounds-de-v${SOUNDS_DE_VERSION}.zip" \
+ && echo "${SOUNDS_DE_SHA256}  /tmp/core-sounds-de.zip" | sha256sum -c - \
+ && mkdir -p /opt/asterisk/var/lib/asterisk/sounds/de \
+ && unzip -q /tmp/core-sounds-de.zip '*.alaw' '*.g722' -d /opt/asterisk/var/lib/asterisk/sounds/de \
+ && rm /tmp/core-sounds-de.zip
 
 # Preserve Asterisk's own license/notice files inside the image (GPL-2.0
 # compliance for bundling its unmodified, compiled binary as a separate

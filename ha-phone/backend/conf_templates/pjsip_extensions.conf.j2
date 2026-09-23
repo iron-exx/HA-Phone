@@ -13,6 +13,8 @@ context           = {% if ext.internal_only %}from-restricted-{{ ext.number }}{%
 
 disallow          = all
 allow             = alaw,ulaw,g722
+; German prompts (voicemail, *97) from sounds/de; Asterisk falls back to English per file.
+language          = de
 {% if ext.video_capable %}
 allow             = h264
 max_video_streams = 1

@@ -64,6 +64,7 @@ qualify_frequency = 60
 [trunk-endpoint]
 type = endpoint
 context = from-trunk
+language = de
 disallow = all
 allow = {{ trunk.codecs if trunk.codecs else "ulaw,alaw" }}
 outbound_auth = trunk-auth

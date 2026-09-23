@@ -70,6 +70,8 @@ def test_extension_crud(client, tmp_data_dir):
     assert conf_path.exists()
     content = conf_path.read_text()
     assert "[20]" in content
+    # German prompts for voicemail/*97 (bundled under sounds/de).
+    assert "language          = de" in content
 
 
 def test_extension_tls_srtp_media_encryption_in_conf(client, tmp_data_dir):

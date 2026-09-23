@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.106
+
+**Feature - Deutsche Ansagen**
+- Mailbox (`*97`), „Bitte hinterlassen Sie eine Nachricht" und alle anderen Asterisk-Ansagen sind jetzt auf Deutsch. Quelle: [asterisk-sound-generator](https://github.com/joni1802/asterisk-sound-generator) v0.2.3 (MIT), eingebaut im A-law- und G.722-Format, also ohne Umrechnung für die Telefone. Wo eine deutsche Datei fehlt, nimmt Asterisk automatisch die englische.
+- Alle Nebenstellen und der Trunk haben dafür `language = de`.
+
 ## 0.7.105
 
 **Fix - Keine Ansagen: Mailbox legte sofort auf**
