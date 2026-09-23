@@ -130,7 +130,6 @@ RUN make menuselect.makeopts && \
       --enable format_wav \
       --enable format_wav_gsm \
       --enable format_pcm \
-      --enable format_g722 \
       --enable pbx_config \
       --enable cdr_csv \
       --enable CORE-SOUNDS-EN-WAV \

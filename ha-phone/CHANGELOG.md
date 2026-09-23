@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.108
+
+**Fix - Build von 0.7.106/0.7.107 schlug fehl**
+- Das Image ließ sich nicht bauen, weil ein Asterisk-Modul `format_g722` angefordert wurde, das es nicht gibt (G.722-Dateien liest `format_pcm` mit). Enthält alle Neuerungen aus 0.7.105 bis 0.7.107: Ansagen, deutsche Ansagen, Präsenz und visuelle Voicemail für die App.
+
 ## 0.7.107
 
 **Feature - Präsenz und visuelle Voicemail für die HA-Phone App**
