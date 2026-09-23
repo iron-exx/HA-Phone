@@ -7,7 +7,7 @@ def _auth(paired):
 
 
 def _inbox(tmp_data_dir, ext, folder="INBOX"):
-    d = tmp_data_dir / "asterisk" / "spool" / "voicemail" / "default" / str(ext) / folder
+    d = tmp_data_dir / "voicemail" / "voicemail" / "default" / str(ext) / folder
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -117,3 +117,73 @@ def test_voicemail_rejects_other_folders_and_bad_names(client, paired):
 
 def test_voicemail_requires_device_token(client, paired):
     assert client.get("/api/mobile/voicemail").status_code == 401
+
+
+# ---- forwarding rules ----
+
+def test_forwarding_roundtrip_replaces_own_rules(client, paired, mock_ami):
+    h = _auth(paired)
+    assert client.get("/api/mobile/forwarding", headers=h).json() == {"rules": []}
+    rules = [
+        {"status": "lunch", "direction": "external", "mode": "always_dest", "dest_type": "voicemail", "dest_target": 87, "ring_timeout": 20},
+        {"status": "away", "direction": "internal", "mode": "ring_then_dest", "dest_type": "voicemail", "dest_target": 87, "ring_timeout": 15},
+    ]
+    resp = client.put("/api/mobile/forwarding", json={"rules": rules}, headers=h)
+    assert resp.status_code == 200, resp.text
+    mock_ami["reload_dialplan"].assert_awaited()
+    got = client.get("/api/mobile/forwarding", headers=h).json()["rules"]
+    assert sorted(r["status"] for r in got) == ["away", "lunch"]
+    # Replacing with one rule drops the other.
+    client.put("/api/mobile/forwarding", json={"rules": rules[:1]}, headers=h)
+    assert [r["status"] for r in client.get("/api/mobile/forwarding", headers=h).json()["rules"]] == ["lunch"]
+    client.put("/api/mobile/forwarding", json={"rules": []}, headers=h)
+
+
+def test_forwarding_rejects_bad_rules(client, paired):
+    h = _auth(paired)
+    bad = [
+        {"status": "partying", "direction": "external", "mode": "always_dest", "dest_type": "voicemail", "dest_target": 87},
+        {"status": "lunch", "direction": "sideways", "mode": "always_dest", "dest_type": "voicemail", "dest_target": 87},
+        {"status": "lunch", "direction": "external", "mode": "always_dest", "dest_type": "extension", "dest_target": 5},
+        {"status": "lunch", "direction": "external", "mode": "always_dest", "dest_type": "ivr", "dest_target": 1},
+    ]
+    for rule in bad:
+        assert client.put("/api/mobile/forwarding", json={"rules": [rule]}, headers=h).status_code == 422, rule
+    dup = [bad[0] | {"status": "lunch"}, bad[0] | {"status": "lunch"}]
+    assert client.put("/api/mobile/forwarding", json={"rules": dup}, headers=h).status_code == 422
+
+
+# ---- call history from CDR ----
+
+_CDR = (
+    '"","13","87","from-internal","""Test"" <13>","PJSIP/13-00000001","PJSIP/87-00000002","Dial","PJSIP/87,30",'
+    '"2026-09-23 14:02:00","2026-09-23 14:02:05","2026-09-23 14:05:17",197,192,"ANSWERED","DOCUMENTATION","1790000001.1",""\n'
+    '"","87","0301234567","from-internal","""Auth Test"" <87>","PJSIP/87-00000003","PJSIP/trunk-endpoint-00000004","Dial","PJSIP/0301234567@trunk-endpoint",'
+    '"2026-09-23 15:00:00","","2026-09-23 15:00:20",20,0,"NO ANSWER","DOCUMENTATION","1790000002.2",""\n'
+    '"","16","11","from-internal","""tuer"" <16>","PJSIP/16-00000005","PJSIP/11-00000006","Dial","PJSIP/11,30",'
+    '"2026-09-23 16:00:00","2026-09-23 16:00:02","2026-09-23 16:00:30",30,28,"ANSWERED","DOCUMENTATION","1790000003.3",""\n'
+    '"","16","87","from-internal","""tuer"" <16>","PJSIP/16-00000007","PJSIP/87-00000008","Dial","PJSIP/87,30",'
+    '"2026-09-23 17:00:00","","2026-09-23 17:00:30",30,0,"NO ANSWER","DOCUMENTATION","1790000004.4",""\n'
+)
+
+
+def test_call_history_lists_only_own_calls_newest_first(client, paired, tmp_data_dir):
+    cdr_dir = tmp_data_dir / "logs" / "asterisk" / "cdr-csv"
+    cdr_dir.mkdir(parents=True, exist_ok=True)
+    (cdr_dir / "Master.csv").write_text(_CDR)
+    calls = client.get("/api/mobile/calls", headers=_auth(paired)).json()["calls"]
+    assert [c["id"] for c in calls] == ["1790000004.4", "1790000002.2", "1790000001.1"]
+    missed, outgoing, incoming = calls
+    assert missed == {
+        "id": "1790000004.4", "number": "16", "name": "tuer", "direction": "incoming",
+        "answered": False, "started_at": missed["started_at"], "duration_sec": 0,
+    }
+    assert outgoing["direction"] == "outgoing" and outgoing["number"] == "0301234567" and not outgoing["answered"]
+    assert incoming["answered"] and incoming["duration_sec"] == 192 and incoming["name"] == "Test"
+
+
+def test_call_history_without_cdr_file_is_empty(client, paired, tmp_data_dir):
+    master = tmp_data_dir / "logs" / "asterisk" / "cdr-csv" / "Master.csv"
+    if master.exists():
+        master.unlink()
+    assert client.get("/api/mobile/calls", headers=_auth(paired)).json() == {"calls": []}

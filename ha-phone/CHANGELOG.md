@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.110
+
+**Fix - Voicemail-Nachrichten wurden im Admin nie angezeigt**
+- Die Voicemail-Seite suchte Nachrichten und Ansagen unter `/data/asterisk/spool/…`. Asterisk legt sie aber unter `/data/voicemail/voicemail/default/<Nebenstelle>` ab (siehe `astspooldir`). Liste, Abspielen, Löschen und das Hochladen der Abwesenheitsansage greifen jetzt auf den richtigen Ordner zu.
+
+**Feature - Weiterleitungen und Anrufliste für die HA-Phone App**
+- `GET/PUT /api/mobile/forwarding`: die Weiterleitungsregeln pro Präsenz-Status der eigenen Nebenstelle lesen und setzen (intern/extern, sofort oder nach Klingeln, Ziel Nebenstelle, Klingelgruppe, Mailbox oder Auflegen).
+- `GET /api/mobile/calls`: Anrufliste der eigenen Nebenstelle aus den Asterisk-Verbindungsdaten (CDR), auch für Anrufe, die an einem anderen Gerät angenommen oder verpasst wurden.
+
 ## 0.7.109
 
 **Feature - Echo-Test `*43`**

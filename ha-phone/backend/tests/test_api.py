@@ -637,7 +637,7 @@ def test_voicemail_messages(client, tmp_data_dir):
     assert resp_list.json() == []
 
     # Create a fake WAV file in the INBOX
-    inbox = tmp_data_dir / "asterisk" / "spool" / "voicemail" / "default" / "10" / "INBOX"
+    inbox = tmp_data_dir / "voicemail" / "voicemail" / "default" / "10" / "INBOX"
     inbox.mkdir(parents=True, exist_ok=True)
     (inbox / "msg0000.wav").write_bytes(b"RIFF\x00\x00\x00\x00WAVEfmt ")
 
@@ -683,7 +683,7 @@ def test_greeting_upload(client, tmp_data_dir):
     assert resp_upload.json() == {"ok": True}
 
     # File must exist at expected spool path
-    greeting_path = tmp_data_dir / "asterisk" / "spool" / "voicemail" / "default" / "12" / "unavail.wav"
+    greeting_path = tmp_data_dir / "voicemail" / "voicemail" / "default" / "12" / "unavail.wav"
     assert greeting_path.exists()
 
     # GET greeting returns 200

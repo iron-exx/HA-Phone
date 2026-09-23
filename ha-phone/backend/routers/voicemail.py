@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import VoicemailSettings, Extension
+from backend.voicemail_paths import mailbox_dir
 
 router = APIRouter()
 
@@ -21,11 +22,11 @@ def _data_dir() -> Path:
 
 
 def _spool_inbox(ext_num: int) -> Path:
-    return _data_dir() / "asterisk" / "spool" / "voicemail" / "default" / str(ext_num) / "INBOX"
+    return mailbox_dir(ext_num) / "INBOX"
 
 
 def _spool_greeting(ext_num: int) -> Path:
-    return _data_dir() / "asterisk" / "spool" / "voicemail" / "default" / str(ext_num) / "unavail.wav"
+    return mailbox_dir(ext_num) / "unavail.wav"
 
 
 def _validate_ext_exists(ext_num: int, session: Session) -> None:
@@ -153,7 +154,9 @@ async def upload_greeting(
         raise HTTPException(status_code=404, detail="Voicemail settings not found")
     # Derive ext_num from mailbox field "10@default" → 10
     ext_num_str = settings.mailbox.split("@")[0]
-    greeting_dir = _data_dir() / "asterisk" / "spool" / "voicemail" / "default" / ext_num_str
+    if not ext_num_str.isdigit():
+        raise HTTPException(status_code=422, detail="Invalid mailbox")
+    greeting_dir = mailbox_dir(int(ext_num_str))
     greeting_dir.mkdir(parents=True, exist_ok=True)
     greeting_path = greeting_dir / "unavail.wav"
     content = await file.read()

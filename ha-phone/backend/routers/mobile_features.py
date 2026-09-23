@@ -3,22 +3,25 @@ Phone-facing app features beyond pairing: presence (own status + live line
 state of all extensions) and visual voicemail for the device's own mailbox.
 All endpoints authenticate the device via X-Device-Id / X-Device-Token.
 """
+import csv
 import os
 import re
+import time
 from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from backend import ami
 from backend.database import get_session
-from backend.models import Extension, MobileDevice
+from backend.models import Extension, MobileDevice, PresenceForwardingRule, RingGroup
 from backend.regeneration import run_regeneration_steps, step_succeeded
 from backend.routers.mobile_provisioning import authenticate_device
 from backend.routers.time_conditions import _regenerate_routing_conf
+from backend.voicemail_paths import mailbox_dir
 
 public_router = APIRouter(prefix="/mobile", tags=["mobile-features"])
 
@@ -110,7 +113,7 @@ def _data_dir() -> Path:
 
 
 def _mailbox(ext_number: int) -> Path:
-    return _data_dir() / "asterisk" / "spool" / "voicemail" / "default" / str(ext_number)
+    return mailbox_dir(ext_number)
 
 
 def _parse_envelope(txt: Path) -> dict:
@@ -182,3 +185,149 @@ def delete_voicemail(folder: str, name: str, device: MobileDevice = Depends(_dev
     if envelope.exists():
         envelope.unlink()
     return {"success": True}
+
+
+# ============================================================
+# Forwarding rules per presence status (own extension only)
+# ============================================================
+
+# Destinations the app offers; IVR menus stay an admin-only choice.
+_MOBILE_DEST_TYPES = {"extension", "ring_group", "voicemail", "hangup"}
+
+
+class ForwardingRuleIn(BaseModel):
+    status: PresenceStatus
+    direction: Literal["internal", "external"]
+    mode: Literal["ring_then_dest", "always_dest"] = "ring_then_dest"
+    dest_type: str = "voicemail"
+    dest_target: int = 0
+    ring_timeout: int = Field(default=20, ge=5, le=120)
+
+
+class ForwardingIn(BaseModel):
+    rules: list[ForwardingRuleIn]
+
+
+def _rule_out(rule: PresenceForwardingRule) -> dict:
+    return {
+        "status": rule.status, "direction": rule.direction, "mode": rule.mode,
+        "dest_type": rule.dest_type, "dest_target": rule.dest_target, "ring_timeout": rule.ring_timeout,
+    }
+
+
+@public_router.get("/forwarding")
+def get_forwarding(device: MobileDevice = Depends(_device), session: Session = Depends(get_session)):
+    own = _own_extension(session, device)
+    rules = session.exec(select(PresenceForwardingRule).where(PresenceForwardingRule.extension_id == own.id)).all()
+    return {"rules": [_rule_out(r) for r in sorted(rules, key=lambda r: (r.status, r.direction))]}
+
+
+def _check_destination(session: Session, rule: ForwardingRuleIn) -> None:
+    if rule.dest_type not in _MOBILE_DEST_TYPES:
+        raise HTTPException(status_code=422, detail=f"dest_type must be one of {sorted(_MOBILE_DEST_TYPES)}")
+    if rule.dest_type in ("extension", "voicemail"):
+        if not session.exec(select(Extension).where(Extension.number == rule.dest_target)).first():
+            raise HTTPException(status_code=422, detail=f"Unknown extension {rule.dest_target}")
+    if rule.dest_type == "ring_group" and not session.get(RingGroup, rule.dest_target):
+        raise HTTPException(status_code=422, detail=f"Unknown ring group {rule.dest_target}")
+
+
+@public_router.put("/forwarding")
+async def set_forwarding(
+    data: ForwardingIn,
+    device: MobileDevice = Depends(_device),
+    session: Session = Depends(get_session),
+):
+    own = _own_extension(session, device)
+    keys = [(r.status, r.direction) for r in data.rules]
+    if len(keys) != len(set(keys)):
+        raise HTTPException(status_code=422, detail="At most one rule per status and direction")
+    for rule in data.rules:
+        _check_destination(session, rule)
+    for old in session.exec(select(PresenceForwardingRule).where(PresenceForwardingRule.extension_id == own.id)).all():
+        session.delete(old)
+    for rule in data.rules:
+        session.add(PresenceForwardingRule(extension_id=own.id, **rule.model_dump()))
+    session.commit()
+    summary = run_regeneration_steps(
+        f"mobile.forwarding:{own.number}",
+        [("routing", lambda: _regenerate_routing_conf(session))],
+    )
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
+    return get_forwarding(device, session)
+
+
+# ============================================================
+# Call history from Asterisk's CDR (all devices of the extension)
+# ============================================================
+
+_CDR_TAIL_BYTES = 2_000_000
+_CDR_FIELDS = (
+    "accountcode", "src", "dst", "dcontext", "clid", "channel", "dstchannel", "lastapp",
+    "lastdata", "start", "answer", "end", "duration", "billsec", "disposition", "amaflags",
+    "uniqueid",
+)
+
+
+def _cdr_file() -> Path:
+    return _data_dir() / "logs" / "asterisk" / "cdr-csv" / "Master.csv"
+
+
+def _cdr_rows() -> list[dict]:
+    path = _cdr_file()
+    if not path.exists():
+        return []
+    with path.open("rb") as f:
+        f.seek(max(0, path.stat().st_size - _CDR_TAIL_BYTES))
+        text = f.read().decode("utf-8", errors="replace")
+    lines = text.splitlines()
+    if path.stat().st_size > _CDR_TAIL_BYTES and lines:
+        lines = lines[1:]  # first line is probably cut in half
+    rows = []
+    for values in csv.reader(lines):
+        if len(values) >= len(_CDR_FIELDS):
+            rows.append(dict(zip(_CDR_FIELDS, values)))
+    return rows
+
+
+def _epoch(local_time: str) -> int:
+    try:
+        return int(time.mktime(time.strptime(local_time, "%Y-%m-%d %H:%M:%S")))
+    except ValueError:
+        return 0
+
+
+def _clid_name(clid: str) -> str:
+    match = re.match(r'^\s*"([^"]*)"', clid)
+    return match.group(1).strip() if match else ""
+
+
+@public_router.get("/calls")
+def get_calls(
+    limit: int = 100,
+    device: MobileDevice = Depends(_device),
+    session: Session = Depends(get_session),
+):
+    own = _own_extension(session, device)
+    leg = f"PJSIP/{own.number}-"
+    calls: dict[str, dict] = {}
+    for row in _cdr_rows():
+        if row["dstchannel"].startswith(leg):
+            direction, number, name = "incoming", row["src"], _clid_name(row["clid"])
+        elif row["channel"].startswith(leg):
+            direction, number, name = "outgoing", row["dst"], ""
+        else:
+            continue
+        answered = row["disposition"] == "ANSWERED"
+        call_id = row["uniqueid"] or f"{row['start']}-{number}"
+        existing = calls.get(call_id)
+        if existing and existing["answered"]:
+            continue
+        calls[call_id] = {
+            "id": call_id, "number": number, "name": name, "direction": direction,
+            "answered": answered, "started_at": _epoch(row["start"]),
+            "duration_sec": int(row["billsec"] or 0) if answered else 0,
+        }
+    newest = sorted(calls.values(), key=lambda c: c["started_at"], reverse=True)
+    return {"calls": newest[: max(1, min(limit, 500))]}
