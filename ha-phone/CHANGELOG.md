@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.113
+
+**Feature - Anruf heranholen `**<Nebenstelle>`**
+- Klingelt es an einer anderen Nebenstelle, holt `**` plus deren Nummer (z. B. `**11`) den Anruf an das eigene Telefon. Die HA-Phone App bietet dafür bei klingelnden Kontakten die Taste „Heranholen".
+
 ## 0.7.112
 
 **Fix - Verbindungsdaten (CDR) wurden nie geschrieben**

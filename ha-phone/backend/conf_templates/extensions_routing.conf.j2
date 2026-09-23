@@ -41,6 +41,11 @@ exten => *97,1,NoOp(Voicemail access for ${CHANNEL(endpoint)})
  same => n,VoiceMailMain(${CHANNEL(endpoint)}@default,s)
  same => n,Hangup()
 
+;  **<ext> = pick up a call ringing at another extension (desk phone, app "Heranholen").
+exten => _**XX,1,NoOp(Pickup of ${EXTEN:2} by ${CHANNEL(endpoint)})
+ same => n,PickupChan(PJSIP/${EXTEN:2})
+ same => n,Hangup()
+
 ; *43 = echo test: everything you say comes straight back (audio check, like on desk phones).
 exten => *43,1,NoOp(Echo test for ${CHANNEL(endpoint)})
  same => n,Answer()

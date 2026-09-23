@@ -2305,3 +2305,5 @@ def test_voicemail_access_code_in_internal_context_only(client, tmp_data_dir):
     assert "*97" not in restricted
     assert "exten => *43,1," in internal and "Echo()" in internal
     assert "*43" not in restricted
+    assert "exten => _**XX,1," in internal and "PickupChan(PJSIP/${EXTEN:2})" in internal
+    assert "**XX" not in restricted

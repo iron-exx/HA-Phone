@@ -19,3 +19,9 @@ def test_german_prompts_are_bundled_with_matching_format_modules():
     assert "--enable format_pcm" in text and "format_g722" not in text
     modules = (DOCKERFILE.parent / "rootfs/etc/asterisk/modules.conf").read_text()
     assert "load = format_pcm.so" in modules
+
+
+def test_directed_pickup_module_is_built_and_loaded():
+    assert "--enable app_directed_pickup" in DOCKERFILE.read_text()
+    modules = (DOCKERFILE.parent / "rootfs/etc/asterisk/modules.conf").read_text()
+    assert "load = app_directed_pickup.so" in modules
