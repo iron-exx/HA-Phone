@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.database import init_db
 from backend.auth import get_current_user, SESSION_SECRET
-from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning, backup, holidays, phonebook, extension_groups, presence_rules, mobile_provisioning
+from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning, backup, holidays, phonebook, extension_groups, presence_rules, mobile_provisioning, mobile_features
 from backend.routers import auth as auth_router
 
 # Nothing configures a logging level anywhere in this app, so Python's
@@ -86,6 +86,7 @@ app.include_router(extensions.public_router, prefix="/api")
 # Mobile app provisioning fetch endpoints (PUBLIC — phone only ever has the
 # one-time JWT from the QR code, never an admin session)
 app.include_router(mobile_provisioning.public_router, prefix="/api")
+app.include_router(mobile_features.public_router, prefix="/api")
 
 # API routers — all protected by get_current_user
 app.include_router(extensions.router, prefix="/api", dependencies=[Depends(get_current_user)])

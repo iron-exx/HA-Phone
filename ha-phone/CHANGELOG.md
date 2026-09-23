@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.107
+
+**Feature - Präsenz und visuelle Voicemail für die HA-Phone App**
+- `GET /api/mobile/presence`: eigener Status und Status aller Nebenstellen, dazu der Live-Zustand der Leitung (frei, klingelt, telefoniert, offline) direkt aus Asterisk.
+- `PUT /api/mobile/presence`: Die App setzt den eigenen Status (verfügbar, abwesend, Mittagspause, nicht stören, Feierabend). Die Weiterleitungsregeln pro Status greifen sofort, der Dialplan wird neu geladen.
+- `GET /api/mobile/voicemail`, `…/audio`, `DELETE`: Nachrichten der eigenen Mailbox (neu und abgehört) mit Anrufer, Dauer und Zeitpunkt, zum Anhören und Löschen in der App. Andere Mailboxen sind nicht erreichbar.
+
 ## 0.7.106
 
 **Feature - Deutsche Ansagen**
