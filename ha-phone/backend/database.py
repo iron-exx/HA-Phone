@@ -96,6 +96,15 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN media_encryption TEXT NOT NULL DEFAULT 'none'")
                 )
                 conn.commit()
+        if "mobiledevice" in tables:
+            cols = [c["name"] for c in inspector.get_columns("mobiledevice")]
+            if "device_token_hash" not in cols:
+                # Devices paired before this column existed get "" and can no
+                # longer authenticate: they must be re-paired via QR code.
+                conn.execute(
+                    text("ALTER TABLE mobiledevice ADD COLUMN device_token_hash TEXT NOT NULL DEFAULT ''")
+                )
+                conn.commit()
         if "trunk" in tables:
             cols = [c["name"] for c in inspector.get_columns("trunk")]
             if "codecs" not in cols:

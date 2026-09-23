@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.102
+
+**Sicherheit - App-Endpunkte gaben SIP-Passwörter ohne Anmeldung heraus**
+- `GET /api/mobile/config?extension_number=N` lieferte das SIP-Passwort **jeder** Nebenstelle an jeden im LAN, ganz ohne Anmeldung (eingeführt mit 0.7.100, als die App-Endpunkte für die QR-Kopplung öffentlich gemacht wurden). Ebenso konnte über `/api/mobile/device/register` jeder den Push-Token eines beliebigen Geräts überschreiben.
+- Jedes gekoppelte Gerät erhält jetzt beim Koppeln ein eigenes geheimes Geräte-Token (gespeichert wird nur dessen SHA-256-Hash). `config`, `device/register` und `device/refresh-token` verlangen Geräte-ID + Token, `config` liefert nur noch die eigene Nebenstelle des Geräts. Gesperrte Geräte werden abgewiesen.
+- Vor diesem Update gekoppelte Geräte haben kein Token; die HA-Phone-App nutzt diese Endpunkte derzeit nicht, bei Bedarf einfach per QR-Code neu koppeln.
+
 ## 0.7.101
 
 **Fix - TLS-Transport (Port 5061) wurde nie aktiviert - HA-Phone-App konnte sich nicht registrieren**

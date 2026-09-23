@@ -2,12 +2,13 @@
 Mobile App Provisioning API (Phase 3: QR Code / JWT based)
 Endpoints for iOS/Android app QR-code provisioning and push-token management.
 """
+import hashlib
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -152,6 +153,26 @@ def get_mobile_device_by_id(session: Session, device_id: int) -> MobileDevice:
     return device
 
 
+def _hash_device_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def authenticate_device(session: Session, device_id: int, device_token: str) -> MobileDevice:
+    """Resolve an active device from its id + secret, or 401. Same error for every
+    failure mode so a caller can't probe which device ids exist."""
+    device = session.get(MobileDevice, device_id) if device_id else None
+    ok = (
+        device is not None
+        and device.status == "active"
+        and bool(device.device_token_hash)
+        and bool(device_token)
+        and secrets.compare_digest(device.device_token_hash, _hash_device_token(device_token))
+    )
+    if not ok:
+        raise HTTPException(status_code=401, detail="Invalid device credentials")
+    return device
+
+
 def get_client_ip(request: Request) -> str:
     """Extract client IP from request (handles proxies)."""
     forwarded = request.headers.get("X-Forwarded-For")
@@ -249,6 +270,11 @@ async def complete_provisioning(
             status="active",
         )
 
+    # A fresh secret on every completion; a replayed JWT re-keys the device, it
+    # never hands out a still-valid earlier secret.
+    device_token = secrets.token_urlsafe(32)
+    device.device_token_hash = _hash_device_token(device_token)
+
     # Update device info
     device.push_token = data.push_token
     device.os_device_id = data.os_device_id
@@ -267,6 +293,7 @@ async def complete_provisioning(
     return ProvisioningCompleteOut(
         success=True,
         device_id=device.id,
+        device_token=device_token,
         extension_number=ext.number,
         sip_domain=f"{_lan_ip()}:5061",  # TLS port
         sip_username=str(ext.number),
@@ -281,7 +308,7 @@ async def complete_provisioning(
 
 
 # --- POST /api/mobile/device/register ---
-# Register/update push token for existing device (PUBLIC — only has the JWT)
+# Register/update push token for existing device (PUBLIC, device-token authenticated)
 @public_router.post("/device/register", response_model=DeviceRegisterOut)
 def register_device(
     data: DeviceRegisterIn,
@@ -291,7 +318,7 @@ def register_device(
     """Register or update push token for an existing mobile device.
     Called by app on startup or when push token changes.
     """
-    device = get_mobile_device_by_id(session, data.device_id)
+    device = authenticate_device(session, data.device_id, data.device_token)
 
     device.push_token = data.push_token
     device.os_device_id = data.os_device_id
@@ -307,7 +334,7 @@ def register_device(
 
 
 # --- POST /api/mobile/device/refresh-token ---
-# Refresh push token (same as register but explicit) (PUBLIC — only has the JWT)
+# Refresh push token (same as register but explicit) (PUBLIC, device-token authenticated)
 @public_router.post("/device/refresh-token", response_model=DeviceRegisterOut)
 def refresh_push_token(
     data: PushTokenRefreshIn,
@@ -318,6 +345,7 @@ def refresh_push_token(
     return register_device(
         DeviceRegisterIn(
             device_id=data.device_id,
+            device_token=data.device_token,
             push_token=data.push_token,
             os_device_id=data.os_device_id,
             app_version="",
@@ -383,16 +411,21 @@ def list_mobile_devices(
 
 
 # --- GET /api/mobile/config ---
-# Mobile app fetches current SIP config (after provisioning) (PUBLIC — only has the JWT)
+# Mobile app fetches current SIP config (after provisioning) (PUBLIC, device-token authenticated).
+# Returns only the calling device's own extension -- this endpoint hands out a SIP password.
 @public_router.get("/config")
 def get_mobile_config(
-    extension_number: int,
+    x_device_id: int = Header(0),
+    x_device_token: str = Header(""),
     session: Session = Depends(get_session),
 ):
     """Mobile app fetches current SIP config (after initial provisioning).
     Used for re-config or when app needs fresh config.
     """
-    ext = get_extension_by_number(session, extension_number)
+    device = authenticate_device(session, x_device_id, x_device_token)
+    ext = session.get(Extension, device.extension_id)
+    if not ext:
+        raise HTTPException(status_code=404, detail="Extension not found")
 
     return {
         "extension_number": ext.number,

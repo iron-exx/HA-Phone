@@ -327,6 +327,9 @@ class MobileDevice(SQLModel, table=True):
     last_seen_at: Optional[datetime] = None
     # Optional: last known IP for diagnostics
     last_ip: str = Field(default="", max_length=45)
+    # SHA-256 hex of the per-device secret handed out once by /provision/complete.
+    # Every phone-facing endpoint authenticates with device_id + that secret.
+    device_token_hash: str = Field(default="", max_length=64)
 
 
 class ProvisioningToken(SQLModel):
@@ -358,6 +361,8 @@ class ProvisioningCompleteOut(SQLModel):
     """Response model for POST /api/mobile/provision/complete"""
     success: bool
     device_id: int
+    # Long-lived device secret, returned only here; the server keeps just its hash.
+    device_token: str
     extension_number: int
     sip_domain: str
     sip_username: str
@@ -373,6 +378,7 @@ class ProvisioningCompleteOut(SQLModel):
 class DeviceRegisterIn(SQLModel):
     """Request model for POST /api/mobile/device/register"""
     device_id: int
+    device_token: str
     push_token: str
     os_device_id: str
     app_version: str = ""
@@ -392,6 +398,7 @@ class DeviceRevokeIn(SQLModel):
 class PushTokenRefreshIn(SQLModel):
     """Request model for POST /api/mobile/device/refresh-token"""
     device_id: int
+    device_token: str
     push_token: str
     os_device_id: str
 
