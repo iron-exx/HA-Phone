@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.109
+
+**Feature - Echo-Test `*43`**
+- `*43` von jeder Nebenstelle (außer „Nur intern") spielt alles Gesprochene sofort zurück. So lassen sich Mikrofon, Lautsprecher und Verbindungsqualität ohne zweite Person prüfen.
+
 ## 0.7.108
 
 **Fix - Build von 0.7.106/0.7.107 schlug fehl**

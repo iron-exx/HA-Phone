@@ -41,6 +41,12 @@ exten => *97,1,NoOp(Voicemail access for ${CHANNEL(endpoint)})
  same => n,VoiceMailMain(${CHANNEL(endpoint)}@default,s)
  same => n,Hangup()
 
+; *43 = echo test: everything you say comes straight back (audio check, like on desk phones).
+exten => *43,1,NoOp(Echo test for ${CHANNEL(endpoint)})
+ same => n,Answer()
+ same => n,Echo()
+ same => n,Hangup()
+
 ; Internal IVR menus - explicit entries win before ring groups and generic pattern.
 {% for ivr_menu in ivr_menus %}
 {% if ivr_menu.number %}

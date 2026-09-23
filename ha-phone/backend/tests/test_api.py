@@ -2303,3 +2303,5 @@ def test_voicemail_access_code_in_internal_context_only(client, tmp_data_dir):
     assert "VoiceMailMain(${CHANNEL(endpoint)}@default,s)" in internal
     assert "exten => *97,1," in internal
     assert "*97" not in restricted
+    assert "exten => *43,1," in internal and "Echo()" in internal
+    assert "*43" not in restricted
