@@ -26,21 +26,6 @@ if [ ! -f /data/.initialized ]; then
         bashio::log.info "AMI secret written to /data/asterisk/ami_secret."
     fi
 
-    # Generate self-signed TLS cert for the Phase 2 PJSIP test transport (D-06).
-    # Dev-only, local-network-only per D-05 -- see 02-CONTEXT.md. Idempotent:
-    # only generated once, same shape as the AMI secret above.
-    mkdir -p /data/asterisk/tls
-    if [ ! -f /data/asterisk/tls/asterisk.crt ]; then
-        bashio::log.info "Generating self-signed TLS cert for PJSIP test transport..."
-        openssl req -x509 -newkey rsa:2048 -nodes \
-            -keyout /data/asterisk/tls/asterisk.key \
-            -out /data/asterisk/tls/asterisk.crt \
-            -days 3650 -subj "/CN=ha-phone-pjsip-test" \
-            || bashio::log.warning "TLS cert generation failed -- transport-tls will not be written."
-        [ -f /data/asterisk/tls/asterisk.key ] && chmod 600 /data/asterisk/tls/asterisk.key
-        [ -f /data/asterisk/tls/asterisk.crt ] && bashio::log.info "TLS cert written to /data/asterisk/tls/asterisk.crt."
-    fi
-
     # Placeholder generated confs (GAP-PJSIP-INCLUDE) — pjsip.conf and extensions.conf
     # #include these files, but the backend only generates them once an extension/trunk/
     # route is saved. On a fresh /data they are missing → Asterisk spams "#include does
@@ -58,6 +43,45 @@ if [ ! -f /data/.initialized ]; then
     bashio::log.info "ha-phone: ensured placeholder generated confs under /data/asterisk."
 
     touch /data/.initialized
+fi
+
+# Self-signed TLS cert for the PJSIP TLS transport (D-06), used by the HA-Phone app.
+# Runs on every boot (not only first boot) so existing installs get one too. Uses
+# Python's cryptography package: the runtime image ships libssl but no openssl CLI.
+mkdir -p /data/asterisk/tls
+if [ ! -f /data/asterisk/tls/asterisk.crt ] || [ ! -f /data/asterisk/tls/asterisk.key ]; then
+    bashio::log.info "Generating self-signed TLS cert for PJSIP TLS transport..."
+    python3 - <<'PYEOF' || bashio::log.warning "TLS cert generation failed -- transport-tls will not be written."
+import datetime
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
+
+key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "ha-phone")])
+now = datetime.datetime.now(datetime.timezone.utc)
+cert = (
+    x509.CertificateBuilder()
+    .subject_name(name)
+    .issuer_name(name)
+    .public_key(key.public_key())
+    .serial_number(x509.random_serial_number())
+    .not_valid_before(now - datetime.timedelta(days=1))
+    .not_valid_after(now + datetime.timedelta(days=3650))
+    .sign(key, hashes.SHA256())
+)
+with open("/data/asterisk/tls/asterisk.key", "wb") as f:
+    f.write(key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.TraditionalOpenSSL,
+        serialization.NoEncryption(),
+    ))
+with open("/data/asterisk/tls/asterisk.crt", "wb") as f:
+    f.write(cert.public_bytes(serialization.Encoding.PEM))
+PYEOF
+    [ -f /data/asterisk/tls/asterisk.key ] && chmod 600 /data/asterisk/tls/asterisk.key
+    [ -f /data/asterisk/tls/asterisk.crt ] && bashio::log.info "TLS cert written to /data/asterisk/tls/asterisk.crt."
 fi
 
 # Generate session secret (first boot only) — used by FastAPI SessionMiddleware (SEC-04)

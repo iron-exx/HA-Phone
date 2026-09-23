@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.101
+
+**Fix - TLS-Transport (Port 5061) wurde nie aktiviert - HA-Phone-App konnte sich nicht registrieren**
+- Das selbstsignierte TLS-Zertifikat für `[transport-tls]` wurde nur beim allerersten Start des Add-ons erzeugt. Bestehende Installationen bekamen nie eins; im Log stand bei jedem Start `TLS cert missing -- [transport-tls] not written`, und Port 5061 blieb geschlossen.
+- Zusätzlich hätte die Erzeugung auch beim Erststart nie funktioniert: Sie nutzte das `openssl`-Kommandozeilentool, das im Runtime-Image gar nicht installiert ist (nur die Bibliothek `libssl3`).
+- Das Zertifikat wird jetzt bei jedem Start geprüft und bei Bedarf über die bereits vorhandene Python-Bibliothek `cryptography` erzeugt. Nach dem Update lauscht Asterisk auf TLS-Port 5061, und die per QR-Code gekoppelte HA-Phone-App kann sich registrieren.
+
 ## 0.7.100
 
 **Feature - Echte QR-Code-Kopplung für die native HA-Phone-App**

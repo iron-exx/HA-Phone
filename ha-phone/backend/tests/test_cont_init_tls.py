@@ -5,10 +5,22 @@ SCRIPT = Path(__file__).resolve().parents[2] / "rootfs" / "etc" / "cont-init.d" 
 
 def test_script_generates_tls_cert_idempotently():
     content = SCRIPT.read_text()
-    assert "openssl req -x509" in content
+    assert "x509.CertificateBuilder()" in content
     assert "/data/asterisk/tls/asterisk.crt" in content
     assert "/data/asterisk/tls/asterisk.key" in content
     assert "chmod 600 /data/asterisk/tls/asterisk.key" in content
+
+
+def test_tls_cert_generation_runs_on_every_boot_not_only_first_boot():
+    """Existing installs (/data/.initialized already present) must still get a cert."""
+    content = SCRIPT.read_text()
+    first_boot_end = content.index("touch /data/.initialized")
+    assert content.index("x509.CertificateBuilder()") > first_boot_end
+
+
+def test_script_does_not_depend_on_openssl_cli():
+    """The runtime image ships libssl3 only, no openssl binary."""
+    assert "openssl req" not in SCRIPT.read_text()
 
 
 def test_script_appends_transport_tls_stanza_guarded_by_existence_check():
