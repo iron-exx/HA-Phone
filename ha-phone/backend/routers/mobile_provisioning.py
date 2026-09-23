@@ -26,6 +26,7 @@ from backend.models import (
     DeviceRevokeIn,
     PushTokenRefreshIn,
     MobileDeviceOut,
+    PhonebookEntry,
 )
 from backend.auth import get_current_user as get_current_admin_user
 from backend.crypto import EncryptedString
@@ -408,6 +409,29 @@ def list_mobile_devices(
             last_ip=d.last_ip,
         ))
     return result
+
+
+# --- GET /api/mobile/directory ---
+# Contacts for the app: other enabled extensions + the shared phonebook (PUBLIC, device-token authenticated)
+@public_router.get("/directory")
+def get_mobile_directory(
+    x_device_id: int = Header(0),
+    x_device_token: str = Header(""),
+    session: Session = Depends(get_session),
+):
+    device = authenticate_device(session, x_device_id, x_device_token)
+    extensions = session.exec(
+        select(Extension).where(Extension.enabled == True).order_by(Extension.number)  # noqa: E712
+    ).all()
+    phonebook = session.exec(select(PhonebookEntry).order_by(PhonebookEntry.name)).all()
+    return {
+        "extensions": [
+            {"number": str(e.number), "name": e.display_name}
+            for e in extensions
+            if e.id != device.extension_id
+        ],
+        "phonebook": [{"number": p.number, "name": p.name} for p in phonebook],
+    }
 
 
 # --- GET /api/mobile/config ---

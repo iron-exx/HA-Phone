@@ -61,6 +61,22 @@ def test_register_device_requires_device_token(client, paired):
     assert ok.status_code == 200
 
 
+def test_directory_requires_device_token(client, paired):
+    assert client.get("/api/mobile/directory").status_code == 401
+
+
+def test_directory_lists_other_extensions_and_phonebook(client, paired):
+    client.post("/api/phonebook", json={"name": "Pizzeria Test", "number": "0301234567"})
+    resp = client.get(
+        "/api/mobile/directory",
+        headers={"X-Device-Id": str(paired["device_id"]), "X-Device-Token": paired["device_token"]},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "87" not in [e["number"] for e in body["extensions"]]  # not the device's own extension
+    assert {"name": "Pizzeria Test", "number": "0301234567"} in body["phonebook"]
+
+
 def test_revoked_device_cannot_authenticate(client, paired):
     revoke = client.post(
         "/api/mobile/device/revoke",
