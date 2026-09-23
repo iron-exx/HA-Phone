@@ -424,9 +424,21 @@ def get_mobile_directory(
         select(Extension).where(Extension.enabled == True).order_by(Extension.number)  # noqa: E712
     ).all()
     phonebook = session.exec(select(PhonebookEntry).order_by(PhonebookEntry.name)).all()
+    own = session.get(Extension, device.extension_id)
     return {
+        "self": {
+            "number": str(own.number) if own else "",
+            "name": own.display_name if own else "",
+            "presence": own.presence_status if own else "available",
+        },
         "extensions": [
-            {"number": str(e.number), "name": e.display_name}
+            {
+                "number": str(e.number),
+                "name": e.display_name,
+                "video": e.video_capable,
+                "door_open_code": e.door_open_code,
+                "presence": e.presence_status,
+            }
             for e in extensions
             if e.id != device.extension_id
         ],

@@ -7,6 +7,7 @@ export interface Extension {
   numeric_callerid?: boolean;
   video_capable?: boolean;
   presence_status?: string;
+  door_open_code?: string;
   // sip_password is never returned by the API
 }
 

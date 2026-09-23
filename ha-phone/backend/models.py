@@ -6,6 +6,9 @@ from sqlmodel import SQLModel, Field
 from backend.crypto import EncryptedString
 
 
+DOOR_OPEN_CODE_PATTERN = r"^[0-9*#]*$"
+
+
 class Extension(SQLModel, table=True):
     model_config = ConfigDict(validate_assignment=True)
 
@@ -30,6 +33,9 @@ class Extension(SQLModel, table=True):
     presence_status: str = Field(default="available", max_length=32)
     transport: str = "udp"  # udp | tls  (D-06: TLS/SRTP test extension provisioning)
     media_encryption: str = "none"  # none | sdes | dtls
+    # DTMF digits a phone sends to this (door station) extension to open the door.
+    # Delivered to the mobile app via /api/mobile/directory. Empty = not a door.
+    door_open_code: str = Field(default="", max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
 
 
 class ExtensionUpdate(SQLModel):
@@ -44,6 +50,7 @@ class ExtensionUpdate(SQLModel):
     presence_status: Optional[str] = Field(default=None, max_length=32)
     transport: Optional[str] = Field(default=None, max_length=8)
     media_encryption: Optional[str] = Field(default=None, max_length=8)
+    door_open_code: Optional[str] = Field(default=None, max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
 
 
 class ExtensionOut(SQLModel):
@@ -55,6 +62,7 @@ class ExtensionOut(SQLModel):
     internal_only: bool = False
     numeric_callerid: bool = False
     presence_status: str = "available"
+    door_open_code: str = ""
 
 
 class ExtensionCreateOut(ExtensionOut):

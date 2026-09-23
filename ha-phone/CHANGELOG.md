@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.103
+
+**Feature - Tür-Öffnen-Code pro Nebenstelle und Kontakte für die HA-Phone App**
+- Neues Feld „Tür-Öffnen-Code (DTMF)" beim Bearbeiten einer Nebenstelle (z. B. `*1`). Nur für Türsprechstellen ausfüllen: Die HA-Phone App zeigt dann beim Klingeln und im Gespräch mit dieser Nebenstelle die Taste „Tür öffnen" und sendet genau diese Tasten. Erlaubt sind 0-9, `*` und `#`, höchstens 16 Zeichen.
+- Neuer App-Endpunkt `GET /api/mobile/directory` (mit Geräte-Token): liefert der App die eigene Nebenstelle, alle anderen Nebenstellen (Name, Video, Tür-Öffnen-Code, Präsenz-Status) und das Telefonbuch.
+
 ## 0.7.102
 
 **Sicherheit - App-Endpunkte gaben SIP-Passwörter ohne Anmeldung heraus**

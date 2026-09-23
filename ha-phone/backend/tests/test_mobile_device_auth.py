@@ -88,3 +88,64 @@ def test_revoked_device_cannot_authenticate(client, paired):
         headers={"X-Device-Id": str(paired["device_id"]), "X-Device-Token": paired["device_token"]},
     )
     assert resp.status_code == 401
+
+
+def _auth(paired):
+    return {"X-Device-Id": str(paired["device_id"]), "X-Device-Token": paired["device_token"]}
+
+
+def test_door_open_code_is_stored_and_listed_for_admin(client):
+    resp = client.post(
+        "/api/extensions",
+        json={"number": 88, "display_name": "Tür", "sip_password": "securepass1234567", "door_open_code": "*1"},
+    )
+    assert resp.status_code in (200, 201), resp.text
+    ext_id = resp.json()["id"]
+    try:
+        assert resp.json()["door_open_code"] == "*1"
+        patched = client.patch(f"/api/extensions/{ext_id}", json={"door_open_code": "0#"})
+        assert patched.status_code == 200, patched.text
+        assert patched.json()["door_open_code"] == "0#"
+    finally:
+        client.delete(f"/api/extensions/{ext_id}")
+
+
+def test_door_open_code_rejects_non_dtmf_characters(client):
+    resp = client.post(
+        "/api/extensions",
+        json={"number": 89, "display_name": "Tür", "sip_password": "securepass1234567", "door_open_code": "12a"},
+    )
+    assert resp.status_code == 422
+
+
+def test_door_open_code_can_be_cleared(client):
+    resp = client.post(
+        "/api/extensions",
+        json={"number": 88, "display_name": "Tür", "sip_password": "securepass1234567", "door_open_code": "1"},
+    )
+    ext_id = resp.json()["id"]
+    try:
+        patched = client.patch(f"/api/extensions/{ext_id}", json={"door_open_code": ""})
+        assert patched.json()["door_open_code"] == ""
+    finally:
+        client.delete(f"/api/extensions/{ext_id}")
+
+
+def test_directory_includes_door_code_video_presence_and_self(client, paired):
+    door = client.post(
+        "/api/extensions",
+        json={
+            "number": 88, "display_name": "Haustür", "sip_password": "securepass1234567",
+            "door_open_code": "*1", "video_capable": True,
+        },
+    )
+    try:
+        body = client.get("/api/mobile/directory", headers=_auth(paired)).json()
+        entry = next(e for e in body["extensions"] if e["number"] == "88")
+        assert entry == {
+            "number": "88", "name": "Haustür", "video": True,
+            "door_open_code": "*1", "presence": "available",
+        }
+        assert body["self"] == {"number": "87", "name": "Auth Test", "presence": "available"}
+    finally:
+        client.delete(f"/api/extensions/{door.json()['id']}")

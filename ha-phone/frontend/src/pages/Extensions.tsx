@@ -74,6 +74,11 @@ const extensionSchema = z.object({
   video_capable: z.boolean().default(false),
   internal_only: z.boolean().default(false),
   numeric_callerid: z.boolean().default(false),
+  door_open_code: z
+    .string()
+    .max(16, "Max 16 Zeichen")
+    .regex(/^[0-9*#]*$/, "Nur 0-9, * und #")
+    .default(""),
 });
 
 type ExtensionFormValues = z.infer<typeof extensionSchema>;
@@ -234,7 +239,7 @@ function AddExtensionDialog({
 }) {
   const form = useForm<ExtensionFormValues>({
     resolver: zodResolver(extensionSchema),
-    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, video_capable: false, internal_only: false, numeric_callerid: false },
+    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, video_capable: false, internal_only: false, numeric_callerid: false, door_open_code: "" },
   });
   const [saving, setSaving] = useState(false);
   const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>([]);
@@ -445,6 +450,7 @@ function EditExtensionDialog({
       video_capable: extension.video_capable ?? false,
       internal_only: extension.internal_only ?? false,
       numeric_callerid: extension.numeric_callerid ?? false,
+      door_open_code: extension.door_open_code ?? "",
       presence_status: extension.presence_status || "available",
     },
   });
@@ -455,12 +461,13 @@ function EditExtensionDialog({
 
   async function onSubmit(values: EditFormValues) {
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; presence_status: string }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; presence_status: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
       internal_only: values.internal_only,
       numeric_callerid: values.numeric_callerid,
+      door_open_code: values.door_open_code ?? "",
       presence_status: values.presence_status,
     };
     if (values.sip_password && values.sip_password.length > 0) {
@@ -570,6 +577,22 @@ function EditExtensionDialog({
                   checked={field.value}
                   onToggle={field.onChange}
                 />
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="door_open_code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tür-Öffnen-Code (DTMF)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="z.B. *1 — leer = keine Türstation" {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Nur für Türsprechstellen: Die HA-Phone App zeigt beim Klingeln und im Gespräch die Taste „Tür öffnen" und sendet diese Tasten.
+                  </p>
+                  <FormMessage />
+                </FormItem>
               )}
             />
             <FormField

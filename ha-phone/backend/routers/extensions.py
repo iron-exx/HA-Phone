@@ -10,6 +10,7 @@ from fastapi.responses import Response
 
 from backend.database import get_session
 from backend.models import (
+    DOOR_OPEN_CODE_PATTERN,
     Extension,
     ExtensionCreateOut,
     ExtensionGroup,
@@ -264,6 +265,7 @@ def _extension_out(extension: Extension) -> ExtensionOut:
         internal_only=extension.internal_only,
         numeric_callerid=extension.numeric_callerid,
         presence_status=extension.presence_status,
+        door_open_code=extension.door_open_code,
     )
 
 
@@ -288,6 +290,9 @@ def list_extensions(session: Session = Depends(get_session)):
 @router.post("/extensions", response_model=ExtensionCreateOut)
 async def create_extension(extension: Extension, session: Session = Depends(get_session)):
     validate_number(session, extension.number, kind="extension")
+    # Table models skip field validation on the request body, so the pattern is checked here.
+    if not re.fullmatch(DOOR_OPEN_CODE_PATTERN, extension.door_open_code or "") or len(extension.door_open_code or "") > 16:
+        raise HTTPException(status_code=422, detail="door_open_code: nur 0-9, * und #, höchstens 16 Zeichen")
     # SEC-03: Auto-generate SIP password if not provided or empty (D-07)
     if not extension.sip_password:
         extension.sip_password = secrets.token_urlsafe(12)  # → exactly 16 SIP-safe chars
