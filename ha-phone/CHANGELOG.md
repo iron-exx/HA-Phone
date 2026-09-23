@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.105
+
+**Fix - Keine Ansagen: Mailbox legte sofort auf**
+- Asterisk wurde ohne ein einziges Sprachpaket gebaut (`menuselect --disable-all` schaltet auch die Ansagen ab). Dadurch legte die Mailbox-Abfrage `*97` direkt nach dem Annehmen wieder auf, und auch das Hinterlassen einer Nachricht und die Wartemusik hatten keine Ansagen.
+- Die Standard-Ansagen (Englisch) und die Wartemusik sind jetzt im Add-on enthalten. Deutsche Ansagen folgen.
+
 ## 0.7.104
 
 **Feature - Mailbox-Abfrage per `*97`**

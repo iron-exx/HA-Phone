@@ -72,6 +72,9 @@ RUN ./configure \
     --disable-native-build \
     --prefix=/usr
 
+# --disable-all also disables the sound packages. Without prompts VoiceMailMain /
+# Voicemail() hang up instantly (no "vm-*" files), so the core prompts and
+# hold music are enabled explicitly (WAV: format_wav is the loaded format).
 RUN make menuselect.makeopts && \
     menuselect/menuselect \
       --disable-all \
@@ -127,6 +130,8 @@ RUN make menuselect.makeopts && \
       --enable format_wav_gsm \
       --enable pbx_config \
       --enable cdr_csv \
+      --enable CORE-SOUNDS-EN-WAV \
+      --enable MOH-OPSOUND-WAV \
       menuselect.makeopts
 
 RUN make -j1 third-party && \
