@@ -1,5 +1,7 @@
 from typing import List, Optional
-from pydantic import ConfigDict
+import re
+
+from pydantic import ConfigDict, field_validator
 from sqlalchemy import Column
 from sqlmodel import SQLModel, Field
 
@@ -7,6 +9,31 @@ from backend.crypto import EncryptedString
 
 
 DOOR_OPEN_CODE_PATTERN = r"^[0-9*#]*$"
+MAX_DOOR_ACTIONS = 4
+
+
+def _match(pattern: str, value: str | None, what: str) -> str | None:
+    """sqlmodel's Field(regex=...) is not enforced on pydantic v2, so patterns are checked here."""
+    if value is not None and not re.fullmatch(pattern, value):
+        raise ValueError(f"{what}: ungültiges Format")
+    return value
+
+
+class DoorAction(SQLModel):
+    """A Home Assistant service the app offers as a button in calls with this door station."""
+    label: str = Field(min_length=1, max_length=24)
+    service: str = Field(max_length=64)
+    entity_id: str = Field(max_length=128)
+
+    @field_validator("service")
+    @classmethod
+    def _service(cls, v: str) -> str:
+        return _match(r"[a-z_]+\.[a-z_]+", v, "service")
+
+    @field_validator("entity_id")
+    @classmethod
+    def _entity(cls, v: str) -> str:
+        return _match(r"[a-z_]+\.[a-z0-9_]+", v, "entity_id")
 
 
 class Extension(SQLModel, table=True):
@@ -36,6 +63,29 @@ class Extension(SQLModel, table=True):
     # DTMF digits a phone sends to this (door station) extension to open the door.
     # Delivered to the mobile app via /api/mobile/directory. Empty = not a door.
     door_open_code: str = Field(default="", max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
+    # JSON list of DoorAction (stored as text; the API exposes a list).
+    door_actions: str = Field(default="[]")
+
+
+class ExtensionCreate(SQLModel):
+    """Request body for POST /extensions (the table model stores door_actions as JSON text)."""
+    number: int = Field(ge=10, le=99)
+    display_name: str = Field(max_length=64)
+    sip_password: str = ""
+    enabled: bool = True
+    video_capable: bool = False
+    internal_only: bool = False
+    numeric_callerid: bool = False
+    presence_status: str = Field(default="available", max_length=32)
+    transport: str = "udp"
+    media_encryption: str = "none"
+    door_open_code: str = Field(default="", max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
+    door_actions: List[DoorAction] = Field(default=[], max_length=MAX_DOOR_ACTIONS)
+
+    @field_validator("door_open_code")
+    @classmethod
+    def _door_code(cls, v: str) -> str:
+        return _match(DOOR_OPEN_CODE_PATTERN, v, "door_open_code")
 
 
 class ExtensionUpdate(SQLModel):
@@ -51,6 +101,12 @@ class ExtensionUpdate(SQLModel):
     transport: Optional[str] = Field(default=None, max_length=8)
     media_encryption: Optional[str] = Field(default=None, max_length=8)
     door_open_code: Optional[str] = Field(default=None, max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
+    door_actions: Optional[List[DoorAction]] = Field(default=None, max_length=MAX_DOOR_ACTIONS)
+
+    @field_validator("door_open_code")
+    @classmethod
+    def _door_code(cls, v: str | None) -> str | None:
+        return _match(DOOR_OPEN_CODE_PATTERN, v, "door_open_code")
 
 
 class ExtensionOut(SQLModel):
@@ -63,6 +119,7 @@ class ExtensionOut(SQLModel):
     numeric_callerid: bool = False
     presence_status: str = "available"
     door_open_code: str = ""
+    door_actions: List[dict] = []
 
 
 class ExtensionCreateOut(ExtensionOut):

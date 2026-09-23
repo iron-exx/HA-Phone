@@ -15,10 +15,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from backend import ami
+from backend import ami, ha_api
 from backend.database import get_session
 from backend.models import Extension, MobileDevice, PresenceForwardingRule, RingGroup
 from backend.regeneration import run_regeneration_steps, step_succeeded
+from backend.routers.extensions import door_actions_of
 from backend.routers.mobile_provisioning import authenticate_device
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend.voicemail_paths import mailbox_dir
@@ -331,3 +332,29 @@ def get_calls(
         }
     newest = sorted(calls.values(), key=lambda c: c["started_at"], reverse=True)
     return {"calls": newest[: max(1, min(limit, 500))]}
+
+
+# ============================================================
+# Home Assistant quick actions for door stations
+# ============================================================
+
+class DoorActionIn(BaseModel):
+    extension: str
+    index: int
+
+
+@public_router.post("/door-action")
+async def run_door_action(
+    data: DoorActionIn,
+    device: MobileDevice = Depends(_device),
+    session: Session = Depends(get_session),
+):
+    """Runs the admin-configured HA service of a door station (e.g. light on). The app only
+    sends extension + button index; service and entity stay on the PBX."""
+    door = session.exec(select(Extension).where(Extension.number == int(data.extension))).first() if data.extension.isdigit() else None
+    actions = door_actions_of(door) if door else []
+    if not 0 <= data.index < len(actions):
+        raise HTTPException(status_code=404, detail="Aktion nicht gefunden")
+    action = actions[data.index]
+    await ha_api.call_service(action["service"], action["entity_id"])
+    return {"success": True, "label": action["label"]}

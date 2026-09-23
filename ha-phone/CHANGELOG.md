@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.111
+
+**Feature - Home-Assistant-Aktionen für Türstationen**
+- Beim Bearbeiten einer Nebenstelle lassen sich bis zu vier Aktionen hinterlegen (Beschriftung, Dienst wie `light.turn_on`, Entität wie `light.hausflur`). Die HA-Phone App zeigt sie als Tasten im Klingel- und Gesprächsbildschirm dieser Türstation, z. B. „Licht" oder „Garage".
+- Die App bekommt nur die Beschriftungen. Welcher Dienst mit welcher Entität läuft, bleibt in der Anlage (`POST /api/mobile/door-action`).
+- Das Add-on bekommt dafür Zugriff auf die Home-Assistant-API (`homeassistant_api`). Dazu kommt `hassio_api`: Damit funktioniert auch die Update-Prüfung in der Weboberfläche wieder (vorher HTTP 403).
+
+**Fix - Tür-Öffnen-Code beim Bearbeiten wurde nicht geprüft**
+- Ungültige Zeichen im Tür-Code werden jetzt auch beim Bearbeiten abgelehnt, nicht nur beim Anlegen.
+
 ## 0.7.110
 
 **Fix - Voicemail-Nachrichten wurden im Admin nie angezeigt**

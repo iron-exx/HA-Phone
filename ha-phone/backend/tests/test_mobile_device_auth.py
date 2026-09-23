@@ -118,6 +118,18 @@ def test_door_open_code_rejects_non_dtmf_characters(client):
     assert resp.status_code == 422
 
 
+def test_door_open_code_is_validated_on_update(client):
+    resp = client.post(
+        "/api/extensions",
+        json={"number": 88, "display_name": "Tür", "sip_password": "securepass1234567"},
+    )
+    ext_id = resp.json()["id"]
+    try:
+        assert client.patch(f"/api/extensions/{ext_id}", json={"door_open_code": "12a"}).status_code == 422
+    finally:
+        client.delete(f"/api/extensions/{ext_id}")
+
+
 def test_door_open_code_can_be_cleared(client):
     resp = client.post(
         "/api/extensions",
@@ -144,7 +156,7 @@ def test_directory_includes_door_code_video_presence_and_self(client, paired):
         entry = next(e for e in body["extensions"] if e["number"] == "88")
         assert entry == {
             "number": "88", "name": "Haustür", "video": True,
-            "door_open_code": "*1", "presence": "available",
+            "door_open_code": "*1", "presence": "available", "door_actions": [],
         }
         assert body["self"] == {"number": "87", "name": "Auth Test", "presence": "available"}
     finally:

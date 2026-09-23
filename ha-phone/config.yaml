@@ -1,5 +1,5 @@
 name: "HA-Phone"
-version: "0.7.110"
+version: "0.7.111"
 slug: "ha-phone"
 description: "SIP PBX for Home Assistant — any SIP trunk, IP phones, softphones, doorbells. Web UI, no CLI needed."
 url: "https://github.com/iron-exx/HA-Phone"
@@ -20,6 +20,11 @@ startup: services
 init: false
 
 host_network: true
+
+# Door-station quick actions call Home Assistant services (light, cover, ...), and the
+# update check reads the add-on's own info from the Supervisor.
+homeassistant_api: true
+hassio_api: true
 
 ingress: true
 ingress_port: 80

@@ -1,3 +1,9 @@
+export interface DoorAction {
+  label: string;
+  service: string;
+  entity_id: string;
+}
+
 export interface Extension {
   id: number;
   number: number;
@@ -8,6 +14,7 @@ export interface Extension {
   video_capable?: boolean;
   presence_status?: string;
   door_open_code?: string;
+  door_actions?: DoorAction[];
   // sip_password is never returned by the API
 }
 

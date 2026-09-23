@@ -14,6 +14,7 @@ import {
   type IVRMenu,
   type PresenceForwardingRule,
   type ProvisioningTokenOut,
+  type DoorAction,
 } from "@/types/api";
 import { DestinationField, formatDestination, type DestinationValue } from "@/components/DestinationField";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
@@ -64,6 +65,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyToClipboard } from "@/lib/clipboard";
+import { DoorActionsEditor, doorActionsError } from "@/components/DoorActionsEditor";
 
 // ---- Zod schema ----
 const extensionSchema = z.object({
@@ -455,19 +457,26 @@ function EditExtensionDialog({
     },
   });
   const [saving, setSaving] = useState(false);
+  const [doorActions, setDoorActions] = useState<DoorAction[]>(extension.door_actions ?? []);
   const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>(
     getExtensionRingGroupIds(extension, ringGroups)
   );
 
   async function onSubmit(values: EditFormValues) {
+    const actionsError = doorActionsError(doorActions);
+    if (actionsError) {
+      toast.error(actionsError);
+      return;
+    }
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; presence_status: string }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
       internal_only: values.internal_only,
       numeric_callerid: values.numeric_callerid,
       door_open_code: values.door_open_code ?? "",
+      door_actions: doorActions,
       presence_status: values.presence_status,
     };
     if (values.sip_password && values.sip_password.length > 0) {
@@ -595,6 +604,7 @@ function EditExtensionDialog({
                 </FormItem>
               )}
             />
+            <DoorActionsEditor value={doorActions} onChange={setDoorActions} />
             <FormField
               control={form.control}
               name="presence_status"

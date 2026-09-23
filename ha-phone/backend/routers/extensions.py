@@ -1,17 +1,22 @@
 import html
+import json
 import os
 import re
 import secrets
 from pathlib import Path
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import ValidationError
 from sqlmodel import Session, select
 from fastapi.responses import Response
 
 from backend.database import get_session
 from backend.models import (
     DOOR_OPEN_CODE_PATTERN,
+    MAX_DOOR_ACTIONS,
+    DoorAction,
     Extension,
+    ExtensionCreate,
     ExtensionCreateOut,
     ExtensionGroup,
     ExtensionOut,
@@ -255,6 +260,32 @@ def _render_linphone_provisioning_xml(extension: Extension, request: Request) ->
     )
 
 
+def door_actions_of(extension: Extension) -> list[dict]:
+    try:
+        actions = json.loads(extension.door_actions or "[]")
+    except ValueError:
+        return []
+    return actions if isinstance(actions, list) else []
+
+
+def _door_actions_json(value) -> str:
+    """Validates a list of DoorAction (dicts or models) and returns its JSON text, or 422."""
+    if value in (None, ""):
+        return "[]"
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="door_actions: kein gültiges JSON")
+    if not isinstance(value, list) or len(value) > MAX_DOOR_ACTIONS:
+        raise HTTPException(status_code=422, detail=f"door_actions: höchstens {MAX_DOOR_ACTIONS} Aktionen")
+    try:
+        actions = [DoorAction.model_validate(a if isinstance(a, dict) else a.model_dump()) for a in value]
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=f"door_actions: {exc.errors()[0].get('msg')}")
+    return json.dumps([a.model_dump() for a in actions], ensure_ascii=False)
+
+
 def _extension_out(extension: Extension) -> ExtensionOut:
     return ExtensionOut(
         id=extension.id or 0,
@@ -266,6 +297,7 @@ def _extension_out(extension: Extension) -> ExtensionOut:
         numeric_callerid=extension.numeric_callerid,
         presence_status=extension.presence_status,
         door_open_code=extension.door_open_code,
+        door_actions=door_actions_of(extension),
     )
 
 
@@ -288,11 +320,12 @@ def list_extensions(session: Session = Depends(get_session)):
 
 
 @router.post("/extensions", response_model=ExtensionCreateOut)
-async def create_extension(extension: Extension, session: Session = Depends(get_session)):
-    validate_number(session, extension.number, kind="extension")
-    # Table models skip field validation on the request body, so the pattern is checked here.
-    if not re.fullmatch(DOOR_OPEN_CODE_PATTERN, extension.door_open_code or "") or len(extension.door_open_code or "") > 16:
-        raise HTTPException(status_code=422, detail="door_open_code: nur 0-9, * und #, höchstens 16 Zeichen")
+async def create_extension(data: ExtensionCreate, session: Session = Depends(get_session)):
+    validate_number(session, data.number, kind="extension")
+    extension = Extension(
+        **data.model_dump(exclude={"door_actions"}),
+        door_actions=_door_actions_json(data.door_actions),
+    )
     # SEC-03: Auto-generate SIP password if not provided or empty (D-07)
     if not extension.sip_password:
         extension.sip_password = secrets.token_urlsafe(12)  # → exactly 16 SIP-safe chars
@@ -332,7 +365,10 @@ async def update_extension(
     if extension_data.number is not None and extension_data.number != existing.number:
         validate_number(session, extension_data.number, kind="extension", exclude_id=existing.id)
     old_number = existing.number
-    for field, value in extension_data.model_dump(exclude_unset=True, exclude_none=True).items():
+    changes = extension_data.model_dump(exclude_unset=True, exclude_none=True)
+    if "door_actions" in changes:
+        existing.door_actions = _door_actions_json(changes.pop("door_actions"))
+    for field, value in changes.items():
         setattr(existing, field, value)
     if existing.number != old_number:
         _replace_extension_in_ring_groups(session, old_number, existing.number)

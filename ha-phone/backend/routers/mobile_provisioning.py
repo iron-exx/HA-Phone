@@ -30,6 +30,7 @@ from backend.models import (
 )
 from backend.auth import get_current_user as get_current_admin_user
 from backend.crypto import EncryptedString
+from backend.routers.extensions import door_actions_of
 
 # Admin-gated CRUD/control router (start provisioning, revoke, list devices).
 router = APIRouter(prefix="/mobile", tags=["mobile-provisioning"])
@@ -437,6 +438,10 @@ def get_mobile_directory(
                 "name": e.display_name,
                 "video": e.video_capable,
                 "door_open_code": e.door_open_code,
+                # Labels only: the app never learns entity ids or services.
+                "door_actions": [
+                    {"index": i, "label": a.get("label", "")} for i, a in enumerate(door_actions_of(e))
+                ],
                 "presence": e.presence_status,
             }
             for e in extensions

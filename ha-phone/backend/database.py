@@ -101,6 +101,11 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN door_open_code TEXT NOT NULL DEFAULT ''")
                 )
                 conn.commit()
+            if "door_actions" not in cols:
+                conn.execute(
+                    text("ALTER TABLE extension ADD COLUMN door_actions TEXT NOT NULL DEFAULT '[]'")
+                )
+                conn.commit()
         if "mobiledevice" in tables:
             cols = [c["name"] for c in inspector.get_columns("mobiledevice")]
             if "device_token_hash" not in cols:
