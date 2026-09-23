@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.104
+
+**Feature - Mailbox-Abfrage per `*97`**
+- Von jeder Nebenstelle (außer „Nur intern") öffnet `*97` die eigene Sprachbox, ohne PIN-Abfrage. Die Box wird über das angemeldete SIP-Gerät bestimmt, nicht über die (fälschbare) Rufnummer, so kommt niemand an eine fremde Mailbox. Die HA-Phone App nutzt das für „Mailbox anrufen".
+
 ## 0.7.103
 
 **Feature - Tür-Öffnen-Code pro Nebenstelle und Kontakte für die HA-Phone App**

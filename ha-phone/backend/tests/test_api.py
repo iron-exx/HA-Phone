@@ -2287,3 +2287,17 @@ def test_phonebook_included_in_backup_restore(client):
 
     entries = client.get("/api/phonebook").json()
     assert any(e["name"] == "Backup Contact" for e in entries)
+
+
+def test_voicemail_access_code_in_internal_context_only(client, tmp_data_dir):
+    """*97 opens the caller's own mailbox, identified by the SIP endpoint (not the spoofable caller id)."""
+    client.post("/api/time-conditions", json={
+        "name": "Hours", "did": "+4900000001", "open_hours_start": "07:00", "open_hours_end": "22:00",
+        "open_days": "mon-sun", "open_destination": 10, "closed_destination": 10,
+    })
+    content = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
+    internal = content.split("[from-internal]")[1].split("[from-internal-restricted]")[0]
+    restricted = content.split("[from-internal-restricted]")[1].split("\n[")[0]
+    assert "VoiceMailMain(${CHANNEL(endpoint)}@default,s)" in internal
+    assert "exten => *97,1," in internal
+    assert "*97" not in restricted

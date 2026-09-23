@@ -33,6 +33,14 @@
 ; Internal calls + outbound dial rules
 [from-internal]
 
+; *97 = own voicemail box (HA-Phone App "Mailbox anrufen"). The mailbox comes from
+; the authenticated SIP endpoint, not CALLERID, so nobody can open another box;
+; that is also why the PIN prompt is skipped (s).
+exten => *97,1,NoOp(Voicemail access for ${CHANNEL(endpoint)})
+ same => n,Answer()
+ same => n,VoiceMailMain(${CHANNEL(endpoint)}@default,s)
+ same => n,Hangup()
+
 ; Internal IVR menus - explicit entries win before ring groups and generic pattern.
 {% for ivr_menu in ivr_menus %}
 {% if ivr_menu.number %}
