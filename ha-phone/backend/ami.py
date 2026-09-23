@@ -68,6 +68,7 @@ async def _get_manager() -> Manager:
 
 
 _AMI_TIMEOUT = 8
+_CONTACTS_TIMEOUT = 3
 
 
 async def _ami_cli(command: str) -> None:
@@ -168,6 +169,9 @@ async def get_extension_statuses() -> list[dict]:
                             if r.get("DeviceState", "") == "Not in use"
                             else "Offline"
                         ),
+                        # Raw state for callers that need more than online/offline
+                        # (the app's "telefoniert"/"klingelt" dot).
+                        "device_state": r.get("DeviceState", ""),
                     }
                 )
         return result
@@ -199,9 +203,16 @@ async def get_extension_diagnostics() -> list[dict]:
             endpoint_responses = await manager.send_action(
                 {"Action": "PJSIPShowEndpoints"}, as_list=True
             )
-            contact_responses = await manager.send_action(
-                {"Action": "PJSIPShowContacts"}, as_list=True
-            )
+        # PJSIPShowContacts can hang on some Asterisk builds (observed on 22.11): without
+        # its own short timeout the whole diagnostics came back empty after 8 s.
+        try:
+            async with asyncio.timeout(_CONTACTS_TIMEOUT):
+                contact_responses = await manager.send_action(
+                    {"Action": "PJSIPShowContacts"}, as_list=True
+                )
+        except Exception as exc:
+            _log.warning("AMI PJSIPShowContacts unavailable: %s", exc)
+            contact_responses = []
 
         endpoints: dict[str, dict] = {}
         for r in endpoint_responses:

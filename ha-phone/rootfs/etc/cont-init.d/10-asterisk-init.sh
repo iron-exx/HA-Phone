@@ -7,6 +7,9 @@ bashio::log.info "ha-phone: running init script..."
 
 # Always create /var/run/asterisk — tmpfs is re-mounted on each boot (Gotcha 8)
 mkdir -p /var/run/asterisk
+# Every boot (not only the first): cdr_csv does not create its directory, so without it
+# no call ever reached Master.csv (the app's call history), and app_voicemail's spool.
+mkdir -p /data/logs/asterisk/cdr-csv /data/voicemail/voicemail
 
 # First-boot: create persistent /data/ layout
 if [ ! -f /data/.initialized ]; then

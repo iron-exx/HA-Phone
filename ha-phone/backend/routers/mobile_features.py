@@ -69,8 +69,9 @@ class PresenceIn(BaseModel):
 @public_router.get("/presence")
 async def get_presence(device: MobileDevice = Depends(_device), session: Session = Depends(get_session)):
     own = _own_extension(session, device)
-    diagnostics = await ami.get_extension_diagnostics()
-    lines = {str(d.get("number")): line_state(d.get("device_state")) for d in diagnostics}
+    # PJSIPShowEndpoints alone (fast); the contacts query behind diagnostics can hang.
+    statuses = await ami.get_extension_statuses()
+    lines = {str(d.get("number")): line_state(d.get("device_state")) for d in statuses}
     extensions = session.exec(
         select(Extension).where(Extension.enabled == True).order_by(Extension.number)  # noqa: E712
     ).all()

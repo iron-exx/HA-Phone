@@ -40,7 +40,7 @@ def test_presence_lists_status_and_live_line_state(client, paired, mock_ami):
         if len(free) == 3:
             break
     busy, ringing, offline = (str(n) for n in free)
-    mock_ami["ext_diagnostics"].return_value = [
+    mock_ami["ext_statuses"].return_value = [
         {"number": "87", "device_state": "Not in use", "contacts": 1},
         {"number": busy, "device_state": "In use", "contacts": 1},
         {"number": ringing, "device_state": "Ringing", "contacts": 1},

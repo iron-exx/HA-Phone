@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.112
+
+**Fix - Verbindungsdaten (CDR) wurden nie geschrieben**
+- Der Ordner `/data/logs/asterisk/cdr-csv` wurde nie angelegt, und `cdr_csv` erzeugt ihn nicht selbst. Kein Anruf landete in `Master.csv`, die Anrufliste der App blieb leer. Der Ordner wird jetzt bei jedem Start angelegt.
+
+**Fix - Diagnose und App-Präsenz hingen 8 Sekunden und zeigten alle Nebenstellen „offline"**
+- Die AMI-Abfrage `PJSIPShowContacts` hängt auf Asterisk 22.11. Die Diagnose fragt die Kontakte jetzt mit eigenem kurzem Timeout ab und zeigt die Nebenstellen trotzdem an. Der Live-Status für die App nutzt nur noch die schnelle Abfrage `PJSIPShowEndpoints`.
+
 ## 0.7.111
 
 **Feature - Home-Assistant-Aktionen für Türstationen**
