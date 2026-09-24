@@ -10,6 +10,8 @@ from sqlmodel import Session, select
 from backend.csv_safety import csv_safe
 from backend.database import get_session
 from backend.models import Holiday
+from backend.models import validate_conf_fields
+from backend.conf_safety import conf_text
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
@@ -43,6 +45,7 @@ def list_holidays(session: Session = Depends(get_session)):
 
 @router.post("/holidays", response_model=Holiday)
 async def create_holiday(holiday: Holiday, session: Session = Depends(get_session)):
+    validate_conf_fields(holiday)
     _validate_date(holiday.year, holiday.month, holiday.day)
     holiday.id = None
     session.add(holiday)
@@ -60,6 +63,7 @@ async def create_holiday(holiday: Holiday, session: Session = Depends(get_sessio
 
 @router.patch("/holidays/{holiday_id}", response_model=Holiday)
 async def update_holiday(holiday_id: int, data: Holiday, session: Session = Depends(get_session)):
+    validate_conf_fields(data)
     existing = session.get(Holiday, holiday_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Holiday not found")
@@ -149,6 +153,7 @@ async def import_csv(file: UploadFile = File(...), session: Session = Depends(ge
             continue
         try:
             _date(year, month, day)
+            conf_text(name, "name")  # rendered into a dialplan comment
         except ValueError:
             skipped += 1
             continue

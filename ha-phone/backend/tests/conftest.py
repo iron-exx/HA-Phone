@@ -55,3 +55,12 @@ def client(tmp_data_dir, mock_ami):
     yield TestClient(app)
 
     app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_limiter():
+    """The admin-login rate limiter is process-global — isolate tests from each other."""
+    from backend.auth import login_limiter
+    login_limiter.clear()
+    yield
+    login_limiter.clear()

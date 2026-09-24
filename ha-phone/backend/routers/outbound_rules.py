@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import OutboundRule
+from backend.models import validate_conf_fields
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
 from backend import ami
@@ -47,6 +48,7 @@ def list_outbound_rules(session: Session = Depends(get_session)):
 
 @router.post("/outbound-rules", response_model=OutboundRule)
 async def create_outbound_rule(rule: OutboundRule, session: Session = Depends(get_session)):
+    validate_conf_fields(rule)
     rule.id = None
     session.add(rule)
     session.commit()
@@ -65,6 +67,7 @@ async def create_outbound_rule(rule: OutboundRule, session: Session = Depends(ge
 async def update_outbound_rule(
     rule_id: int, rule_data: OutboundRule, session: Session = Depends(get_session)
 ):
+    validate_conf_fields(rule_data)
     existing = session.get(OutboundRule, rule_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Outbound rule not found")

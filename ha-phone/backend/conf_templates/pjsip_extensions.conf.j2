@@ -55,9 +55,14 @@ send_rpid         = yes
 auth              = {{ ext.number }}-auth
 aors              = {{ ext.number }}
 callerid          = {{ ext.display_name }} <{{ ext.number }}>
-{% if ext.media_encryption and ext.media_encryption != "none" %}
-media_encryption = {{ ext.media_encryption }}
-{% endif %}
+; Message-waiting indication (res_pjsip_mwi) for the extension's own voicemail box.
+mailboxes         = {{ ext.number }}@default
+{#
+  No media_encryption: res_srtp is not built into the image (menuselect
+  --disable-all without --enable res_srtp), so 'sdes'/'dtls' would make the
+  endpoint fail to load. Legacy DB values (sdes/dtls) therefore render as the
+  default (no SRTP); the API only accepts 'none'.
+#}
 
 [{{ ext.number }}-auth]
 type              = auth
@@ -75,10 +80,20 @@ type              = aor
 qualify_frequency = 60
 qualify_timeout   = 5
 {% if ext.video_capable %}
+; Video extensions (door-station preview): exactly ONE contact. The pre-answer video
+; preview relies on callee-side 183 early media to a single target — with several
+; contacts forked, the door station's H.264 early media can only reach one of them
+; (same reason ring groups with >1 target lose the preview). A re-register replaces
+; the old contact instead of being rejected.
 max_contacts      = 1
 remove_existing   = yes
 {% else %}
-max_contacts      = 2
+; Multi-device: desk phone + app + softphone on the same extension. The dialplan
+; rings all of them via PJSIP_DIAL_CONTACTS(); the oldest contact is replaced when
+; a 4th device registers, and unreachable contacts are dropped by qualify.
+max_contacts      = 3
+remove_existing   = yes
+remove_unavailable = yes
 {% endif %}
 
 {% endfor %}

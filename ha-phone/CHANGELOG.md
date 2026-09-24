@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.7.119
+
+**Sicherheit - Admin-Anmeldung**
+- Nach 5 falschen Passwörtern wird die Anmeldung von dieser Adresse für 60 Sekunden gesperrt, jede weitere Sperre dauert doppelt so lange (höchstens 15 Minuten). Fehlversuche stehen im Add-on-Log.
+- Wer sich mit einem Standardpasswort („changeme“ oder „admin“) anmeldet, muss es sofort ändern („Passwort ändern erforderlich“). Ein Standardpasswort lässt sich auch nicht mehr als neues Passwort setzen.
+
+**Sicherheit - Keine Konfigurations-Einschleusung mehr**
+- Namen und andere Textfelder (Nebenstellen, Gruppen, IVR, Zeitsteuerung, Rufnummern, Trunk, SMTP, öffentliche IP) dürfen keine Zeilenumbrüche oder Steuerzeichen mehr enthalten. In Namen sind außerdem `[ ] < > " ; $ \` gesperrt. Beim Schreiben der Konfiguration entfernt die Anlage Zeilenumbrüche zusätzlich aus jedem Wert.
+- Beim Wählen nach außen gehen nur noch Ziffern und `+` an den Provider.
+
+**Verbesserung - Alle Geräte einer Nebenstelle klingeln**
+- Pro Nebenstelle dürfen sich bis zu 3 Geräte anmelden (z. B. Tischtelefon, App, Softphone), und alle klingeln gleichzeitig, auch in Gruppen. Das älteste Gerät wird ersetzt, wenn ein viertes dazukommt, und Geräte, die nicht mehr antworten, fallen raus.
+- Video-Nebenstellen (Türkamera-Vorschau) behalten bewusst genau ein Gerät, damit die Vorschau vor dem Abheben weiter funktioniert.
+
+**Verbesserung - Telefonie-Funktionen**
+- Weiterverbinden vom Tischtelefon (SIP REFER), Anzeige neuer Sprachnachrichten am Telefon (MWI), Wartemusik und H.264-Aushandlung für Video sind jetzt eingebaut. Die Rufnummer von Anrufern über den Trunk wird auch aus P-Asserted-Identity übernommen.
+- Anrufe vom Provider werden nur noch über die IP-Adresse des Providers erkannt.
+
+**Fix - Feiertage und Anruf-Übernahme (*55)**
+- Feiertage griffen nie, weil die Anlage das Jahr falsch abfragte. Jetzt gelten sie am eingetragenen Datum.
+- *55 übernimmt nur noch angenommene Gespräche mit genau einem Gesprächspartner. Das alte Gerät legt sauber auf. Gibt es nichts zu übernehmen, kommt ein kurzer Fehlerton statt Besetztzeichen.
+
+**Fix - TLS-Verbindung der App**
+- Das Speichern der öffentlichen IP im Web-UI löschte bisher den TLS-Zugang (Port 5061), über den sich die App anmeldet. Jetzt bleibt er erhalten und bekommt dieselben NAT-Einstellungen wie UDP. Eine öffentliche IPv6-Adresse steht nur noch am IPv6-Zugang.
+
+**Änderung - SRTP entfernt**
+- Die Verschlüsselungs-Optionen „sdes“ und „dtls“ werden nicht mehr angenommen, weil das Add-on kein SRTP-Modul enthält. Bestehende Einträge laufen ohne SRTP weiter.
+
+**Kleinigkeit**
+- Der Test-Anruf aus der App zeigt als Anrufer „HA-Phone Test“ statt der Nummer „0“.
+
 ## 0.7.118
 
 **Feature - Test-Anruf an das eigene Handy**

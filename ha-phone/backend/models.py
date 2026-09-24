@@ -5,6 +5,7 @@ from pydantic import ConfigDict, field_validator
 from sqlalchemy import Column
 from sqlmodel import SQLModel, Field
 
+from backend.conf_safety import conf_name, conf_text
 from backend.crypto import EncryptedString
 
 
@@ -12,6 +13,19 @@ DOOR_OPEN_CODE_PATTERN = r"^[0-9*#]*$"
 # http(s) URL without whitespace; the admin enters e.g. a Home Assistant webhook.
 DOOR_WEBHOOK_PATTERN = r"^(https?://\S{1,500})?$"
 MAX_DOOR_ACTIONS = 4
+# Rendered verbatim as `exten => <did>,1,...` — a comma/semicolon would inject
+# dialplan priorities/comments.
+DID_PATTERN = r"^[0-9+*# ()/-]*$"
+# Asterisk extension pattern chars (without the leading underscore) and dial prefix.
+OUTBOUND_PATTERN_RE = r"^[0-9XZNxzn.!+*#\[\]-]*$"
+OUTBOUND_PREPEND_RE = r"^[0-9+*#]*$"
+# SIP host / user tokens rendered into URIs (server_uri, client_uri, from_user...).
+SIP_TOKEN_RE = r"^[^\s;,\[\]<>\"]*$"
+CODECS_RE = r"^[a-z0-9_,]*$"
+# media_encryption values the image can actually honour: res_srtp is NOT built
+# (menuselect --disable-all without --enable res_srtp), so 'sdes'/'dtls' would make
+# the endpoint fail to load. Legacy DB values are mapped to "none" at render time.
+ALLOWED_MEDIA_ENCRYPTION = ("none",)
 
 
 def _match(pattern: str, value: str | None, what: str) -> str | None:
@@ -74,6 +88,11 @@ class Extension(SQLModel, table=True):
     # only rings). Empty = the app falls back to the DTMF door code during a call.
     door_open_webhook: str = Field(default="", max_length=512)
 
+    @field_validator("display_name")
+    @classmethod
+    def _display_name(cls, v: str) -> str:
+        return conf_name(v, "display_name")
+
 
 class ExtensionCreate(SQLModel):
     """Request body for POST /extensions (the table model stores door_actions as JSON text)."""
@@ -102,6 +121,23 @@ class ExtensionCreate(SQLModel):
     def _webhook(cls, v: str) -> str:
         return _match(DOOR_WEBHOOK_PATTERN, v.strip(), "door_open_webhook")
 
+    @field_validator("display_name")
+    @classmethod
+    def _display_name(cls, v):
+        return conf_name(v, "display_name")
+
+    @field_validator("sip_password")
+    @classmethod
+    def _sip_password(cls, v):
+        return conf_text(v, "sip_password")
+
+    @field_validator("media_encryption")
+    @classmethod
+    def _media_encryption(cls, v):
+        if v is not None and v not in ALLOWED_MEDIA_ENCRYPTION:
+            raise ValueError("media_encryption: SRTP wird nicht unterstützt (res_srtp nicht gebaut) — nur 'none'")
+        return v
+
 
 class ExtensionUpdate(SQLModel):
     """Partial update model — sip_password is optional (blank = keep existing)."""
@@ -129,6 +165,23 @@ class ExtensionUpdate(SQLModel):
     @classmethod
     def _webhook(cls, v: str | None) -> str | None:
         return None if v is None else _match(DOOR_WEBHOOK_PATTERN, v.strip(), "door_open_webhook")
+
+    @field_validator("display_name")
+    @classmethod
+    def _display_name(cls, v):
+        return conf_name(v, "display_name")
+
+    @field_validator("sip_password")
+    @classmethod
+    def _sip_password(cls, v):
+        return conf_text(v, "sip_password")
+
+    @field_validator("media_encryption")
+    @classmethod
+    def _media_encryption(cls, v):
+        if v is not None and v not in ALLOWED_MEDIA_ENCRYPTION:
+            raise ValueError("media_encryption: SRTP wird nicht unterstützt (res_srtp nicht gebaut) — nur 'none'")
+        return v
 
 
 class ExtensionOut(SQLModel):
@@ -229,6 +282,27 @@ class Trunk(SQLModel, table=True):
     # without audio. Off = pass the provider's early media (announcements) through.
     local_ringback: bool = True
 
+    @field_validator("registrar_host", "domain", "auth_username", "phone_number")
+    @classmethod
+    def _sip_token(cls, v: str, info) -> str:
+        conf_text(v, info.field_name)
+        return _match(SIP_TOKEN_RE, v, info.field_name)
+
+    @field_validator("password")
+    @classmethod
+    def _password(cls, v: str) -> str:
+        return conf_text(v, "password")
+
+    @field_validator("codecs")
+    @classmethod
+    def _codecs(cls, v: str) -> str:
+        return _match(CODECS_RE, v.replace(" ", ""), "codecs")
+
+    @field_validator("transport")
+    @classmethod
+    def _transport(cls, v: str) -> str:
+        return _match(r"^(udp|tcp|tls)$", v, "transport")
+
 
 class TrunkDid(SQLModel, table=True):
     """An additional phone number (DID) reachable via the trunk, beyond
@@ -245,6 +319,11 @@ class TrunkDid(SQLModel, table=True):
     did: str = Field(max_length=32)
     label: str = Field(default="", max_length=64)
 
+    @field_validator("did")
+    @classmethod
+    def _did(cls, v: str) -> str:
+        return _match(DID_PATTERN, v, "did")
+
 
 class SmtpSettings(SQLModel, table=True):
     """Outbound mail (SMTP) for sending voicemail-to-email. Single row."""
@@ -258,6 +337,16 @@ class SmtpSettings(SQLModel, table=True):
     from_name: str = Field(default="HA-Phone", max_length=64)
     enabled: bool = False
 
+    @field_validator("host", "username", "password", "from_addr")
+    @classmethod
+    def _text(cls, v: str, info) -> str:
+        return conf_text(v, info.field_name)
+
+    @field_validator("from_name")
+    @classmethod
+    def _from_name(cls, v: str) -> str:
+        return conf_name(v, "from_name")
+
 
 class Route(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -266,6 +355,11 @@ class Route(SQLModel, table=True):
     # "extension" | "ring_group" | "ivr" | "voicemail" | "hangup".
     destination_type: str = "extension"
     destination_id: int = 0
+
+    @field_validator("did")
+    @classmethod
+    def _did(cls, v: str) -> str:
+        return _match(DID_PATTERN, v, "did")
 
 
 class OutboundRule(SQLModel, table=True):
@@ -286,6 +380,21 @@ class OutboundRule(SQLModel, table=True):
     # this field existed.
     outbound_caller_id: str = Field(default="", max_length=32)
 
+    @field_validator("pattern")
+    @classmethod
+    def _pattern(cls, v: str) -> str:
+        return _match(OUTBOUND_PATTERN_RE, v, "pattern")
+
+    @field_validator("prepend")
+    @classmethod
+    def _prepend(cls, v: str) -> str:
+        return _match(OUTBOUND_PREPEND_RE, v, "prepend")
+
+    @field_validator("outbound_caller_id")
+    @classmethod
+    def _cid(cls, v: str) -> str:
+        return _match(DID_PATTERN, v, "outbound_caller_id")
+
 
 class ExtensionGroup(SQLModel, table=True):
     """A reusable named group of extensions (e.g. "Support-Team"), usable as
@@ -295,6 +404,10 @@ class ExtensionGroup(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=64)
     extension_numbers: str = ""  # comma-separated list e.g. "10,11,12"
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        return conf_name(v, "name")
 
 
 class RingGroup(SQLModel, table=True):
@@ -310,6 +423,11 @@ class RingGroup(SQLModel, table=True):
     extension_group_ids: str = ""
     ring_timeout: int = 30
 
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        return conf_name(v, "name")
+
 
 class IVRMenu(SQLModel, table=True):
     """Interactive Voice Response menu (digitaler Empfang).
@@ -322,6 +440,11 @@ class IVRMenu(SQLModel, table=True):
     max_invalid_tries: int = 3  # replay menu this many times on invalid input
     options: str = ""  # JSON array: [{"key":"1","action":"extension","target":10,"label":"Verkauf"}, ...]
     # action types: "extension", "ring_group", "ivr", "voicemail", "hangup"
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        return conf_name(v, "name")
 
 
 class TimeCondition(SQLModel, table=True):
@@ -344,6 +467,26 @@ class TimeCondition(SQLModel, table=True):
     # so "voicemail" is the type that preserves that behavior after migration.
     closed_dest_type: str = "voicemail"
 
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        return conf_name(v, "name")
+
+    @field_validator("did")
+    @classmethod
+    def _did(cls, v: str) -> str:
+        return _match(DID_PATTERN, v, "did")
+
+    @field_validator("open_hours_start", "open_hours_end")
+    @classmethod
+    def _hhmm(cls, v: str, info) -> str:
+        return _match(r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$", v, info.field_name)
+
+    @field_validator("open_days")
+    @classmethod
+    def _days(cls, v: str) -> str:
+        return _match(r"^[a-z*&,-]*$", v, "open_days")
+
 
 class Holiday(SQLModel, table=True):
     """A one-time closure day (Roadmap Phase B.3) applied to every
@@ -358,6 +501,11 @@ class Holiday(SQLModel, table=True):
     year: int = Field(ge=1970, le=2200)
     month: int = Field(ge=1, le=12)
     day: int = Field(ge=1, le=31)
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        return conf_text(v, "name")
 
 
 class PhonebookEntry(SQLModel, table=True):
@@ -509,3 +657,60 @@ class MobileDeviceOut(SQLModel):
     last_ip: str
 
 
+
+
+# ── Config-injection checks for table models used directly as request bodies ──
+# SQLModel table models (table=True) do NOT run field validators when FastAPI
+# parses a request body into them, so the @field_validator methods above only fire
+# on model_validate(). Routers call validate_conf_fields() explicitly instead —
+# it checks just the fields that are rendered into .conf files.
+def _did(v, what):
+    return _match(DID_PATTERN, v, what)
+
+
+def _sip_token(v, what):
+    conf_text(v, what)
+    return _match(SIP_TOKEN_RE, v, what)
+
+
+_CONF_FIELD_CHECKS = {
+    "RingGroup": {"name": conf_name},
+    "IVRMenu": {"name": conf_name, "greeting_file": conf_text},
+    "Holiday": {"name": conf_text},  # only rendered into a dialplan comment
+    "ExtensionGroup": {"name": conf_name},
+    "TimeCondition": {
+        "name": conf_name, "did": _did,
+        "open_hours_start": lambda v, w: _match(r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$", v, w),
+        "open_hours_end": lambda v, w: _match(r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$", v, w),
+        "open_days": lambda v, w: _match(r"^[a-z*&,-]*$", v, w),
+    },
+    "Route": {"did": _did},
+    "TrunkDid": {"did": _did, "label": conf_text},
+    "OutboundRule": {
+        "pattern": lambda v, w: _match(OUTBOUND_PATTERN_RE, v, w),
+        "prepend": lambda v, w: _match(OUTBOUND_PREPEND_RE, v, w),
+        "outbound_caller_id": _did,
+    },
+    "Trunk": {
+        "registrar_host": _sip_token, "domain": _sip_token,
+        "auth_username": _sip_token, "phone_number": _sip_token,
+        "password": conf_text,
+        "codecs": lambda v, w: _match(CODECS_RE, (v or "").replace(" ", ""), w),
+        "transport": lambda v, w: _match(r"^(udp|tcp|tls)$", v, w),
+    },
+}
+
+
+def validate_conf_fields(obj) -> None:
+    """Raise HTTP 422 if a conf-rendered field of this table model is unsafe."""
+    from fastapi import HTTPException
+
+    checks = _CONF_FIELD_CHECKS.get(type(obj).__name__, {})
+    for field, check in checks.items():
+        value = getattr(obj, field, None)
+        if not isinstance(value, str):
+            continue
+        try:
+            check(value, field)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))

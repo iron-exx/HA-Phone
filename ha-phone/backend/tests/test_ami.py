@@ -109,3 +109,16 @@ async def test_get_extension_diagnostics_survives_non_numeric_contacts_field():
 
     assert len(result) == 1
     assert result[0]["contacts"] == 1
+
+
+def test_originate_test_call_uses_name_only_callerid():
+    """The app showed "0" as caller for the old '"HA-Phone Test" <0>'."""
+    fake_manager = AsyncMock()
+    fake_manager.send_action.return_value = {"Response": "Success"}
+    with patch("backend.ami._get_manager", new=AsyncMock(return_value=fake_manager)):
+        import asyncio
+        asyncio.run(ami.originate_test_call("87"))
+    action = fake_manager.send_action.call_args[0][0]
+    assert action["Channel"] == "PJSIP/87"
+    assert action["CallerID"] == '"HA-Phone Test" <>'
+    assert "<0>" not in action["CallerID"]

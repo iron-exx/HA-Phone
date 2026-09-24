@@ -74,28 +74,48 @@ def test_extension_crud(client, tmp_data_dir):
     assert "language          = de" in content
 
 
-def test_extension_tls_srtp_media_encryption_in_conf(client, tmp_data_dir):
-    """D-06: a TLS/SRTP extension gets media_encryption rendered, no transport= line."""
+def test_extension_srtp_media_encryption_rejected(client, tmp_data_dir):
+    """res_srtp is not built into the image: 'sdes'/'dtls' are rejected by the API."""
+    for value in ("sdes", "dtls"):
+        resp = client.post(
+            "/api/extensions",
+            json={
+                "number": 89,
+                "display_name": "Phase2 PJSIP Test",
+                "sip_password": "securepass1234567",
+                "transport": "tls",
+                "media_encryption": value,
+            },
+        )
+        assert resp.status_code == 422, resp.text
+
+
+def test_extension_tls_legacy_srtp_value_renders_without_media_encryption(client, tmp_data_dir):
+    """A legacy DB row with media_encryption=sdes renders safely (no SRTP line, no transport=)."""
+    from sqlmodel import Session
+    from backend.database import get_engine
+    from backend.models import Extension
+    from backend.routers.extensions import _regenerate_extensions_conf
+
     resp = client.post(
         "/api/extensions",
-        json={
-            "number": 89,
-            "display_name": "Phase2 PJSIP Test",
-            "sip_password": "securepass1234567",
-            "transport": "tls",
-            "media_encryption": "sdes",
-        },
+        json={"number": 89, "display_name": "Phase2 PJSIP Test",
+              "sip_password": "securepass1234567", "transport": "tls"},
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.text
+    with Session(get_engine()) as session:
+        ext = session.get(Extension, resp.json()["id"])
+        # bypass the validator like an old DB value would
+        ext.__dict__["media_encryption"] = "sdes"
+        session.add(ext)
+        session.commit()
+        _regenerate_extensions_conf(session)
 
-    conf_path = tmp_data_dir / "asterisk" / "pjsip_extensions.conf"
-    content = conf_path.read_text()
-    stanza_start = content.index("[89]")
-    stanza_end = content.index("[89-auth]")
-    stanza = content[stanza_start:stanza_end]
-
-    assert "media_encryption = sdes" in stanza
+    content = (tmp_data_dir / "asterisk" / "pjsip_extensions.conf").read_text()
+    stanza = content[content.index("[89]"):content.index("[89-auth]")]
+    assert "media_encryption" not in stanza
     assert "transport" not in stanza.lower()
+    client.delete(f"/api/extensions/{resp.json()['id']}")
 
 
 def test_trunk_save(client, tmp_data_dir):
@@ -594,7 +614,8 @@ def test_time_condition_conf_regen(client, tmp_data_dir):
     content = conf_path.read_text()
     assert "GotoIfTime" in content
     assert "Voicemail(10@default,u)" in content
-    assert "Dial(PJSIP/10,30)" in content
+    from backend.routers.time_conditions import dial_target
+    assert f"Dial({dial_target(10)},30)" in content
     assert "exten => _XX,1,NoOp(Internal call" in content
 
 
@@ -826,9 +847,11 @@ def test_doorbell_dialplan_context(client, mock_ami, tmp_data_dir):
     conf_path = tmp_data_dir / "asterisk" / "extensions_routing.conf"
     content = conf_path.read_text()
     assert "[doorbell-out]" in content
-    assert "PJSIP/10&PJSIP/11" in content
+    from backend.routers.time_conditions import dial_target
+    both = f"{dial_target(10)}&{dial_target(11)}"
+    assert both in content
     assert "exten => 71,1,NoOp(Internal ring group Doorbell Ring)" in content
-    assert "Dial(PJSIP/10&PJSIP/11,30)" in content
+    assert f"Dial({both},30)" in content
 
 
 def test_outbound_plus_pattern_is_rendered(client, tmp_data_dir):
@@ -1988,10 +2011,12 @@ def test_holiday_takes_priority_over_open_hours_in_dialplan(client, mock_ami, tm
         content = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
         assert f"exten => +4977777777,1,NoOp(Inbound (time): +4977777777)" in content
 
-        year_guard = '$["${YEAR}" != "2027"]'
+        # ${YEAR} is not an Asterisk variable (always empty -> holidays never matched).
+        year_guard = '$["${STRFTIME(${EPOCH},,%Y)}" != "2027"]'
         holiday_line = f"GotoIfTime(*|*|1|jan?closed-{tc_id},1,1)"
         hours_line = f"GotoIfTime(00:00-23:59|*|*|mon-sun?open-{tc_id},1,1:closed-{tc_id},1,1)"
         assert year_guard in content
+        assert "${YEAR}" not in content
         assert holiday_line in content
         assert hours_line in content
         # Order matters: the year guard + holiday check must come first in
@@ -2317,13 +2342,13 @@ def test_outbound_calls_get_local_ringback_by_default_and_can_opt_out(client, tm
 
     resp = client.post("/api/trunk", json=trunk)
     assert resp.status_code == 200 and resp.json()["local_ringback"] is True
-    assert "Dial(PJSIP/${EXTEN}@trunk-endpoint,60,r)" in routing.read_text()
+    assert "Dial(PJSIP/${FILTER(0-9+,${EXTEN})}@trunk-endpoint,60,r)" in routing.read_text()
 
     resp = client.post("/api/trunk", json={**trunk, "local_ringback": False})
     assert resp.json()["local_ringback"] is False
     assert client.get("/api/trunk").json()["local_ringback"] is False
     text = routing.read_text()
-    assert "Dial(PJSIP/${EXTEN}@trunk-endpoint,60)" in text and ",60,r)" not in text
+    assert "Dial(PJSIP/${FILTER(0-9+,${EXTEN})}@trunk-endpoint,60)" in text and ",60,r)" not in text
     client.post("/api/trunk", json=trunk)
 
 

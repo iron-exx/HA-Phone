@@ -64,6 +64,11 @@ qualify_frequency = 60
 [trunk-endpoint]
 type = endpoint
 context = from-trunk
+; Inbound INVITEs are matched ONLY by source IP (identify section below). The From
+; user of a provider INVITE is the CALLER's number, so username matching could
+; never hit this endpoint anyway - but it could let a registered extension whose
+; number happens to equal a caller's number be confused with the trunk.
+identify_by = ip
 language = de
 disallow = all
 allow = {{ trunk.codecs if trunk.codecs else "ulaw,alaw" }}
@@ -98,4 +103,10 @@ rewrite_contact = yes
 [trunk-identify]
 type = identify
 endpoint = trunk-endpoint
+; Hostnames are resolved at load (A/AAAA + SRV, srv_lookups defaults to yes), so an
+; SRV domain like dg.voip.dg-w.de also matches its sip10/sip20 targets.
+srv_lookups = yes
 match = {{ trunk.registrar_host }}
+{% if sip_domain and sip_domain != trunk.registrar_host %}
+match = {{ sip_domain }}
+{% endif %}

@@ -98,5 +98,10 @@ def test_call_flip_code_in_dialplan(client, allowed, tmp_data_dir):
     routing = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
     assert "exten => *55,1," in routing
     assert "${CHANNELS(^PJSIP/${CHANNEL(endpoint)}-)}" in routing
-    assert "Bridge(${FLIP_PEER})" in routing
+    assert "Bridge(${FLIP_PEER},x)" in routing
+    flip = routing.split("exten => *55,1,")[1].split("exten => *43")[0]
+    # only answered channels, never a multi-party bridge (comma list), no bare Congestion
+    assert '$["${IMPORT(${FLIP_CHAN},CHANNEL(state))}" != "Up"]?next' in flip
+    assert '$["${FLIP_PEER}" =~ ","]?next' in flip
+    assert "Congestion" not in flip and "Playback(beeperr)" in flip
     assert "While(" not in routing  # app_while is not built

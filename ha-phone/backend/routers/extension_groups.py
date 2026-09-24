@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import ExtensionGroup, RingGroup
+from backend.models import validate_conf_fields
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.ring_groups import _validate_extension_numbers
 from backend.routers.time_conditions import _regenerate_routing_conf
@@ -20,6 +21,7 @@ def list_extension_groups(session: Session = Depends(get_session)):
 
 @router.post("/extension-groups", response_model=ExtensionGroup)
 async def create_extension_group(group: ExtensionGroup, session: Session = Depends(get_session)):
+    validate_conf_fields(group)
     numbers = _validate_extension_numbers(group.extension_numbers, session, allow_empty=True)
     group.extension_numbers = ",".join(str(number) for number in numbers)
     group.id = None
@@ -33,6 +35,7 @@ async def create_extension_group(group: ExtensionGroup, session: Session = Depen
 async def update_extension_group(
     group_id: int, group_data: ExtensionGroup, session: Session = Depends(get_session)
 ):
+    validate_conf_fields(group_data)
     existing = session.get(ExtensionGroup, group_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Extension group not found")

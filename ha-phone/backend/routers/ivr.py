@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import IVRMenu, Extension, RingGroup, Route
+from backend.models import validate_conf_fields
 from backend.numbering import validate_number
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.time_conditions import _regenerate_routing_conf
@@ -159,6 +160,7 @@ def get_ivr(ivr_id: int, session: Session = Depends(get_session)):
 
 @router.post("/ivrs", response_model=IVRMenu)
 async def create_ivr(ivr: IVRMenu, session: Session = Depends(get_session)):
+    validate_conf_fields(ivr)
     _validate_ivr_number(ivr, session)
     parsed_options = _validate_options(ivr.options)
     _validate_option_targets(ivr.number, parsed_options, session)
@@ -178,6 +180,7 @@ async def create_ivr(ivr: IVRMenu, session: Session = Depends(get_session)):
 
 @router.patch("/ivrs/{ivr_id}", response_model=IVRMenu)
 async def update_ivr(ivr_id: int, ivr_data: IVRMenu, session: Session = Depends(get_session)):
+    validate_conf_fields(ivr_data)
     existing = session.get(IVRMenu, ivr_id)
     if not existing:
         raise HTTPException(status_code=404, detail="IVR menu not found")

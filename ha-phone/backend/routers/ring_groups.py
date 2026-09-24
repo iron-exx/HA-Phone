@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import Extension, ExtensionGroup, RingGroup, Route
+from backend.models import validate_conf_fields
 from backend.numbering import validate_number
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 # Use the canonical routing regen (includes inbound routes, outbound rules, CLIP).
@@ -87,6 +88,7 @@ def list_ring_groups(session: Session = Depends(get_session)):
 
 @router.post("/ring-groups", response_model=RingGroup)
 async def create_ring_group(rg: RingGroup, session: Session = Depends(get_session)):
+    validate_conf_fields(rg)
     _validate_ring_group_number(rg, session)
     # A member can come from either list now (a ring group of pure extension
     # groups is valid) - allow_empty on both, then require at least one member
@@ -113,6 +115,7 @@ async def create_ring_group(rg: RingGroup, session: Session = Depends(get_sessio
 
 @router.patch("/ring-groups/{rg_id}", response_model=RingGroup)
 async def update_ring_group(rg_id: int, rg_data: RingGroup, session: Session = Depends(get_session)):
+    validate_conf_fields(rg_data)
     existing = session.get(RingGroup, rg_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Ring group not found")

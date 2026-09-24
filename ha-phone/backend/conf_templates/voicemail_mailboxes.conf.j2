@@ -4,5 +4,5 @@
 
 [default]
 {% for ext in extensions %}
-{{ ext.number }} => {{ ext.number }},{{ ext.display_name }},{{ email_map.get(ext.number, "") }},,
+{{ ext.number }} => {{ ext.number }},{{ ext.display_name | replace(",", " ") }},{{ email_map.get(ext.number, "") }},,
 {% endfor %}

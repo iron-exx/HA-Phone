@@ -407,8 +407,18 @@ async def stop_recording(number: str, peer: str) -> bool:
     return response.get("Response") == "Success"
 
 
+TEST_CALL_CALLERID = '"HA-Phone Test" <>'
+
+
 async def originate_test_call(number: str) -> None:
-    """Rings PJSIP/<number> directly (no forwarding, no ring group) into [haphone-testcall]."""
+    """Rings PJSIP/<number> directly (no forwarding, no ring group) into [haphone-testcall].
+
+    Deliberately plain PJSIP/<number>, NOT ${PJSIP_DIAL_CONTACTS()}: with several
+    registered devices (max_contacts=3) this rings only ONE contact (chan_pjsip picks
+    the first), which is not necessarily the requesting app. Originating to the
+    requesting device's own contact URI would need the app's Contact from the AOR
+    (not tracked per MobileDevice) - left as a follow-up.
+    """
     async with asyncio.timeout(_AMI_TIMEOUT):
         manager = await _get_manager()
         response = await manager.send_action({
@@ -417,7 +427,10 @@ async def originate_test_call(number: str) -> None:
             "Context": "haphone-testcall",
             "Exten": "s",
             "Priority": "1",
-            "CallerID": '"HA-Phone Test" <0>',
+            # Name only, empty number: "<0>" made the app show the number "0" as
+            # the caller. Asterisk accepts an empty number (callerid parse yields
+            # name only); the From user then falls back to the default one.
+            "CallerID": TEST_CALL_CALLERID,
             "Timeout": "30000",
             "Async": "true",
         })

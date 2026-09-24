@@ -21,9 +21,15 @@ export default function Login() {
         body: JSON.stringify({ password }),
       });
       if (resp.status === 401) { setError("Falsches Passwort"); return; }
+      if (resp.status === 429) {
+        const data = await resp.json().catch(() => ({}));
+        setError(data?.detail ?? "Zu viele Fehlversuche — bitte später erneut versuchen");
+        return;
+      }
       if (!resp.ok) { setError("Anmeldung fehlgeschlagen — bitte erneut versuchen"); return; }
       const data = await resp.json();
-      navigate(data.must_change_password ? "/change-password" : "/");
+      const mustChange = data.password_change_required || data.must_change_password;
+      navigate(mustChange ? "/change-password" : "/");
     } finally {
       setLoading(false);
     }

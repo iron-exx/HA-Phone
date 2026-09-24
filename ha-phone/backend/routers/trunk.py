@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import Trunk, TrunkDid
+from backend.models import validate_conf_fields
 from backend.conf_generator import render_conf
 from backend.regeneration import run_regeneration_steps, step_succeeded
 from backend import ami
@@ -88,6 +89,7 @@ def get_trunk(session: Session = Depends(get_session)):
 
 @router.post("/trunk", response_model=TrunkPublic)
 async def save_trunk(trunk_data: Trunk, session: Session = Depends(get_session)):
+    validate_conf_fields(trunk_data)
     # Upsert: delete existing row, insert new
     existing_trunks = session.exec(select(Trunk)).all()
     for t in existing_trunks:
@@ -152,6 +154,7 @@ def list_trunk_dids(session: Session = Depends(get_session)):
 @router.post("/trunk/dids", response_model=TrunkDid)
 def create_trunk_did(did_data: TrunkDidCreate, session: Session = Depends(get_session)):
     did = TrunkDid(did=did_data.did, label=did_data.label)
+    validate_conf_fields(did)
     session.add(did)
     session.commit()
     session.refresh(did)

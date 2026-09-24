@@ -23,11 +23,14 @@ def test_script_does_not_depend_on_openssl_cli():
     assert "openssl req" not in SCRIPT.read_text()
 
 
-def test_script_appends_transport_tls_stanza_guarded_by_existence_check():
+def test_script_renders_pjsip_local_from_shared_template():
+    """Boot script and web UI render the same template (no hand-appended TLS stanza)."""
     content = SCRIPT.read_text()
-    assert "[transport-tls]" in content
-    assert "protocol   = tls" in content
-    assert "grep -q '^\\[transport-tls\\]'" in content  # idempotency guard, not a plain duplicate append
+    assert "from backend.pjsip_local import write_pjsip_local" in content
+    assert "cat >> \"$PJSIP_LOCAL\"" not in content
+    template = (SCRIPT.parents[3] / "backend" / "conf_templates" / "pjsip_local.conf.j2").read_text()
+    assert "[transport-tls]" in template
+    assert "protocol   = tls" in template
 
 
 def test_script_reasserts_secret_permissions_after_recursive_chmod():

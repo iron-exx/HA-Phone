@@ -72,9 +72,9 @@ export default function ChangePassword() {
             </div>
           </div>
           <div className="text-center">
-            <h1 className="text-gradient text-xl font-semibold tracking-tight">Neues Passwort</h1>
+            <h1 className="text-gradient text-xl font-semibold tracking-tight">Passwort ändern erforderlich</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Erster Login — wähle ein sicheres Admin-Passwort.
+              Das aktuelle Passwort ist ein Standard- oder Erstpasswort — wähle ein sicheres Admin-Passwort.
             </p>
           </div>
         </div>

@@ -24,7 +24,7 @@
 {% elif dest_type == 'hangup' %}
  same => n,Hangup()
 {% else %}
- same => n,Dial(PJSIP/{{ dest_target }},30)
+ same => n,Dial({{ dial(dest_target) }},30)
  same => n,Voicemail({{ dest_target }}@default,u)
  same => n,Hangup()
 {% endif %}
@@ -64,12 +64,18 @@ exten => *55,1,NoOp(Call flip to ${CHANNEL} for ${CHANNEL(endpoint)})
  same => n(next),Set(FLIP_CHAN=${SHIFT(FLIP_LIST, )})
  same => n,GotoIf($["${FLIP_CHAN}" = ""]?none)
  same => n,GotoIf($["${FLIP_CHAN}" = "${CHANNEL}"]?next)
+; only an answered channel (skips a device that is still ringing/dialling)
+ same => n,GotoIf($["${IMPORT(${FLIP_CHAN},CHANNEL(state))}" != "Up"]?next)
  same => n,Set(FLIP_PEER=${IMPORT(${FLIP_CHAN},BRIDGEPEER)})
  same => n,GotoIf($["${FLIP_PEER}" = ""]?next)
- same => n,Bridge(${FLIP_PEER})
+; BRIDGEPEER is a comma-separated list in a multi-party bridge (conference) - no single peer to take over
+ same => n,GotoIf($["${FLIP_PEER}" =~ ","]?next)
+; x = hang up the peer when this device leaves the bridge (no orphaned channel)
+ same => n,Bridge(${FLIP_PEER},x)
  same => n,Hangup()
  same => n(none),NoOp(No call to flip for ${CHANNEL(endpoint)})
- same => n,Congestion(3)
+ same => n,Answer()
+ same => n,Playback(beeperr)
  same => n,Hangup()
 
 ; *43 = echo test: everything you say comes straight back (audio check, like on desk phones).
@@ -103,7 +109,7 @@ exten => {{ ring_group.number }},1,NoOp(Internal ring group {{ ring_group.name }
 {% if ext.numeric_callerid and ext.enabled %}
 exten => {{ ext.number }},1,NoOp(Internal call to {{ ext.number }} (numeric caller id))
  same => n,Set(CALLERID(name)=${CALLERID(num)})
- same => n,Dial(PJSIP/{{ ext.number }},30)
+ same => n,Dial({{ dial(ext.number) }},30)
  same => n,Voicemail({{ ext.number }}@default,u)
  same => n,Hangup()
 {% endif %}
@@ -156,7 +162,20 @@ exten => {{ ring_group.number }},1,NoOp(Internal-only call to ring group {{ ring
 {% if ext.numeric_callerid and ext.enabled %}
 exten => {{ ext.number }},1,NoOp(Internal-only call to {{ ext.number }} (numeric caller id))
  same => n,Set(CALLERID(name)=${CALLERID(num)})
- same => n,Dial(PJSIP/{{ ext.number }},30)
+ same => n,Dial({{ dial(ext.number) }},30)
+ same => n,Voicemail({{ ext.number }}@default,u)
+ same => n,Hangup()
+{% endif %}
+{% endfor %}
+{#
+  Explicit entries win over _XX: multi-device ringing for every known non-video
+  extension. _XX (plain PJSIP/${EXTEN}) stays for video extensions - the door
+  station video preview path (single contact, 183 early media) is unchanged.
+#}
+{% for ext in extensions %}
+{% if ext.enabled and not ext.numeric_callerid and not ext.video_capable %}
+exten => {{ ext.number }},1,NoOp(Internal-only call to {{ ext.number }})
+ same => n,Dial({{ dial(ext.number) }},30)
  same => n,Voicemail({{ ext.number }}@default,u)
  same => n,Hangup()
 {% endif %}
@@ -205,12 +224,12 @@ exten => s,1,NoOp(Landing for {{ entry.number }} ({{ entry.display_name }}) - pr
 {% set internal = entry.internal %}
 exten => internal,1,NoOp(Internal call to {{ entry.number }})
 {% if internal.mode == 'always_dest' %}
-{{ dest_action(internal.dest_type, internal.dest_target) }}
+{{ dest_action(internal.dest_type, internal.dest_target)|safe }}
 {% elif internal.mode == 'ring_then_dest' %}
- same => n,Dial(PJSIP/{{ entry.number }},{{ internal.ring_timeout }})
-{{ dest_action(internal.dest_type, internal.dest_target) }}
+ same => n,Dial({{ dial(entry.number) }},{{ internal.ring_timeout }})
+{{ dest_action(internal.dest_type, internal.dest_target)|safe }}
 {% else %}
- same => n,Dial(PJSIP/{{ entry.number }},30)
+ same => n,Dial({{ dial(entry.number) }},30)
  same => n,Voicemail({{ entry.number }}@default,u)
  same => n,Hangup()
 {% endif %}
@@ -218,12 +237,12 @@ exten => internal,1,NoOp(Internal call to {{ entry.number }})
 {% set external = entry.external %}
 exten => external,1,NoOp(External call to {{ entry.number }})
 {% if external.mode == 'always_dest' %}
-{{ dest_action(external.dest_type, external.dest_target) }}
+{{ dest_action(external.dest_type, external.dest_target)|safe }}
 {% elif external.mode == 'ring_then_dest' %}
- same => n,Dial(PJSIP/{{ entry.number }},{{ external.ring_timeout }})
-{{ dest_action(external.dest_type, external.dest_target) }}
+ same => n,Dial({{ dial(entry.number) }},{{ external.ring_timeout }})
+{{ dest_action(external.dest_type, external.dest_target)|safe }}
 {% else %}
- same => n,Dial(PJSIP/{{ entry.number }},30)
+ same => n,Dial({{ dial(entry.number) }},30)
  same => n,Voicemail({{ entry.number }}@default,u)
  same => n,Hangup()
 {% endif %}
@@ -239,7 +258,7 @@ exten => external,1,NoOp(External call to {{ entry.number }})
 [outbound-pstn]
 exten => _X.,1,NoOp(Outbound via SIP trunk: ${EXTEN})
 {% if trunk_callerid %} same => n,Set(CALLERID(all)=${OUTBOUND_CID} <${OUTBOUND_CID}>)
-{% endif %} same => n,Dial(PJSIP/${EXTEN}@trunk-endpoint,60{% if trunk_ringback %},r{% endif %})
+{% endif %} same => n,Dial(PJSIP/${FILTER(0-9+,${EXTEN})}@trunk-endpoint,60{% if trunk_ringback %},r{% endif %})
  same => n,Congestion()
  same => n,Hangup()
 ; Outbound rules can prepend "+" (E.164, e.g. for German numbers rewritten to
@@ -279,7 +298,7 @@ exten => {{ condition.did }},1,NoOp(Inbound (time): {{ condition.did }})
 ; GotoIfTime has no year field, so the year is checked separately here -
 ; holidays are one-time dates, not automatically recurring (most shift
 ; year to year, e.g. Easter-based ones).
- same => n,GotoIf($["${YEAR}" != "{{ holiday.year }}"]?skip-holiday-{{ condition.id }}-{{ loop.index }})
+ same => n,GotoIf($["${STRFTIME(${EPOCH},,%Y)}" != "{{ holiday.year }}"]?skip-holiday-{{ condition.id }}-{{ loop.index }})
  same => n,GotoIfTime(*|*|{{ holiday.day }}|{{ holiday.month_name }}?closed-{{ condition.id }},1,1)
  same => n(skip-holiday-{{ condition.id }}-{{ loop.index }}),NoOp()
 {% endfor %}

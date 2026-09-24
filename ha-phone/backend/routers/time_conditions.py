@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from backend.database import get_session
 from backend.models import TimeCondition, RingGroup, Route, OutboundRule, Extension, ExtensionGroup, Trunk, IVRMenu, Holiday, PresenceForwardingRule
+from backend.models import validate_conf_fields
 from backend.conf_generator import render_conf
 from backend.regeneration import run_single_regeneration_step, step_succeeded
 from backend.routers.trunk import _to_e164
@@ -26,8 +27,34 @@ def _data_dir() -> Path:
     return Path(d) if d else Path("/data")
 
 
+def dial_target(number, video_numbers: set[str] | frozenset[str] = frozenset()) -> str:
+    """Dial() target for ONE extension.
+
+    Non-video extensions may have several registered devices (desk phone + app +
+    softphone, AOR max_contacts=3). A plain `PJSIP/<n>` only rings ONE of the
+    contacts, so every contact is dialled via ${PJSIP_DIAL_CONTACTS(<n>)} - with
+    a fallback to `PJSIP/<n>` when it is empty (nothing registered: Dial then
+    fails the same way it always did, instead of with an empty dial string).
+    The contacts function lands in IF()'s false branch on purpose: IF splits at
+    the FIRST ':' after '?', and contact URIs (sip:...) contain colons.
+
+    Video extensions keep `PJSIP/<n>`: they have exactly one contact
+    (max_contacts=1) and the door-station video preview (183 early media to a
+    single callee) is verified on exactly this dial path - do not change it.
+    """
+    n = str(number).strip()
+    if n in video_numbers:
+        return f"PJSIP/{n}"
+    return (
+        f"${{IF($[${{LEN(${{PJSIP_DIAL_CONTACTS({n})}})}} = 0]"
+        f"?PJSIP/{n}:${{PJSIP_DIAL_CONTACTS({n})}})}}"
+    )
+
+
 def _build_dial_string(
-    ring_group: RingGroup, ext_groups_by_id: dict[int, ExtensionGroup] | None = None
+    ring_group: RingGroup,
+    ext_groups_by_id: dict[int, ExtensionGroup] | None = None,
+    video_numbers: set[str] | frozenset[str] = frozenset(),
 ) -> str:
     """Resolve a ring group's members into a Dial()-ready PJSIP/... & ... string.
     Members come from two additive sources: direct extension_numbers, and any
@@ -44,15 +71,17 @@ def _build_dial_string(
             if group:
                 numbers.extend(n.strip() for n in group.extension_numbers.split(",") if n.strip())
     deduped = list(dict.fromkeys(numbers))
-    return "&".join(f"PJSIP/{n}" for n in deduped)
+    return "&".join(dial_target(n, video_numbers) for n in deduped)
 
 
 def _build_doorbell_dial_string(
-    ring_groups: list[RingGroup], ext_groups_by_id: dict[int, ExtensionGroup] | None = None
+    ring_groups: list[RingGroup],
+    ext_groups_by_id: dict[int, ExtensionGroup] | None = None,
+    video_numbers: set[str] | frozenset[str] = frozenset(),
 ) -> str:
     targets: list[str] = []
     for ring_group in ring_groups:
-        dial_string = _build_dial_string(ring_group, ext_groups_by_id)
+        dial_string = _build_dial_string(ring_group, ext_groups_by_id, video_numbers)
         if dial_string:
             targets.extend(dial_string.split("&"))
     return "&".join(dict.fromkeys(targets))
@@ -96,12 +125,15 @@ def _regenerate_routing_conf(session: Session) -> None:
     time_conditions = session.exec(select(TimeCondition)).all()
     ring_groups_list = session.exec(select(RingGroup)).all()
     ext_groups_by_id = {eg.id: eg for eg in session.exec(select(ExtensionGroup)).all()}
-    ring_group_dials = {rg.id: _build_dial_string(rg, ext_groups_by_id) for rg in ring_groups_list}
+    extensions = session.exec(select(Extension)).all()
+    video_numbers = {str(e.number) for e in extensions if e.video_capable}
+    ring_group_dials = {
+        rg.id: _build_dial_string(rg, ext_groups_by_id, video_numbers) for rg in ring_groups_list
+    }
     routes = session.exec(select(Route)).all()
     outbound_rules = session.exec(
         select(OutboundRule).order_by(OutboundRule.priority)
     ).all()
-    extensions = session.exec(select(Extension)).all()
     route_dids = {r.id: _did_variants(r.did) for r in routes}
     # IVR menus with parsed options. IVRMenu is a SQLModel table model and does not
     # declare a `parsed_options` field, so assigning it as an attribute on the ORM
@@ -120,7 +152,7 @@ def _regenerate_routing_conf(session: Session) -> None:
         if ivr.number and ivr.id:
             ivr_number_to_id[ivr.number] = ivr.id
     # dial-all-extensions string for the no-route inbound fallback
-    all_ext_dial = "&".join(f"PJSIP/{e.number}" for e in extensions if e.enabled)
+    all_ext_dial = "&".join(dial_target(e.number, video_numbers) for e in extensions if e.enabled)
     # Presence-based forwarding: resolve, once per regeneration, what each
     # extension's landing context should do for internal/external calls given
     # its CURRENT presence_status. No matching rule = "default" (today's
@@ -217,7 +249,9 @@ def _regenerate_routing_conf(session: Session) -> None:
             "outbound_rules": outbound_rules,
             "extensions": extensions,
             "all_ext_dial": all_ext_dial,
-            "doorbell_dial": _build_doorbell_dial_string(ring_groups_list, ext_groups_by_id),
+            "doorbell_dial": _build_doorbell_dial_string(ring_groups_list, ext_groups_by_id, video_numbers),
+            # Dial() target for one extension number (multi-device, see dial_target()).
+            "dial": lambda number: dial_target(number, video_numbers),
             "trunk_callerid": trunk_callerid,
             "trunk_ringback": trunk.local_ringback if trunk else True,
             "outbound_rule_cid": outbound_rule_cid,
@@ -240,6 +274,7 @@ def list_time_conditions(session: Session = Depends(get_session)):
 async def create_time_condition(
     condition: TimeCondition, session: Session = Depends(get_session)
 ):
+    validate_conf_fields(condition)
     session.add(condition)
     session.commit()
     session.refresh(condition)
@@ -259,6 +294,7 @@ async def update_time_condition(
     condition_data: TimeCondition,
     session: Session = Depends(get_session),
 ):
+    validate_conf_fields(condition_data)
     existing = session.get(TimeCondition, condition_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Time condition not found")

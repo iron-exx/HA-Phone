@@ -3,10 +3,11 @@ import time
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlmodel import Session, select
 
 from backend.conf_generator import render_conf
+from backend.conf_safety import conf_name, conf_text
 from backend.database import get_session
 from backend.models import SmtpSettings
 from backend.regeneration import run_single_regeneration_step, step_succeeded
@@ -80,11 +81,15 @@ async def get_public_ip():
 
 @router.post("/settings/public-ip")
 async def save_public_ip(body: PublicIPRequest):
-    """Write pjsip_local.conf with the given IP, then trigger AMI reload."""
-    output_path = _data_dir() / "asterisk" / "pjsip_local.conf"
-    render_conf("pjsip_local.conf.j2", {"ip": body.ip}, output_path)
+    """Write pjsip_local.conf with the given IP (keeps [transport-tls]), then reload."""
+    from backend.pjsip_local import normalize_ip, write_pjsip_local
+    try:
+        ip = normalize_ip(body.ip)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Ungültige IP-Adresse")
+    write_pjsip_local(ip)
     await ami.ami_reload_pjsip()
-    return {"ok": True, "ip": body.ip}
+    return {"ok": True, "ip": ip}
 
 
 @router.get("/status/active-calls")
@@ -104,6 +109,18 @@ class SmtpConfig(BaseModel):
     from_addr: str = ""
     from_name: str = "HA-Phone"
     enabled: bool = False
+
+    # Rendered into msmtprc / voicemail.conf: a newline would inject options
+    # (e.g. msmtp `passwordeval` = command execution).
+    @field_validator("host", "username", "password", "from_addr")
+    @classmethod
+    def _conf_text(cls, v: str, info) -> str:
+        return conf_text(v, info.field_name)
+
+    @field_validator("from_name")
+    @classmethod
+    def _from_name(cls, v: str) -> str:
+        return conf_name(v, "from_name")
 
 
 class SmtpTestRequest(BaseModel):

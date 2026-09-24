@@ -101,6 +101,12 @@ RUN make menuselect.makeopts && \
       --enable res_pjsip_sdp_rtp \
       --enable res_pjsip_session \
       --enable res_pjsip_pubsub \
+      --enable res_pjsip_caller_id \
+      --enable res_pjsip_nat \
+      --enable res_pjsip_refer \
+      --enable res_pjsip_mwi \
+      --enable res_pjsip_mwi_body_generator \
+      --enable res_format_attr_h264 \
       --enable chan_pjsip \
       --enable res_http_websocket \
       --enable res_stasis \
@@ -125,6 +131,7 @@ RUN make menuselect.makeopts && \
       --enable func_channel \
       --enable func_strings \
       --enable func_logic \
+      --enable func_timeout \
       --enable res_musiconhold \
       --enable codec_alaw \
       --enable codec_ulaw \
