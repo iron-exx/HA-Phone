@@ -3,7 +3,9 @@ Phone-facing app features beyond pairing: presence (own status + live line
 state of all extensions) and visual voicemail for the device's own mailbox.
 All endpoints authenticate the device via X-Device-Id / X-Device-Token.
 """
+import asyncio
 import csv
+import logging
 import os
 import re
 import time
@@ -484,3 +486,45 @@ def delete_recording(name: str, device: MobileDevice = Depends(_device), session
     own = _own_extension(session, device)
     _recording_path(own.number, name).unlink()
     return {"success": True}
+
+
+# ============================================================
+# Test call ("Test-Anruf an mich" in the app's Erreichbarkeit screen)
+# ============================================================
+
+TEST_CALL_COOLDOWN_SEC = 60
+_last_test_call: dict[int, float] = {}
+_test_call_tasks: set[asyncio.Task] = set()
+_log = logging.getLogger(__name__)
+
+
+class TestCallIn(BaseModel):
+    # Time to lock the phone before it rings.
+    delay_sec: int = Field(default=10, ge=0, le=60)
+
+
+async def _ring_later(number: str, delay: int) -> None:
+    await asyncio.sleep(delay)
+    try:
+        await ami.originate_test_call(number)
+    except Exception as exc:  # the app already got 202; log for the admin
+        _log.warning("test call to %s failed: %s", number, exc)
+
+
+@public_router.post("/test-call", status_code=202)
+async def request_test_call(
+    data: TestCallIn,
+    device: MobileDevice = Depends(_device),
+    session: Session = Depends(get_session),
+):
+    """Rings this device's extension after `delay_sec`, once per minute per device."""
+    own = _own_extension(session, device)
+    now = time.monotonic()
+    last = _last_test_call.get(device.id)
+    if last is not None and now - last < TEST_CALL_COOLDOWN_SEC:
+        raise HTTPException(status_code=429, detail=f"Bitte {int(TEST_CALL_COOLDOWN_SEC - (now - last)) + 1} s warten")
+    _last_test_call[device.id] = now
+    task = asyncio.create_task(_ring_later(str(own.number), data.delay_sec))
+    _test_call_tasks.add(task)
+    task.add_done_callback(_test_call_tasks.discard)
+    return {"scheduled": True, "delay_sec": data.delay_sec, "number": str(own.number)}

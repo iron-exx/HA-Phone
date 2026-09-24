@@ -30,6 +30,15 @@
 {% endif %}
 {% endmacro %}
 
+; Test call from the app ("Test-Anruf an mich", POST /api/mobile/test-call): the PBX rings
+; the device's own endpoint via AMI Originate; answering plays a beep, then an echo test.
+[haphone-testcall]
+exten => s,1,NoOp(HA-Phone test call)
+ same => n,Answer()
+ same => n,Playback(beep)
+ same => n,Echo()
+ same => n,Hangup()
+
 ; Internal calls + outbound dial rules
 [from-internal]
 

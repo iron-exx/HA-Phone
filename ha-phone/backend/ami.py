@@ -405,3 +405,21 @@ async def stop_recording(number: str, peer: str) -> bool:
             return False
         response = await manager.send_action({"Action": "StopMixMonitor", "Channel": channel})
     return response.get("Response") == "Success"
+
+
+async def originate_test_call(number: str) -> None:
+    """Rings PJSIP/<number> directly (no forwarding, no ring group) into [haphone-testcall]."""
+    async with asyncio.timeout(_AMI_TIMEOUT):
+        manager = await _get_manager()
+        response = await manager.send_action({
+            "Action": "Originate",
+            "Channel": f"PJSIP/{number}",
+            "Context": "haphone-testcall",
+            "Exten": "s",
+            "Priority": "1",
+            "CallerID": '"HA-Phone Test" <0>',
+            "Timeout": "30000",
+            "Async": "true",
+        })
+    if response.get("Response") != "Success":
+        raise RuntimeError(response.get("Message", "Originate failed"))

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.118
+
+**Feature - Test-Anruf an das eigene Handy**
+- Die HA-Phone App hat im Erreichbarkeits-Check die Taste „Test-Anruf an mich“. Die Anlage ruft das Handy nach einer kurzen Wartezeit direkt an (ohne Weiterleitungen und Gruppen), so lässt sich das Klingeln bei gesperrtem Handy prüfen. Beim Annehmen kommt ein Signalton, dann ein Echo-Test. Höchstens ein Test pro Minute und Gerät (`POST /api/mobile/test-call`).
+
 ## 0.7.117
 
 **Feature - Tür-Öffnen-Webhook**
