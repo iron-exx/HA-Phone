@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.115
+
+**Fix - Türkamera-Vorschau in der App blieb schwarz, wenn das Handy hinter NAT hängt**
+- Die Anlage kündigt der App seit jeher einen STUN-Server auf Port 3478 an, hatte aber keinen. Ein Handy in einem anderen Netz (Gast-WLAN, anderes Subnetz, VPN) nannte deshalb seine private Adresse, und Asterisk schickte das Kamerabild vor dem Abheben dorthin. Jetzt läuft ein kleiner STUN-Server (3478/UDP) im Add-on. Die HA-Phone App ab 0.6.1 nutzt ihn und bekommt das Bild auch hinter NAT.
+
 ## 0.7.114
 
 **Feature - Gesprächsaufzeichnung aus der App (pro Nebenstelle freischaltbar)**

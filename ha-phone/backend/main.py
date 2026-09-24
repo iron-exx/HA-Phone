@@ -48,7 +48,19 @@ async def lifespan(app: FastAPI):
         ldap_server = None
         import logging
         logging.getLogger(__name__).warning("LDAP phonebook server not started: %s", exc)
+    # STUN for the app's media (announced in the provisioning config as stun:<lan>:3478).
+    from backend.stun_server import StunServer, stun_port_from_env
+
+    stun_server = StunServer(stun_port_from_env())
+    try:
+        await stun_server.start()
+    except Exception as exc:
+        stun_server = None
+        import logging
+        logging.getLogger(__name__).warning("STUN server not started: %s", exc)
     yield
+    if stun_server is not None:
+        await stun_server.stop()
     if ldap_server is not None:
         await ldap_server.stop()
 

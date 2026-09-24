@@ -16,6 +16,8 @@ def tmp_data_dir(tmp_path_factory):
     # Write a fake session_secret (needed by SessionMiddleware in Plan 02+)
     (data_dir / "asterisk" / "session_secret").write_text("test-session-secret-xyz")
     os.environ["BPX_DATA_DIR"] = str(data_dir)
+    # The app lifespan starts the STUN server: ephemeral port, never the real 3478.
+    os.environ.setdefault("BPX_STUN_PORT", "0")
     return data_dir
 
 @pytest.fixture
