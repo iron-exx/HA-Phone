@@ -74,3 +74,26 @@ def test_run_door_action_reports_home_assistant_failure(client, paired, door):
     with patch("backend.ha_api.call_service", new_callable=AsyncMock, side_effect=HTTPException(502, "HA down")):
         resp = client.post("/api/mobile/door-action", json={"extension": str(door["number"]), "index": 0}, headers=_auth(paired))
     assert resp.status_code == 502
+
+
+def test_door_open_webhook_is_called_without_a_call(client, paired, door):
+    url = "http://homeassistant.local:8123/api/webhook/haustuer"
+    assert client.patch(f"/api/extensions/{door['id']}", json={"door_open_webhook": url}).json()["door_open_webhook"] == url
+    entry = next(e for e in client.get("/api/mobile/directory", headers=_auth(paired)).json()["extensions"] if e["number"] == str(door["number"]))
+    assert entry["door_open_remote"] is True and url not in str(entry)
+    with patch("backend.ha_api.call_webhook", new_callable=AsyncMock) as hook:
+        resp = client.post("/api/mobile/door-open", json={"extension": str(door["number"])}, headers=_auth(paired))
+    assert resp.status_code == 200, resp.text
+    called_url, payload = hook.await_args.args
+    assert called_url == url and payload["event"] == "door_open" and payload["door_extension"] == str(door["number"])
+    assert payload["by_extension"] == "87"
+
+
+def test_door_open_needs_webhook_auth_and_valid_url(client, paired, door):
+    client.patch(f"/api/extensions/{door['id']}", json={"door_open_webhook": ""})
+    with patch("backend.ha_api.call_webhook", new_callable=AsyncMock) as hook:
+        assert client.post("/api/mobile/door-open", json={"extension": str(door["number"])}, headers=_auth(paired)).status_code == 404
+        assert client.post("/api/mobile/door-open", json={"extension": str(door["number"])}).status_code == 401
+    hook.assert_not_awaited()
+    for bad in ("ftp://x/y", "javascript:alert(1)", "http://a b"):
+        assert client.patch(f"/api/extensions/{door['id']}", json={"door_open_webhook": bad}).status_code == 422

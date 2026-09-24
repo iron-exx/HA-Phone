@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.117
+
+**Feature - Tür-Öffnen-Webhook**
+- Beim Bearbeiten einer Türstation lässt sich ein **Tür-Öffnen-Webhook** eintragen, z. B. `http://homeassistant.local:8123/api/webhook/haustuer`. Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App löst ihn aus, auch schon während es klingelt, ohne abzuheben (`POST /api/mobile/door-open`). Die Anlage sendet JSON mit Türstation und Nebenstelle; die App sieht die Adresse nie.
+
+**Verbesserung - Handys bleiben dauerhaft erreichbar**
+- Die Anlage prüft jedes Gerät alle 60 Sekunden (`qualify`). Das hält die Verbindung durch Router offen, damit die App auch nach Tagen ohne Anruf klingelt, und die Anlage erkennt Geräte, die wirklich weg sind.
+
 ## 0.7.116
 
 **Fix - Kein Freizeichen bei Anrufen nach außen**

@@ -106,6 +106,11 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN door_actions TEXT NOT NULL DEFAULT '[]'")
                 )
                 conn.commit()
+            if "door_open_webhook" not in cols:
+                conn.execute(
+                    text("ALTER TABLE extension ADD COLUMN door_open_webhook TEXT NOT NULL DEFAULT ''")
+                )
+                conn.commit()
             if "recording_allowed" not in cols:
                 conn.execute(
                     text("ALTER TABLE extension ADD COLUMN recording_allowed BOOLEAN NOT NULL DEFAULT 0")

@@ -299,6 +299,7 @@ def _extension_out(extension: Extension) -> ExtensionOut:
         door_open_code=extension.door_open_code,
         door_actions=door_actions_of(extension),
         recording_allowed=extension.recording_allowed,
+        door_open_webhook=extension.door_open_webhook,
     )
 
 

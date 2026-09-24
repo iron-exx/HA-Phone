@@ -156,7 +156,7 @@ def test_directory_includes_door_code_video_presence_and_self(client, paired):
         entry = next(e for e in body["extensions"] if e["number"] == "88")
         assert entry == {
             "number": "88", "name": "Haustür", "video": True,
-            "door_open_code": "*1", "presence": "available", "door_actions": [],
+            "door_open_code": "*1", "door_open_remote": False, "presence": "available", "door_actions": [],
         }
         assert body["self"] == {"number": "87", "name": "Auth Test", "presence": "available", "recording_allowed": False}
     finally:

@@ -2325,3 +2325,10 @@ def test_outbound_calls_get_local_ringback_by_default_and_can_opt_out(client, tm
     text = routing.read_text()
     assert "Dial(PJSIP/${EXTEN}@trunk-endpoint,60)" in text and ",60,r)" not in text
     client.post("/api/trunk", json=trunk)
+
+
+def test_extensions_are_qualified_to_keep_phones_reachable(client, tmp_data_dir):
+    _ensure_extension(client, 30)
+    conf = (tmp_data_dir / "asterisk" / "pjsip_extensions.conf").read_text()
+    aor = conf.split("[30]\ntype              = aor", 1)[1].split("\n\n", 1)[0]
+    assert "qualify_frequency = 60" in aor and "qualify_timeout   = 5" in aor

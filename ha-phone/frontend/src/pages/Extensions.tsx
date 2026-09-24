@@ -99,6 +99,11 @@ const editSchema = extensionSchema.extend({
     .refine((v) => v === "" || v.length >= 8, "Min 8 characters if provided"),
   presence_status: z.string().default("available"),
   recording_allowed: z.boolean().default(false),
+  door_open_webhook: z
+    .string()
+    .max(512, "Max 512 Zeichen")
+    .regex(/^(https?:\/\/\S+)?$/, "http:// oder https:// Adresse")
+    .default(""),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -456,6 +461,7 @@ function EditExtensionDialog({
       door_open_code: extension.door_open_code ?? "",
       presence_status: extension.presence_status || "available",
       recording_allowed: extension.recording_allowed ?? false,
+      door_open_webhook: extension.door_open_webhook ?? "",
     },
   });
   const [saving, setSaving] = useState(false);
@@ -471,7 +477,7 @@ function EditExtensionDialog({
       return;
     }
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
@@ -481,6 +487,7 @@ function EditExtensionDialog({
       door_actions: doorActions,
       presence_status: values.presence_status,
       recording_allowed: values.recording_allowed,
+      door_open_webhook: (values.door_open_webhook ?? "").trim(),
     };
     if (values.sip_password && values.sip_password.length > 0) {
       body.sip_password = values.sip_password;
@@ -602,6 +609,22 @@ function EditExtensionDialog({
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
                     Nur für Türsprechstellen: Die HA-Phone App zeigt beim Klingeln und im Gespräch die Taste „Tür öffnen" und sendet diese Tasten.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="door_open_webhook"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tür-Öffnen-Webhook</FormLabel>
+                  <FormControl>
+                    <Input placeholder="z.B. http://homeassistant.local:8123/api/webhook/haustuer" className="font-mono" {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App ruft diese Adresse auf (POST mit JSON), auch schon während es klingelt. Die App sieht die Adresse nie. Leer = die App sendet im Gespräch den Tür-Öffnen-Code.
                   </p>
                   <FormMessage />
                 </FormItem>

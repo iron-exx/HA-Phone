@@ -16,6 +16,7 @@ export interface Extension {
   door_open_code?: string;
   door_actions?: DoorAction[];
   recording_allowed?: boolean;
+  door_open_webhook?: string;
   // sip_password is never returned by the API
 }
 

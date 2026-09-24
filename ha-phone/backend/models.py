@@ -9,6 +9,8 @@ from backend.crypto import EncryptedString
 
 
 DOOR_OPEN_CODE_PATTERN = r"^[0-9*#]*$"
+# http(s) URL without whitespace; the admin enters e.g. a Home Assistant webhook.
+DOOR_WEBHOOK_PATTERN = r"^(https?://\S{1,500})?$"
 MAX_DOOR_ACTIONS = 4
 
 
@@ -68,6 +70,9 @@ class Extension(SQLModel, table=True):
     # Lets the app record calls of this extension (MixMonitor). Off by default: recording
     # needs the consent of everyone on the call (§ 201 StGB), the admin decides per extension.
     recording_allowed: bool = False
+    # Called by the PBX when the app's "Zum Öffnen schieben" slider fires (also while it
+    # only rings). Empty = the app falls back to the DTMF door code during a call.
+    door_open_webhook: str = Field(default="", max_length=512)
 
 
 class ExtensionCreate(SQLModel):
@@ -85,11 +90,17 @@ class ExtensionCreate(SQLModel):
     door_open_code: str = Field(default="", max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
     door_actions: List[DoorAction] = Field(default=[], max_length=MAX_DOOR_ACTIONS)
     recording_allowed: bool = False
+    door_open_webhook: str = Field(default="", max_length=512)
 
     @field_validator("door_open_code")
     @classmethod
     def _door_code(cls, v: str) -> str:
         return _match(DOOR_OPEN_CODE_PATTERN, v, "door_open_code")
+
+    @field_validator("door_open_webhook")
+    @classmethod
+    def _webhook(cls, v: str) -> str:
+        return _match(DOOR_WEBHOOK_PATTERN, v.strip(), "door_open_webhook")
 
 
 class ExtensionUpdate(SQLModel):
@@ -107,11 +118,17 @@ class ExtensionUpdate(SQLModel):
     door_open_code: Optional[str] = Field(default=None, max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
     door_actions: Optional[List[DoorAction]] = Field(default=None, max_length=MAX_DOOR_ACTIONS)
     recording_allowed: Optional[bool] = None
+    door_open_webhook: Optional[str] = Field(default=None, max_length=512)
 
     @field_validator("door_open_code")
     @classmethod
     def _door_code(cls, v: str | None) -> str | None:
         return _match(DOOR_OPEN_CODE_PATTERN, v, "door_open_code")
+
+    @field_validator("door_open_webhook")
+    @classmethod
+    def _webhook(cls, v: str | None) -> str | None:
+        return None if v is None else _match(DOOR_WEBHOOK_PATTERN, v.strip(), "door_open_webhook")
 
 
 class ExtensionOut(SQLModel):
@@ -126,6 +143,7 @@ class ExtensionOut(SQLModel):
     door_open_code: str = ""
     door_actions: List[dict] = []
     recording_allowed: bool = False
+    door_open_webhook: str = ""
 
 
 class ExtensionCreateOut(ExtensionOut):

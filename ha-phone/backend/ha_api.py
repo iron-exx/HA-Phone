@@ -7,6 +7,17 @@ from fastapi import HTTPException
 _CORE_API = "http://supervisor/core/api"
 
 
+async def call_webhook(url: str, payload: dict) -> None:
+    """POSTs JSON to an admin-configured webhook (e.g. HA /api/webhook/<id>). 502 on failure."""
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+            response = await client.post(url, json=payload)
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"Webhook nicht erreichbar: {exc}")
+    if response.status_code >= 400:
+        raise HTTPException(502, f"Webhook fehlgeschlagen (HTTP {response.status_code})")
+
+
 async def call_service(service: str, entity_id: str) -> None:
     """Runs e.g. `light.turn_on` for one entity. 503 outside HA, 502 when HA refuses."""
     token = os.environ.get("SUPERVISOR_TOKEN", "")

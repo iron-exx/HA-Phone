@@ -340,6 +340,33 @@ def get_calls(
 # Home Assistant quick actions for door stations
 # ============================================================
 
+class DoorOpenIn(BaseModel):
+    extension: str
+
+
+@public_router.post("/door-open")
+async def open_door(
+    data: DoorOpenIn,
+    device: MobileDevice = Depends(_device),
+    session: Session = Depends(get_session),
+):
+    """The app's "Zum Öffnen schieben" slider: calls the door station's webhook, also while
+    it only rings (no DTMF needed). 404 when the door has no webhook configured."""
+    door = session.exec(select(Extension).where(Extension.number == int(data.extension))).first() if data.extension.isdigit() else None
+    if not door or not door.door_open_webhook:
+        raise HTTPException(status_code=404, detail="Kein Tür-Webhook eingerichtet")
+    own = _own_extension(session, device)
+    await ha_api.call_webhook(door.door_open_webhook, {
+        "event": "door_open",
+        "door_extension": str(door.number),
+        "door_name": door.display_name,
+        "by_extension": str(own.number),
+        "by_name": own.display_name,
+        "device_id": device.id,
+    })
+    return {"success": True}
+
+
 class DoorActionIn(BaseModel):
     extension: str
     index: int

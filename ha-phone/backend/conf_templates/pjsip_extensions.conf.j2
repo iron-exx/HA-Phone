@@ -70,6 +70,10 @@ password          = {{ ext.sip_password }}
 ; so an AOR named "<number>-aors" never matches user "<number>" → "AOR '' not found".
 [{{ ext.number }}]
 type              = aor
+; OPTIONS every 60 s: keeps the TLS connection open through NAT/routers, so the app stays
+; reachable for days without calls, and the PBX notices a phone that is really gone.
+qualify_frequency = 60
+qualify_timeout   = 5
 {% if ext.video_capable %}
 max_contacts      = 1
 remove_existing   = yes
