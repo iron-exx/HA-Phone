@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { ToggleSwitch } from "@/components/ToggleSwitch";
 
 // ---- Zod schema ----
 const trunkSchema = z.object({
@@ -41,6 +42,7 @@ const trunkSchema = z.object({
   phone_number: z.string().min(1, "Required"),
   reg_refresh: z.coerce.number().int().min(30, "Min 30").max(3600, "Max 3600"),
   codecs: z.string().default("ulaw,alaw"),
+  local_ringback: z.boolean().default(true),
 });
 
 type TrunkFormValues = z.infer<typeof trunkSchema>;
@@ -64,6 +66,7 @@ const DEFAULT_VALUES: TrunkFormValues = {
   phone_number: "",
   reg_refresh: 60,
   codecs: "ulaw,alaw",
+  local_ringback: true,
 };
 
 // ---- Status chip ----
@@ -268,6 +271,7 @@ export default function TrunkPage() {
           phone_number: data.phone_number || "",
           reg_refresh: data.reg_refresh || 60,
           codecs: data.codecs || "ulaw,alaw",
+          local_ringback: data.local_ringback ?? true,
         });
       })
       .catch(() => {});
@@ -531,6 +535,31 @@ export default function TrunkPage() {
                     </FormControl>
                     <FormMessage />
                   </FormItem>
+                )}
+              />
+
+              {/* Ringback for outbound calls */}
+              <FormField
+                control={form.control}
+                name="local_ringback"
+                render={({ field }) => (
+                  <div
+                    className="flex items-center justify-between rounded-lg border p-3"
+                    style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  >
+                    <label htmlFor="local_ringback" className="flex-1 cursor-pointer pr-3">
+                      <div className="text-sm font-medium leading-none">Freizeichen bei Anrufen nach außen</div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Die Anlage meldet dem Telefon sofort „klingelt“, das Telefon spielt das Tuten selbst. Ohne das bleibt es bei manchen Providern bis zum Abheben still. Ausschalten nur, wenn Ansagen des Providers vor dem Abheben zu hören sein sollen.
+                      </p>
+                    </label>
+                    <ToggleSwitch
+                      id="local_ringback"
+                      checked={field.value}
+                      ariaLabel="Freizeichen bei Anrufen nach außen"
+                      onToggle={() => field.onChange(!field.value)}
+                    />
+                  </div>
                 )}
               />
 

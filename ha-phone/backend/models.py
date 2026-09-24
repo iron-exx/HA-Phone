@@ -206,6 +206,10 @@ class Trunk(SQLModel, table=True):
     phone_number: str  # CallerID / Rufnummer / DID
     reg_refresh: int = 60
     codecs: str = "ulaw,alaw"  # comma-separated Asterisk codec names, in priority order
+    # Dial(...,r): the PBX signals "ringing" (180) to the caller itself, so the phone plays
+    # its own ringback. Without it callers heard silence when the provider sends a 183
+    # without audio. Off = pass the provider's early media (announcements) through.
+    local_ringback: bool = True
 
 
 class TrunkDid(SQLModel, table=True):

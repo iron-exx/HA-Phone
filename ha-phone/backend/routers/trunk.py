@@ -50,6 +50,7 @@ class TrunkPublic(BaseModel):
     phone_number: str
     reg_refresh: int
     codecs: str = "ulaw,alaw"
+    local_ringback: bool = True
 
 
 def _data_dir() -> Path:
@@ -81,6 +82,7 @@ def get_trunk(session: Session = Depends(get_session)):
         phone_number=trunk.phone_number,
         reg_refresh=trunk.reg_refresh,
         codecs=trunk.codecs or "ulaw,alaw",
+        local_ringback=trunk.local_ringback,
     )
 
 
@@ -121,6 +123,7 @@ async def save_trunk(trunk_data: Trunk, session: Session = Depends(get_session))
         phone_number=trunk_data.phone_number,
         reg_refresh=trunk_data.reg_refresh,
         codecs=trunk_data.codecs or "ulaw,alaw",
+        local_ringback=trunk_data.local_ringback,
     )
 
 

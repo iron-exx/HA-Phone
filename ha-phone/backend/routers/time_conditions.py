@@ -219,6 +219,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "all_ext_dial": all_ext_dial,
             "doorbell_dial": _build_doorbell_dial_string(ring_groups_list, ext_groups_by_id),
             "trunk_callerid": trunk_callerid,
+            "trunk_ringback": trunk.local_ringback if trunk else True,
             "outbound_rule_cid": outbound_rule_cid,
             "ext_landing_entries": ext_landing_entries,
             "ivr_menus": ivr_menus,

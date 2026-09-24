@@ -74,6 +74,7 @@ export interface Trunk {
   phone_number: string;
   reg_refresh: number;
   codecs?: string;
+  local_ringback?: boolean;
 }
 
 export interface TrunkStatus {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.116
+
+**Fix - Kein Freizeichen bei Anrufen nach außen**
+- Bei manchen Providern war es nach dem Wählen still, bis der Angerufene abhob. Der Anruf ging trotzdem raus, man hörte es nur nicht. Jetzt meldet die Anlage dem Telefon sofort „klingelt“, und DECT, Tischtelefon und App spielen ihr Tuten selbst.
+- Einstellbar unter **Trunk → „Freizeichen bei Anrufen nach außen“** (Standard: an). Ausschalten nur, wenn Ansagen des Providers vor dem Abheben durchkommen sollen.
+
 ## 0.7.115
 
 **Fix - Türkamera-Vorschau in der App blieb schwarz, wenn das Handy hinter NAT hängt**

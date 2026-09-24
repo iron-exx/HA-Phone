@@ -2307,3 +2307,21 @@ def test_voicemail_access_code_in_internal_context_only(client, tmp_data_dir):
     assert "*43" not in restricted
     assert "exten => _**XX,1," in internal and "PickupChan(PJSIP/${EXTEN:2})" in internal
     assert "**XX" not in restricted
+
+
+def test_outbound_calls_get_local_ringback_by_default_and_can_opt_out(client, tmp_data_dir):
+    """Dial(...,r): callers hear ringback even when the provider sends a silent 183."""
+    trunk = {"registrar_host": "sip.example.com", "port": 5060, "auth_username": "123456789",
+             "password": "mysecretpassword", "phone_number": "049123456789", "reg_refresh": 60}
+    routing = tmp_data_dir / "asterisk" / "extensions_routing.conf"
+
+    resp = client.post("/api/trunk", json=trunk)
+    assert resp.status_code == 200 and resp.json()["local_ringback"] is True
+    assert "Dial(PJSIP/${EXTEN}@trunk-endpoint,60,r)" in routing.read_text()
+
+    resp = client.post("/api/trunk", json={**trunk, "local_ringback": False})
+    assert resp.json()["local_ringback"] is False
+    assert client.get("/api/trunk").json()["local_ringback"] is False
+    text = routing.read_text()
+    assert "Dial(PJSIP/${EXTEN}@trunk-endpoint,60)" in text and ",60,r)" not in text
+    client.post("/api/trunk", json=trunk)

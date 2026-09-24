@@ -127,6 +127,11 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE trunk ADD COLUMN codecs TEXT NOT NULL DEFAULT 'ulaw,alaw'")
                 )
                 conn.commit()
+            if "local_ringback" not in cols:
+                conn.execute(
+                    text("ALTER TABLE trunk ADD COLUMN local_ringback BOOLEAN NOT NULL DEFAULT 1")
+                )
+                conn.commit()
         if "outboundrule" in tables:
             cols = [c["name"] for c in inspector.get_columns("outboundrule")]
             if "outbound_caller_id" not in cols:
