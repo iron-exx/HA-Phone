@@ -358,3 +358,50 @@ async def hangup_channels_for_extension(number: str) -> int:
     except Exception as exc:
         _log.warning("AMI hangup for extension %s failed: %s", number, exc)
         return 0
+
+
+async def _extension_call_channels(manager: Manager, number: str) -> list[dict]:
+    responses = await manager.send_action({"Action": "CoreShowChannels"}, as_list=True)
+    prefix = f"PJSIP/{number}-"
+    return [
+        {"channel": r.get("Channel", ""), "connected_line_num": r.get("ConnectedLineNum", "")}
+        for r in responses
+        if r.get("Event") == "CoreShowChannel"
+        and r.get("Channel", "").startswith(prefix)
+        and r.get("ChannelStateDesc", "") == "Up"
+    ]
+
+
+def pick_call_channel(channels: list[dict], peer: str) -> str | None:
+    """The answered channel of the extension that talks to `peer`. With two lines (hold +
+    consultation) only the peer tells them apart; without a peer, a single call is enough."""
+    if peer:
+        matches = [c for c in channels if c["connected_line_num"] == peer]
+        if len(matches) == 1:
+            return matches[0]["channel"]
+    return channels[0]["channel"] if len(channels) == 1 else None
+
+
+async def start_recording(number: str, peer: str, file_path: str) -> str | None:
+    """MixMonitor on the extension's call; returns the channel or None if no unique call."""
+    async with asyncio.timeout(_AMI_TIMEOUT):
+        manager = await _get_manager()
+        channel = pick_call_channel(await _extension_call_channels(manager, number), peer)
+        if channel is None:
+            return None
+        response = await manager.send_action(
+            {"Action": "MixMonitor", "Channel": channel, "File": file_path}
+        )
+    if response.get("Response") != "Success":
+        raise RuntimeError(response.get("Message", "MixMonitor failed"))
+    return channel
+
+
+async def stop_recording(number: str, peer: str) -> bool:
+    async with asyncio.timeout(_AMI_TIMEOUT):
+        manager = await _get_manager()
+        channel = pick_call_channel(await _extension_call_channels(manager, number), peer)
+        if channel is None:
+            return False
+        response = await manager.send_action({"Action": "StopMixMonitor", "Channel": channel})
+    return response.get("Response") == "Success"

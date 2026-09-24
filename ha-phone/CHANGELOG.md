@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.114
+
+**Feature - Gesprächsaufzeichnung aus der App (pro Nebenstelle freischaltbar)**
+- Neuer Schalter „Gesprächsaufzeichnung erlauben" beim Bearbeiten einer Nebenstelle, standardmäßig aus. Aufzeichnen ist rechtlich nur mit Zustimmung aller Gesprächsteilnehmer zulässig.
+- Ist er an, zeigt die HA-Phone App im Gespräch die Taste „Aufnehmen". Die Anlage zeichnet mit `MixMonitor` nach `/data/recordings/<Nebenstelle>/` auf. Die App listet die Aufnahmen, spielt sie ab und löscht sie (`/api/mobile/recording`, `/api/mobile/recordings`).
+
+**Feature - Gespräch umlegen `*55`**
+- Läuft auf der eigenen Nebenstelle gerade ein Gespräch an einem anderen Gerät (z. B. am Tischtelefon), holt `*55` es auf das Gerät, von dem aus gewählt wird. Das andere Gerät legt dabei auf. Das geht in beide Richtungen, auch vom Handy zurück aufs Tischtelefon.
+
 ## 0.7.113
 
 **Feature - Anruf heranholen `**<Nebenstelle>`**

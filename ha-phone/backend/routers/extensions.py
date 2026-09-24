@@ -298,6 +298,7 @@ def _extension_out(extension: Extension) -> ExtensionOut:
         presence_status=extension.presence_status,
         door_open_code=extension.door_open_code,
         door_actions=door_actions_of(extension),
+        recording_allowed=extension.recording_allowed,
     )
 
 

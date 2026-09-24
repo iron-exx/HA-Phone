@@ -431,6 +431,7 @@ def get_mobile_directory(
             "number": str(own.number) if own else "",
             "name": own.display_name if own else "",
             "presence": own.presence_status if own else "available",
+            "recording_allowed": bool(own and own.recording_allowed),
         },
         "extensions": [
             {

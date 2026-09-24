@@ -114,6 +114,7 @@ RUN make menuselect.makeopts && \
       --enable app_playback \
       --enable app_voicemail \
       --enable app_directed_pickup \
+      --enable app_mixmonitor \
       --enable res_adsi \
       --enable res_smdi \
       --enable bridge_simple \

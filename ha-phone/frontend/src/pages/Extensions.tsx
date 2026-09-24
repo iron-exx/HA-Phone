@@ -98,6 +98,7 @@ const editSchema = extensionSchema.extend({
     .string()
     .refine((v) => v === "" || v.length >= 8, "Min 8 characters if provided"),
   presence_status: z.string().default("available"),
+  recording_allowed: z.boolean().default(false),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -454,6 +455,7 @@ function EditExtensionDialog({
       numeric_callerid: extension.numeric_callerid ?? false,
       door_open_code: extension.door_open_code ?? "",
       presence_status: extension.presence_status || "available",
+      recording_allowed: extension.recording_allowed ?? false,
     },
   });
   const [saving, setSaving] = useState(false);
@@ -469,7 +471,7 @@ function EditExtensionDialog({
       return;
     }
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
@@ -478,6 +480,7 @@ function EditExtensionDialog({
       door_open_code: values.door_open_code ?? "",
       door_actions: doorActions,
       presence_status: values.presence_status,
+      recording_allowed: values.recording_allowed,
     };
     if (values.sip_password && values.sip_password.length > 0) {
       body.sip_password = values.sip_password;
@@ -605,6 +608,19 @@ function EditExtensionDialog({
               )}
             />
             <DoorActionsEditor value={doorActions} onChange={setDoorActions} />
+            <FormField
+              control={form.control}
+              name="recording_allowed"
+              render={({ field }) => (
+                <ToggleRow
+                  id={field.name}
+                  label="Gesprächsaufzeichnung erlauben"
+                  description={"Die HA-Phone App darf Gespräche dieser Nebenstelle aufzeichnen (Taste „Aufnehmen“). Rechtlich nur mit Zustimmung aller Gesprächsteilnehmer zulässig (§ 201 StGB, DSGVO). Aufnahmen liegen unter /data/recordings/<Nebenstelle>/."}
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
+              )}
+            />
             <FormField
               control={form.control}
               name="presence_status"

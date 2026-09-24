@@ -7,6 +7,7 @@ import csv
 import os
 import re
 import time
+import wave
 from pathlib import Path
 from typing import Literal
 
@@ -22,7 +23,7 @@ from backend.regeneration import run_regeneration_steps, step_succeeded
 from backend.routers.extensions import door_actions_of
 from backend.routers.mobile_provisioning import authenticate_device
 from backend.routers.time_conditions import _regenerate_routing_conf
-from backend.voicemail_paths import mailbox_dir
+from backend.voicemail_paths import data_dir, mailbox_dir
 
 public_router = APIRouter(prefix="/mobile", tags=["mobile-features"])
 
@@ -359,3 +360,100 @@ async def run_door_action(
     action = actions[data.index]
     await ha_api.call_service(action["service"], action["entity_id"])
     return {"success": True, "label": action["label"]}
+
+
+# ============================================================
+# Call recording (only for extensions the admin allowed)
+# ============================================================
+
+_RECORDING_NAME = re.compile(r"^(\d{8}-\d{6})_([0-9+*#]{0,32})$")
+
+
+class RecordingIn(BaseModel):
+    action: Literal["start", "stop"]
+    # Number of the other party: tells the two lines apart when one is on hold.
+    peer: str = Field(default="", max_length=32)
+
+
+def recordings_dir(ext_number: int) -> Path:
+    return data_dir() / "recordings" / str(ext_number)
+
+
+def _recording_name(peer: str) -> str:
+    safe_peer = re.sub(r"[^0-9+*#]", "", peer)[:32]
+    return f"{time.strftime('%Y%m%d-%H%M%S')}_{safe_peer}"
+
+
+def _recording_path(ext_number: int, name: str) -> Path:
+    if not _RECORDING_NAME.match(name):
+        raise HTTPException(status_code=400, detail="Invalid recording id")
+    path = recordings_dir(ext_number) / f"{name}.wav"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Recording not found")
+    return path
+
+
+def _wav_duration(path: Path) -> int:
+    try:
+        with wave.open(str(path)) as wav:
+            return round(wav.getnframes() / (wav.getframerate() or 1))
+    except (wave.Error, EOFError, OSError):
+        return 0
+
+
+@public_router.post("/recording")
+async def control_recording(
+    data: RecordingIn,
+    device: MobileDevice = Depends(_device),
+    session: Session = Depends(get_session),
+):
+    own = _own_extension(session, device)
+    if not own.recording_allowed:
+        raise HTTPException(status_code=403, detail="Aufzeichnung für diese Nebenstelle nicht freigegeben")
+    peer = data.peer.strip()
+    try:
+        if data.action == "stop":
+            if not await ami.stop_recording(str(own.number), peer):
+                raise HTTPException(status_code=409, detail="Keine laufende Aufzeichnung gefunden")
+            return {"recording": False}
+        target = recordings_dir(own.number)
+        target.mkdir(parents=True, exist_ok=True)
+        name = _recording_name(peer)
+        if not await ami.start_recording(str(own.number), peer, str(target / f"{name}.wav")):
+            raise HTTPException(status_code=409, detail="Kein eindeutiges Gespräch gefunden")
+    except (TimeoutError, RuntimeError, OSError) as exc:
+        raise HTTPException(status_code=502, detail=f"Anlage: {exc}")
+    return {"recording": True, "id": name}
+
+
+@public_router.get("/recordings")
+def list_recordings(device: MobileDevice = Depends(_device), session: Session = Depends(get_session)):
+    own = _own_extension(session, device)
+    base = recordings_dir(own.number)
+    items = []
+    for wav in sorted(base.glob("*.wav"), reverse=True) if base.exists() else []:
+        match = _RECORDING_NAME.match(wav.stem)
+        if not match:
+            continue
+        started = int(time.mktime(time.strptime(match.group(1), "%Y%m%d-%H%M%S")))
+        items.append({
+            "id": wav.stem,
+            "peer": match.group(2),
+            "started_at": started,
+            "duration_sec": _wav_duration(wav),
+            "size_bytes": wav.stat().st_size,
+        })
+    return {"allowed": own.recording_allowed, "recordings": items}
+
+
+@public_router.get("/recordings/{name}/audio")
+def recording_audio(name: str, device: MobileDevice = Depends(_device), session: Session = Depends(get_session)):
+    own = _own_extension(session, device)
+    return FileResponse(str(_recording_path(own.number, name)), media_type="audio/wav")
+
+
+@public_router.delete("/recordings/{name}")
+def delete_recording(name: str, device: MobileDevice = Depends(_device), session: Session = Depends(get_session)):
+    own = _own_extension(session, device)
+    _recording_path(own.number, name).unlink()
+    return {"success": True}

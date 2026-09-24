@@ -46,6 +46,23 @@ exten => _**XX,1,NoOp(Pickup of ${EXTEN:2} by ${CHANNEL(endpoint)})
  same => n,PickupChan(PJSIP/${EXTEN:2})
  same => n,Hangup()
 
+; *55 = call flip: take over the call your own extension is having on another device
+; (desk phone -> app and back). Finds the other answered channel of the same endpoint and
+; bridges this device with its peer; Asterisk dissolves the old bridge ("stolen" channel),
+; so the other device hangs up. Loops with Goto because app_while is not built.
+exten => *55,1,NoOp(Call flip to ${CHANNEL} for ${CHANNEL(endpoint)})
+ same => n,Set(FLIP_LIST=${CHANNELS(^PJSIP/${CHANNEL(endpoint)}-)})
+ same => n(next),Set(FLIP_CHAN=${SHIFT(FLIP_LIST, )})
+ same => n,GotoIf($["${FLIP_CHAN}" = ""]?none)
+ same => n,GotoIf($["${FLIP_CHAN}" = "${CHANNEL}"]?next)
+ same => n,Set(FLIP_PEER=${IMPORT(${FLIP_CHAN},BRIDGEPEER)})
+ same => n,GotoIf($["${FLIP_PEER}" = ""]?next)
+ same => n,Bridge(${FLIP_PEER})
+ same => n,Hangup()
+ same => n(none),NoOp(No call to flip for ${CHANNEL(endpoint)})
+ same => n,Congestion(3)
+ same => n,Hangup()
+
 ; *43 = echo test: everything you say comes straight back (audio check, like on desk phones).
 exten => *43,1,NoOp(Echo test for ${CHANNEL(endpoint)})
  same => n,Answer()

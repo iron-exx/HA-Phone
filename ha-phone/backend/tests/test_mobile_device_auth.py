@@ -158,6 +158,6 @@ def test_directory_includes_door_code_video_presence_and_self(client, paired):
             "number": "88", "name": "Haustür", "video": True,
             "door_open_code": "*1", "presence": "available", "door_actions": [],
         }
-        assert body["self"] == {"number": "87", "name": "Auth Test", "presence": "available"}
+        assert body["self"] == {"number": "87", "name": "Auth Test", "presence": "available", "recording_allowed": False}
     finally:
         client.delete(f"/api/extensions/{door.json()['id']}")

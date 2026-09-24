@@ -65,6 +65,9 @@ class Extension(SQLModel, table=True):
     door_open_code: str = Field(default="", max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
     # JSON list of DoorAction (stored as text; the API exposes a list).
     door_actions: str = Field(default="[]")
+    # Lets the app record calls of this extension (MixMonitor). Off by default: recording
+    # needs the consent of everyone on the call (§ 201 StGB), the admin decides per extension.
+    recording_allowed: bool = False
 
 
 class ExtensionCreate(SQLModel):
@@ -81,6 +84,7 @@ class ExtensionCreate(SQLModel):
     media_encryption: str = "none"
     door_open_code: str = Field(default="", max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
     door_actions: List[DoorAction] = Field(default=[], max_length=MAX_DOOR_ACTIONS)
+    recording_allowed: bool = False
 
     @field_validator("door_open_code")
     @classmethod
@@ -102,6 +106,7 @@ class ExtensionUpdate(SQLModel):
     media_encryption: Optional[str] = Field(default=None, max_length=8)
     door_open_code: Optional[str] = Field(default=None, max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
     door_actions: Optional[List[DoorAction]] = Field(default=None, max_length=MAX_DOOR_ACTIONS)
+    recording_allowed: Optional[bool] = None
 
     @field_validator("door_open_code")
     @classmethod
@@ -120,6 +125,7 @@ class ExtensionOut(SQLModel):
     presence_status: str = "available"
     door_open_code: str = ""
     door_actions: List[dict] = []
+    recording_allowed: bool = False
 
 
 class ExtensionCreateOut(ExtensionOut):

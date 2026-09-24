@@ -25,3 +25,10 @@ def test_directed_pickup_module_is_built_and_loaded():
     assert "--enable app_directed_pickup" in DOCKERFILE.read_text()
     modules = (DOCKERFILE.parent / "rootfs/etc/asterisk/modules.conf").read_text()
     assert "load = app_directed_pickup.so" in modules
+
+
+def test_mixmonitor_module_is_built_and_loaded():
+    """Call recording from the app (POST /api/mobile/recording) runs AMI MixMonitor."""
+    assert "--enable app_mixmonitor" in DOCKERFILE.read_text()
+    modules = (DOCKERFILE.parent / "rootfs/etc/asterisk/modules.conf").read_text()
+    assert "load = app_mixmonitor.so" in modules
