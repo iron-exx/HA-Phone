@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.126
+
+**Neu - Klingel-Verlauf mit Foto**
+- Jedes Klingeln an einer Türstation wird festgehalten: Uhrzeit, Tür, wer abgenommen hat (oder „verpasst“) und ob die Tür per App geöffnet wurde. Das gilt auch, wenn die Tür über eine Klingelgruppe mehrere Geräte anruft (ein Eintrag pro Klingeln).
+- Neues Feld „Klingelbild-Quelle“ an der Türstation: eine Home-Assistant-Kamera (`camera.…`) oder die Snapshot-Adresse der Türstation (auch mit Benutzer/Passwort, Basic oder Digest). Mit „Testbild holen“ lässt sich die Quelle sofort prüfen. Bei jedem Klingeln holt die Anlage ein Foto.
+- Neuer Menüpunkt „Türklingel“ mit allen Klingel-Ereignissen der letzten 30 Tage samt Foto (höchstens 500 Einträge, ältere werden automatisch gelöscht).
+- Für die App: `/api/mobile/doorbell` (Liste) und das Foto je Ereignis. Das Verzeichnis meldet pro Tür, ob es Fotos gibt.
+
 ## 0.7.125
 
 **Fehlerbehebung - Ton und Türvideo unterwegs über Tailscale**

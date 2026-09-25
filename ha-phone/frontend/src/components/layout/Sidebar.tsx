@@ -14,11 +14,13 @@ import {
   DatabaseBackup,
   BookUser,
   Waypoints,
+  BellRing,
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/extensions", label: "Nebenstellen", icon: Phone, end: false },
+  { to: "/doorbell", label: "Türklingel", icon: BellRing, end: false },
   { to: "/ivr", label: "IVR-Menüs", icon: PhoneIncoming, end: false },
   { to: "/provisioning", label: "Provisioning", icon: Router, end: false },
   { to: "/tailscale", label: "Tailscale", icon: Waypoints, end: false },

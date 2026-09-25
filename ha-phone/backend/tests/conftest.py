@@ -18,6 +18,8 @@ def tmp_data_dir(tmp_path_factory):
     os.environ["BPX_DATA_DIR"] = str(data_dir)
     # The app lifespan starts the STUN server: ephemeral port, never the real 3478.
     os.environ.setdefault("BPX_STUN_PORT", "0")
+    # No AMI event connection in tests (doorbell_listener.py); tests drive handle() directly.
+    os.environ.setdefault("BPX_DOORBELL_LISTENER", "0")
     return data_dir
 
 @pytest.fixture

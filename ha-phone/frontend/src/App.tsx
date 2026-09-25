@@ -14,6 +14,7 @@ import IVR from "./pages/IVR";
 import Backup from "./pages/Backup";
 import Phonebook from "./pages/Phonebook";
 import Tailscale from "./pages/Tailscale";
+import Doorbell from "./pages/Doorbell";
 import Logo from "./components/Logo";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
@@ -119,6 +120,7 @@ export default function App() {
                   <Route path="/backup" element={<Backup />} />
                   <Route path="/phonebook" element={<Phonebook />} />
                   <Route path="/tailscale" element={<Tailscale />} />
+                  <Route path="/doorbell" element={<Doorbell />} />
                 </Routes>
               </Shell>
             </AuthGuard>

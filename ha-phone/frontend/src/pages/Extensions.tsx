@@ -65,6 +65,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyToClipboard } from "@/lib/clipboard";
+import { SnapshotTestButton } from "@/components/SnapshotTestButton";
 import { DoorActionsEditor, doorActionsError } from "@/components/DoorActionsEditor";
 
 // ---- Zod schema ----
@@ -103,6 +104,11 @@ const editSchema = extensionSchema.extend({
     .string()
     .max(512, "Max 512 Zeichen")
     .regex(/^(https?:\/\/\S+)?$/, "http:// oder https:// Adresse")
+    .default(""),
+  doorbell_camera: z
+    .string()
+    .max(512, "Max 512 Zeichen")
+    .regex(/^(camera\.[a-z0-9_]+|https?:\/\/\S+)?$/, "camera.name oder http(s):// Adresse")
     .default(""),
 });
 
@@ -462,6 +468,7 @@ function EditExtensionDialog({
       presence_status: extension.presence_status || "available",
       recording_allowed: extension.recording_allowed ?? false,
       door_open_webhook: extension.door_open_webhook ?? "",
+      doorbell_camera: extension.doorbell_camera ?? "",
     },
   });
   const [saving, setSaving] = useState(false);
@@ -477,7 +484,7 @@ function EditExtensionDialog({
       return;
     }
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string; doorbell_camera: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
@@ -488,6 +495,7 @@ function EditExtensionDialog({
       presence_status: values.presence_status,
       recording_allowed: values.recording_allowed,
       door_open_webhook: (values.door_open_webhook ?? "").trim(),
+      doorbell_camera: (values.doorbell_camera ?? "").trim(),
     };
     if (values.sip_password && values.sip_password.length > 0) {
       body.sip_password = values.sip_password;
@@ -626,6 +634,23 @@ function EditExtensionDialog({
                   <p className="text-xs text-muted-foreground">
                     Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App ruft diese Adresse auf (POST mit JSON), auch schon während es klingelt. Die App sieht die Adresse nie. Leer = die App sendet im Gespräch den Tür-Öffnen-Code.
                   </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="doorbell_camera"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Klingelbild-Quelle</FormLabel>
+                  <FormControl>
+                    <Input placeholder="camera.haustuer oder http://tuer.local/snapshot.jpg" className="font-mono" {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Bei jedem Klingeln holt die Anlage hier ein Foto für den Klingel-Verlauf und die App. Eine Home-Assistant-Kamera (<code>camera.…</code>) oder die Snapshot-Adresse der Türstation, Zugangsdaten als <code>http://benutzer:passwort@…</code>. Leer = Klingeln ohne Foto.
+                  </p>
+                  <SnapshotTestButton source={field.value ?? ""} />
                   <FormMessage />
                 </FormItem>
               )}

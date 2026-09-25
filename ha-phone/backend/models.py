@@ -12,6 +12,8 @@ from backend.crypto import EncryptedString
 DOOR_OPEN_CODE_PATTERN = r"^[0-9*#]*$"
 # http(s) URL without whitespace; the admin enters e.g. a Home Assistant webhook.
 DOOR_WEBHOOK_PATTERN = r"^(https?://\S{1,500})?$"
+# Doorbell picture source: a Home Assistant camera entity or the door station's snapshot URL.
+DOORBELL_CAMERA_PATTERN = r"^(camera\.[a-z0-9_]{1,120}|https?://\S{1,500})?$"
 MAX_DOOR_ACTIONS = 4
 # Rendered verbatim as `exten => <did>,1,...` — a comma/semicolon would inject
 # dialplan priorities/comments.
@@ -87,6 +89,8 @@ class Extension(SQLModel, table=True):
     # Called by the PBX when the app's "Zum Öffnen schieben" slider fires (also while it
     # only rings). Empty = the app falls back to the DTMF door code during a call.
     door_open_webhook: str = Field(default="", max_length=512)
+    # Where the PBX takes the doorbell picture from when this station rings (see doorbell.py).
+    doorbell_camera: str = Field(default="", max_length=512)
 
     @field_validator("display_name")
     @classmethod
@@ -110,6 +114,7 @@ class ExtensionCreate(SQLModel):
     door_actions: List[DoorAction] = Field(default=[], max_length=MAX_DOOR_ACTIONS)
     recording_allowed: bool = False
     door_open_webhook: str = Field(default="", max_length=512)
+    doorbell_camera: str = Field(default="", max_length=512)
 
     @field_validator("door_open_code")
     @classmethod
@@ -120,6 +125,11 @@ class ExtensionCreate(SQLModel):
     @classmethod
     def _webhook(cls, v: str) -> str:
         return _match(DOOR_WEBHOOK_PATTERN, v.strip(), "door_open_webhook")
+
+    @field_validator("doorbell_camera")
+    @classmethod
+    def _doorbell_camera(cls, v: str) -> str:
+        return _match(DOORBELL_CAMERA_PATTERN, v.strip(), "doorbell_camera")
 
     @field_validator("display_name")
     @classmethod
@@ -155,6 +165,7 @@ class ExtensionUpdate(SQLModel):
     door_actions: Optional[List[DoorAction]] = Field(default=None, max_length=MAX_DOOR_ACTIONS)
     recording_allowed: Optional[bool] = None
     door_open_webhook: Optional[str] = Field(default=None, max_length=512)
+    doorbell_camera: Optional[str] = Field(default=None, max_length=512)
 
     @field_validator("door_open_code")
     @classmethod
@@ -165,6 +176,11 @@ class ExtensionUpdate(SQLModel):
     @classmethod
     def _webhook(cls, v: str | None) -> str | None:
         return None if v is None else _match(DOOR_WEBHOOK_PATTERN, v.strip(), "door_open_webhook")
+
+    @field_validator("doorbell_camera")
+    @classmethod
+    def _doorbell_camera(cls, v: str | None) -> str | None:
+        return None if v is None else _match(DOORBELL_CAMERA_PATTERN, v.strip(), "doorbell_camera")
 
     @field_validator("display_name")
     @classmethod
@@ -197,6 +213,7 @@ class ExtensionOut(SQLModel):
     door_actions: List[dict] = []
     recording_allowed: bool = False
     door_open_webhook: str = ""
+    doorbell_camera: str = ""
 
 
 class ExtensionCreateOut(ExtensionOut):
@@ -733,3 +750,16 @@ def validate_conf_fields(obj) -> None:
             check(value, field)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc))
+
+
+class DoorbellEvent(SQLModel, table=True):
+    """One ring at a door station (doorbell.py). Kept 30 days / 500 events."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    door_number: int = Field(index=True)
+    door_name: str = Field(default="", max_length=64)
+    started_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    ended_at: Optional[datetime] = None
+    answered_by: str = Field(default="", max_length=64)
+    door_opened: bool = False
+    # File name under /data/doorbell (never taken from a request).
+    image_file: str = Field(default="", max_length=128)

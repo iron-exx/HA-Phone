@@ -366,7 +366,37 @@ async def open_door(
         "by_name": own.display_name,
         "device_id": device.id,
     })
+    from backend.doorbell import DoorbellStore
+    DoorbellStore(session).mark_opened(door.number)
     return {"success": True}
+
+
+# ── Doorbell history (doorbell.py) ────────────────────────────────────────────
+
+DOORBELL_MAX_LIMIT = 100
+
+
+@public_router.get("/doorbell")
+def list_doorbell(limit: int = 30, device: MobileDevice = Depends(_device), session: Session = Depends(get_session)):
+    """Rings at door stations, newest first (every paired phone sees all doors)."""
+    from backend.doorbell import DoorbellStore, event_json
+    from backend.models import DoorbellEvent
+    store = DoorbellStore(session)
+    rows = session.exec(
+        select(DoorbellEvent).order_by(DoorbellEvent.started_at.desc()).limit(max(1, min(limit, DOORBELL_MAX_LIMIT)))
+    ).all()
+    return [event_json(e, store) for e in rows]
+
+
+@public_router.get("/doorbell/{event_id}/image")
+def doorbell_image(event_id: int, device: MobileDevice = Depends(_device), session: Session = Depends(get_session)):
+    from backend.doorbell import DoorbellStore
+    from backend.models import DoorbellEvent
+    ev = session.get(DoorbellEvent, event_id)
+    path = DoorbellStore(session).image_path(ev) if ev else None
+    if not path:
+        raise HTTPException(status_code=404, detail="Kein Bild")
+    return FileResponse(str(path), media_type="image/png" if path.suffix == ".png" else "image/jpeg")
 
 
 class DoorActionIn(BaseModel):

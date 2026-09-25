@@ -530,6 +530,8 @@ def get_mobile_directory(
                 "door_open_code": e.door_open_code,
                 # Whether the slider can open this door without a call; the URL stays on the PBX.
                 "door_open_remote": bool(e.door_open_webhook),
+                # The PBX keeps a picture per ring (doorbell history); the source stays on the PBX.
+                "has_camera": bool(e.doorbell_camera),
                 # Labels only: the app never learns entity ids or services.
                 "door_actions": [
                     {"index": i, "label": a.get("label", "")} for i, a in enumerate(door_actions_of(e))

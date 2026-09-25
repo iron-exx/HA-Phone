@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.database import init_db
 from backend.auth import get_current_user, SESSION_SECRET
-from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning, backup, holidays, phonebook, extension_groups, presence_rules, mobile_provisioning, mobile_features, tailscale
+from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning, backup, holidays, phonebook, extension_groups, presence_rules, mobile_provisioning, mobile_features, tailscale, doorbell as doorbell_router
 from backend.routers import auth as auth_router
 
 # Nothing configures a logging level anywhere in this app, so Python's
@@ -83,8 +83,12 @@ async def lifespan(app: FastAPI):
         import logging
         logging.getLogger(__name__).warning("STUN server not started: %s", exc)
     tailnet_task = asyncio.create_task(_watch_tailnet_transport())
+    from backend.doorbell_listener import DoorbellListener, listener_enabled
+    doorbell_task = asyncio.create_task(DoorbellListener().run()) if listener_enabled() else None
     yield
     tailnet_task.cancel()
+    if doorbell_task is not None:
+        doorbell_task.cancel()
     if stun_server is not None:
         await stun_server.stop()
     if ldap_server is not None:
@@ -146,6 +150,7 @@ app.include_router(holidays.router, prefix="/api", dependencies=[Depends(get_cur
 app.include_router(phonebook.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(mobile_provisioning.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(tailscale.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(doorbell_router.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
 # SPA shell — serve the BUILT dist/index.html so hashed asset + CSS names always
 # match the actual Vite output. A hand-maintained template drifts every build and
