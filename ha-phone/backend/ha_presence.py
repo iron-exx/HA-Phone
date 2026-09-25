@@ -31,14 +31,17 @@ _HOME = "home"
 door_excluded: frozenset[str] = frozenset()
 
 
-def excluded_extensions(ext_person: dict[str, str], states: dict[str, str | None]) -> frozenset[str]:
-    """ext_person: extension -> person entity. states: person -> HA state (None = unknown)."""
+def excluded_extensions(ext_person: dict[str, str], states: dict[str, str | None],
+                        home_names: frozenset[str] = frozenset({_HOME})) -> frozenset[str]:
+    """ext_person: extension -> person entity. states: person -> HA state (None = unknown).
+    home_names: states meaning "at home" ("home" plus the home zone's name, e.g. "Zuhause":
+    HA reports a person in zone.home with that zone's friendly name on some installs)."""
+    homes = {h.casefold() for h in home_names}
     known = {p: s for p, s in states.items() if s not in (None, "unknown", "unavailable")}
-    someone_home = any(s == _HOME for p, s in known.items() if p in ext_person.values())
-    if not someone_home:
+    at_home = {p for p, s in known.items() if s.casefold() in homes}
+    if not any(p in at_home for p in ext_person.values()):
         return frozenset()
-    return frozenset(ext for ext, person in ext_person.items()
-                     if person in known and known[person] != _HOME)
+    return frozenset(ext for ext, person in ext_person.items() if person in known and person not in at_home)
 
 
 async def fetch_states(persons: set[str], transport: httpx.AsyncBaseTransport | None = None) -> dict[str, str | None]:
@@ -56,6 +59,19 @@ async def fetch_states(persons: set[str], transport: httpx.AsyncBaseTransport | 
     return out
 
 
+async def fetch_home_name(transport: httpx.AsyncBaseTransport | None = None) -> str | None:
+    """Friendly name of zone.home (what a person at home may report as state)."""
+    token = os.environ.get("SUPERVISOR_TOKEN", "")
+    if not token:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=5, transport=transport) as client:
+            resp = await client.get(f"{_CORE_API}/states/zone.home", headers={"Authorization": f"Bearer {token}"})
+        return (resp.json().get("attributes") or {}).get("friendly_name") if resp.status_code == 200 else None
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
 def _ext_persons() -> dict[str, str]:
     with Session(get_engine()) as s:
         return {str(e.number): e.ha_person for e in s.exec(select(Extension)).all() if e.ha_person and e.enabled}
@@ -66,7 +82,8 @@ async def refresh_once() -> bool:
     global door_excluded
     mapping = _ext_persons()
     states = await fetch_states(set(mapping.values()))
-    now = excluded_extensions(mapping, states)
+    home_names = frozenset({_HOME} | ({await fetch_home_name()} - {None}))
+    now = excluded_extensions(mapping, states, home_names)
     if now == door_excluded:
         return False
     door_excluded = now

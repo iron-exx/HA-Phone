@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.128
+
+**Fehlerbehebung - Anwesenheit „Zuhause“**
+- Bei manchen Installationen meldet Home Assistant eine Person zu Hause mit dem Namen der Heim-Zone (z. B. „Zuhause“) statt mit „home“. Das zählt jetzt ebenfalls als zu Hause. Vorher wären dort die Telefone der Anwesenden stumm geblieben.
+
 ## 0.7.127
 
 **Neu - Türklingel unterwegs nur, wenn niemand zu Hause ist**

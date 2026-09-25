@@ -59,3 +59,19 @@ def test_ha_person_is_validated(client):
         assert ok.status_code == 200 and ok.json()["ha_person"] == "person.sandro"
     finally:
         client.delete(f"/api/extensions/{ext_id}")
+
+
+def test_home_zone_name_counts_as_home():
+    """Real install: people at home report "Zuhause" (zone.home friendly name)."""
+    states = {"person.sandro": "not_home", "person.larissa": "Zuhause"}
+    home = frozenset({"home", "Zuhause"})
+    assert ha_presence.excluded_extensions(M, states, home) == {"13"}
+    # Without knowing the zone name, "Zuhause" is away -> nobody home -> everyone rings.
+    assert ha_presence.excluded_extensions(M, states) == frozenset()
+
+
+@pytest.mark.asyncio
+async def test_home_zone_name_is_read(monkeypatch):
+    monkeypatch.setenv("SUPERVISOR_TOKEN", "tok")
+    t = httpx.MockTransport(lambda r: httpx.Response(200, json={"state": "0", "attributes": {"friendly_name": "Zuhause"}}))
+    assert await ha_presence.fetch_home_name(transport=t) == "Zuhause"
