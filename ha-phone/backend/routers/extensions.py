@@ -302,6 +302,7 @@ def _extension_out(extension: Extension) -> ExtensionOut:
         door_open_webhook=extension.door_open_webhook,
         doorbell_camera=extension.doorbell_camera,
         ha_person=extension.ha_person,
+        mobile_fallback=extension.mobile_fallback,
     )
 
 

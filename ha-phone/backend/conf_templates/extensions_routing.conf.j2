@@ -30,6 +30,34 @@
 {% endif %}
 {% endmacro %}
 
+{#
+  Default landing (no presence rule): ring all devices, then voicemail. With a
+  mobile fallback number ("Rückfall auf die Handynummer", Extension.mobile_fallback)
+  the PBX calls that number over the trunk when no device is registered (no
+  contacts) or none is reachable (CHANUNAVAIL). A device that rings but is not
+  answered still goes to voicemail, so the mobile is never called "on top".
+  __OUTBOUND_CID: outbound-pstn sets the trunk CLIP from it; the double underscore
+  lets it reach the Local channel.
+#}
+{% macro default_ring(entry) %}
+{% if entry.mobile_fallback %}
+ same => n,GotoIf($[${LEN(${PJSIP_DIAL_CONTACTS({{ entry.number }})})} = 0]?mobile)
+{% endif %}
+ same => n,Dial({{ dial(entry.number) }},30)
+{% if entry.mobile_fallback %}
+ same => n,GotoIf($["${DIALSTATUS}" = "CHANUNAVAIL"]?mobile)
+{% endif %}
+ same => n,Voicemail({{ entry.number }}@default,u)
+ same => n,Hangup()
+{% if entry.mobile_fallback %}
+ same => n(mobile),NoOp(No device of {{ entry.number }} reachable - calling the mobile)
+ same => n,Set(__OUTBOUND_CID={{ trunk_callerid }})
+ same => n,Dial(Local/{{ entry.mobile_fallback }}@outbound-pstn/n,30)
+ same => n,Voicemail({{ entry.number }}@default,u)
+ same => n,Hangup()
+{% endif %}
+{% endmacro %}
+
 ; Test call from the app ("Test-Anruf an mich", POST /api/mobile/test-call): the PBX rings
 ; the device's own endpoint via AMI Originate; answering plays a beep, then an echo test.
 [haphone-testcall]
@@ -229,9 +257,7 @@ exten => internal,1,NoOp(Internal call to {{ entry.number }})
  same => n,Dial({{ dial(entry.number) }},{{ internal.ring_timeout }})
 {{ dest_action(internal.dest_type, internal.dest_target)|safe }}
 {% else %}
- same => n,Dial({{ dial(entry.number) }},30)
- same => n,Voicemail({{ entry.number }}@default,u)
- same => n,Hangup()
+{{ default_ring(entry)|safe }}
 {% endif %}
 
 {% set external = entry.external %}
@@ -242,9 +268,7 @@ exten => external,1,NoOp(External call to {{ entry.number }})
  same => n,Dial({{ dial(entry.number) }},{{ external.ring_timeout }})
 {{ dest_action(external.dest_type, external.dest_target)|safe }}
 {% else %}
- same => n,Dial({{ dial(entry.number) }},30)
- same => n,Voicemail({{ entry.number }}@default,u)
- same => n,Hangup()
+{{ default_ring(entry)|safe }}
 {% endif %}
 {% endfor %}
 

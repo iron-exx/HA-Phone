@@ -115,6 +115,11 @@ const editSchema = extensionSchema.extend({
     .max(128, "Max 128 Zeichen")
     .regex(/^(person\.[a-z0-9_]+)?$/, "z. B. person.sandro")
     .default(""),
+  mobile_fallback: z
+    .string()
+    .max(32, "Max 32 Zeichen")
+    .regex(/^(\+?[0-9][0-9 /()-]{4,22})?$/, "Telefonnummer, z. B. 0171 5551234")
+    .default(""),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -475,6 +480,7 @@ function EditExtensionDialog({
       door_open_webhook: extension.door_open_webhook ?? "",
       doorbell_camera: extension.doorbell_camera ?? "",
       ha_person: extension.ha_person ?? "",
+      mobile_fallback: extension.mobile_fallback ?? "",
     },
   });
   const [saving, setSaving] = useState(false);
@@ -490,7 +496,7 @@ function EditExtensionDialog({
       return;
     }
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string; doorbell_camera: string; ha_person: string }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string; doorbell_camera: string; ha_person: string; mobile_fallback: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
@@ -503,6 +509,7 @@ function EditExtensionDialog({
       door_open_webhook: (values.door_open_webhook ?? "").trim(),
       doorbell_camera: (values.doorbell_camera ?? "").trim(),
       ha_person: (values.ha_person ?? "").trim(),
+      mobile_fallback: (values.mobile_fallback ?? "").trim(),
     };
     if (values.sip_password && values.sip_password.length > 0) {
       body.sip_password = values.sip_password;
@@ -656,6 +663,22 @@ function EditExtensionDialog({
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
                     Klingelt die Türstation, bleibt dieses Telefon still, solange die Person unterwegs und jemand anderes zu Hause ist. Ist niemand zu Hause, klingelt es auch unterwegs. Leer = klingelt immer.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="mobile_fallback"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rückfall auf Handynummer</FormLabel>
+                  <FormControl>
+                    <Input placeholder="0171 5551234" inputMode="tel" className="font-mono" {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Ist kein Gerät dieser Nebenstelle erreichbar (App offline, Tischtelefon aus), ruft die Anlage diese Nummer über die Amtsleitung an, statt gleich auf die Mailbox zu gehen. Klingelt ein Gerät und niemand nimmt ab, geht es wie bisher auf die Mailbox. Achtung: Das Gespräch über die Amtsleitung kann Kosten verursachen. Leer = aus.
                   </p>
                   <FormMessage />
                 </FormItem>

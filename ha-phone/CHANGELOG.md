@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.131
+
+**Neu - Rückfall auf die Handynummer**
+- Neues Feld „Rückfall auf Handynummer“ im Nebenstellen-Editor. Ist kein Gerät der Nebenstelle erreichbar (App offline, Tischtelefon aus), ruft die Anlage diese Nummer über die Amtsleitung an, statt gleich auf die Mailbox zu gehen. Nimmt dort niemand ab, geht es auf die Mailbox der Nebenstelle.
+- Klingelt ein Gerät und niemand nimmt ab, bleibt es wie bisher bei der Mailbox. Das Handy wird also nie zusätzlich angerufen.
+- Standard ist aus. Gespräche über die Amtsleitung können Kosten verursachen.
+
 ## 0.7.130
 
 **Sicherheit - verschlüsselte Verbindung zur HA-Phone App**

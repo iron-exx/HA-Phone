@@ -19,6 +19,7 @@ export interface Extension {
   door_open_webhook?: string;
   doorbell_camera?: string;
   ha_person?: string;
+  mobile_fallback?: string;
   // sip_password is never returned by the API
 }
 

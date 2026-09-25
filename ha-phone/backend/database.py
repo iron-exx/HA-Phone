@@ -114,6 +114,9 @@ def run_migrations(engine: Engine) -> None:
             if "ha_person" not in cols:
                 conn.execute(text("ALTER TABLE extension ADD COLUMN ha_person TEXT NOT NULL DEFAULT ''"))
                 conn.commit()
+            if "mobile_fallback" not in cols:
+                conn.execute(text("ALTER TABLE extension ADD COLUMN mobile_fallback TEXT NOT NULL DEFAULT ''"))
+                conn.commit()
             if "doorbell_camera" not in cols:
                 conn.execute(
                     text("ALTER TABLE extension ADD COLUMN doorbell_camera TEXT NOT NULL DEFAULT ''")

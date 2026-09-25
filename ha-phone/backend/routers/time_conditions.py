@@ -218,6 +218,8 @@ def _regenerate_routing_conf(session: Session) -> None:
             "number": number,
             "display_name": ext.display_name if ext else "",
             "presence_status": ext.presence_status if ext else "available",
+            # E.164 mobile number for "no device reachable" (empty = off).
+            "mobile_fallback": _to_e164(ext.mobile_fallback) if ext and ext.enabled and ext.mobile_fallback else "",
             "internal": landing["internal"],
             "external": landing["external"],
         })

@@ -14,6 +14,8 @@ DOOR_OPEN_CODE_PATTERN = r"^[0-9*#]*$"
 DOOR_WEBHOOK_PATTERN = r"^(https?://\S{1,500})?$"
 # Doorbell picture source: a Home Assistant camera entity or the door station's snapshot URL.
 HA_PERSON_PATTERN = r"^(person\.[a-z0-9_]{1,120})?$"
+# Mobile number for the fallback call (digits, one leading "+", spaces / - ( ) as separators).
+MOBILE_FALLBACK_PATTERN = r"^(\+?[0-9][0-9 /()\-]{4,22})?$"
 DOORBELL_CAMERA_PATTERN = r"^(camera\.[a-z0-9_]{1,120}|https?://\S{1,500})?$"
 MAX_DOOR_ACTIONS = 4
 # Rendered verbatim as `exten => <did>,1,...` — a comma/semicolon would inject
@@ -94,6 +96,9 @@ class Extension(SQLModel, table=True):
     doorbell_camera: str = Field(default="", max_length=512)
     # Home Assistant person this extension's phone belongs to (ha_presence.py).
     ha_person: str = Field(default="", max_length=128)
+    # "Rückfall auf die Handynummer": called over the trunk when no device of this
+    # extension is registered/reachable. Empty = off (costs money, admin opt-in).
+    mobile_fallback: str = Field(default="", max_length=32)
 
     @field_validator("display_name")
     @classmethod
@@ -119,11 +124,17 @@ class ExtensionCreate(SQLModel):
     door_open_webhook: str = Field(default="", max_length=512)
     doorbell_camera: str = Field(default="", max_length=512)
     ha_person: str = Field(default="", max_length=128)
+    mobile_fallback: str = Field(default="", max_length=32)
 
     @field_validator("ha_person")
     @classmethod
     def _ha_person(cls, v: str) -> str:
         return _match(HA_PERSON_PATTERN, v.strip(), "ha_person")
+
+    @field_validator("mobile_fallback")
+    @classmethod
+    def _mobile_fallback(cls, v: str) -> str:
+        return _match(MOBILE_FALLBACK_PATTERN, v.strip(), "mobile_fallback")
 
     @field_validator("door_open_code")
     @classmethod
@@ -176,11 +187,17 @@ class ExtensionUpdate(SQLModel):
     door_open_webhook: Optional[str] = Field(default=None, max_length=512)
     doorbell_camera: Optional[str] = Field(default=None, max_length=512)
     ha_person: Optional[str] = Field(default=None, max_length=128)
+    mobile_fallback: Optional[str] = Field(default=None, max_length=32)
 
     @field_validator("ha_person")
     @classmethod
     def _ha_person(cls, v: str | None) -> str | None:
         return None if v is None else _match(HA_PERSON_PATTERN, v.strip(), "ha_person")
+
+    @field_validator("mobile_fallback")
+    @classmethod
+    def _mobile_fallback(cls, v: str | None) -> str | None:
+        return None if v is None else _match(MOBILE_FALLBACK_PATTERN, v.strip(), "mobile_fallback")
 
     @field_validator("door_open_code")
     @classmethod
@@ -230,6 +247,7 @@ class ExtensionOut(SQLModel):
     door_open_webhook: str = ""
     doorbell_camera: str = ""
     ha_person: str = ""
+    mobile_fallback: str = ""
 
 
 class ExtensionCreateOut(ExtensionOut):
