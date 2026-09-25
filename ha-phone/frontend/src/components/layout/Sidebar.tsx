@@ -13,6 +13,7 @@ import {
   PhoneIncoming,
   DatabaseBackup,
   BookUser,
+  Waypoints,
 } from "lucide-react";
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
   { to: "/extensions", label: "Nebenstellen", icon: Phone, end: false },
   { to: "/ivr", label: "IVR-Menüs", icon: PhoneIncoming, end: false },
   { to: "/provisioning", label: "Provisioning", icon: Router, end: false },
+  { to: "/tailscale", label: "Tailscale", icon: Waypoints, end: false },
   { to: "/trunk", label: "Trunk", icon: Network, end: false },
   { to: "/routing", label: "Routing", icon: GitBranch, end: false },
   { to: "/phonebook", label: "Telefonbuch", icon: BookUser, end: false },

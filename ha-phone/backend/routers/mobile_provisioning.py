@@ -3,6 +3,7 @@ Mobile App Provisioning API (Phase 3: QR Code / JWT based)
 Endpoints for iOS/Android app QR-code provisioning and push-token management.
 """
 import hashlib
+import time
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -31,6 +32,8 @@ from backend.models import (
 from backend.auth import get_current_user as get_current_admin_user
 from backend.crypto import EncryptedString
 from backend.routers.extensions import door_actions_of
+from backend.routers import tailscale as tailscale_router
+from fastapi.concurrency import run_in_threadpool
 
 # Admin-gated CRUD/control router (start provisioning, revoke, list devices).
 router = APIRouter(prefix="/mobile", tags=["mobile-provisioning"])
@@ -259,8 +262,10 @@ async def complete_provisioning(
         select(MobileDevice).where(MobileDevice.provisioning_jwt_jti == payload["jti"])
     ).first()
     if existing:
-        # Update existing device (idempotent)
+        # Update existing device (idempotent). A replay also gets a fresh
+        # Tailscale key, so the old node goes away first.
         device = existing
+        await run_in_threadpool(tailscale_router.remove_phone_from_tailnet, session, device)
     else:
         device = MobileDevice(
             extension_id=ext.id,
@@ -291,6 +296,9 @@ async def complete_provisioning(
     session.commit()
     session.refresh(device)
 
+    # One-time tailnet key (only when Tailscale is set up; failures keep pairing LAN-only).
+    ts_block = await run_in_threadpool(tailscale_router.phone_tailscale_block, session, ext, device)
+
     # Return SIP config for the app
     return ProvisioningCompleteOut(
         success=True,
@@ -306,6 +314,7 @@ async def complete_provisioning(
         turn_servers=[],  # TODO: add TURN if configured
         codecs=["opus", "g722", "ulaw", "alaw"],
         config_version=1,
+        tailscale=ts_block,
     )
 
 
@@ -357,6 +366,61 @@ def refresh_push_token(
     )
 
 
+# --- POST /api/mobile/device/tailscale ---
+# The app reports its tailnet node after joining (PUBLIC, device-token authenticated).
+class DeviceTailscaleIn(BaseModel):
+    device_id: int
+    device_token: str
+    node_id: str
+    ip: str = ""
+
+
+_NODE_ID_RE = re.compile(r"^[A-Za-z0-9]{1,64}$")
+
+
+@public_router.post("/device/tailscale")
+def report_tailscale_node(data: DeviceTailscaleIn, session: Session = Depends(get_session)):
+    device = authenticate_device(session, data.device_id, data.device_token)
+    if not _NODE_ID_RE.match(data.node_id) or len(data.ip) > 45:
+        raise HTTPException(status_code=422, detail="Ungültige Tailscale-Geräte-ID")
+    device.tailscale_node_id = data.node_id
+    device.tailscale_ip = data.ip
+    device.updated_at = datetime.utcnow()
+    session.add(device)
+    session.commit()
+    return {"success": True}
+
+
+# --- POST /api/mobile/device/tailscale-key ---
+# Fresh one-time key for an already paired phone (retrofit / key creation failed at
+# pairing). PUBLIC, device-token authenticated, at most once per minute per device.
+class DeviceAuthIn(BaseModel):
+    device_id: int
+    device_token: str
+
+
+TAILSCALE_KEY_INTERVAL_S = 60
+_last_key_request: dict = {}
+
+
+@public_router.post("/device/tailscale-key")
+async def request_tailscale_key(data: DeviceAuthIn, session: Session = Depends(get_session)):
+    device = authenticate_device(session, data.device_id, data.device_token)
+    now = time.monotonic()
+    last = _last_key_request.get(device.id, 0.0)
+    if now - last < TAILSCALE_KEY_INTERVAL_S:
+        raise HTTPException(status_code=429, detail="Bitte eine Minute warten.")
+    _last_key_request[device.id] = now
+    ext = session.get(Extension, device.extension_id)
+    await run_in_threadpool(tailscale_router.remove_phone_from_tailnet, session, device)
+    session.add(device)
+    session.commit()
+    block = await run_in_threadpool(tailscale_router.phone_tailscale_block, session, ext, device)
+    if block is None:
+        raise HTTPException(status_code=503, detail="Tailscale ist in HA-Phone nicht eingerichtet oder nicht erreichbar.")
+    return {"tailscale": block}
+
+
 # --- POST /api/mobile/device/revoke ---
 # Admin revokes a mobile device
 @router.post("/device/revoke")
@@ -374,6 +438,7 @@ def revoke_device(
 
     device.status = "revoked"
     device.push_token = ""
+    tailscale_router.remove_phone_from_tailnet(session, device)
     device.updated_at = datetime.utcnow()
     session.add(device)
     session.commit()
@@ -408,6 +473,7 @@ def list_mobile_devices(
             created_at=d.created_at,
             last_seen_at=d.last_seen_at,
             last_ip=d.last_ip,
+            tailscale_ip=d.tailscale_ip,
         ))
     return result
 

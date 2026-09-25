@@ -13,6 +13,7 @@ import Provisioning from "./pages/Provisioning";
 import IVR from "./pages/IVR";
 import Backup from "./pages/Backup";
 import Phonebook from "./pages/Phonebook";
+import Tailscale from "./pages/Tailscale";
 import Logo from "./components/Logo";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
@@ -117,6 +118,7 @@ export default function App() {
                   <Route path="/provisioning" element={<Provisioning />} />
                   <Route path="/backup" element={<Backup />} />
                   <Route path="/phonebook" element={<Phonebook />} />
+                  <Route path="/tailscale" element={<Tailscale />} />
                 </Routes>
               </Shell>
             </AuthGuard>

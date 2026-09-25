@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.database import init_db
 from backend.auth import get_current_user, SESSION_SECRET
-from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning, backup, holidays, phonebook, extension_groups, presence_rules, mobile_provisioning, mobile_features
+from backend.routers import extensions, trunk, settings, routes, voicemail, time_conditions, ring_groups, ivr, update, trace, outbound_rules, provisioning, backup, holidays, phonebook, extension_groups, presence_rules, mobile_provisioning, mobile_features, tailscale
 from backend.routers import auth as auth_router
 
 # Nothing configures a logging level anywhere in this app, so Python's
@@ -119,6 +119,7 @@ app.include_router(backup.router, prefix="/api", dependencies=[Depends(get_curre
 app.include_router(holidays.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(phonebook.router, prefix="/api", dependencies=[Depends(get_current_user)])
 app.include_router(mobile_provisioning.router, prefix="/api", dependencies=[Depends(get_current_user)])
+app.include_router(tailscale.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
 # SPA shell — serve the BUILT dist/index.html so hashed asset + CSS names always
 # match the actual Vite output. A hand-maintained template drifts every build and

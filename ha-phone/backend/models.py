@@ -571,6 +571,22 @@ class MobileDevice(SQLModel, table=True):
     # SHA-256 hex of the per-device secret handed out once by /provision/complete.
     # Every phone-facing endpoint authenticates with device_id + that secret.
     device_token_hash: str = Field(default="", max_length=64)
+    # Tailscale node of this phone (StableNodeID + 100.x), reported by the app after
+    # joining; used to delete the phone from the tailnet on unpairing.
+    tailscale_node_id: str = Field(default="", max_length=64)
+    tailscale_ip: str = Field(default="", max_length=45)
+
+
+class TailnetConfig(SQLModel, table=True):
+    """Tailscale access (OAuth client / trust credential) for phone auth keys. Single row."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    enabled: bool = Field(default=True)  # hand out keys on new QR pairings
+    client_id: str = Field(default="", max_length=128)
+    client_secret: str = Field(default="", sa_column=Column(EncryptedString()))
+    tag: str = Field(default="tag:haphone-phone", max_length=64)
+    tailnet: str = Field(default="", max_length=128)
+    pbx_magicdns: str = Field(default="", max_length=255)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ProvisioningToken(SQLModel):
@@ -614,6 +630,8 @@ class ProvisioningCompleteOut(SQLModel):
     turn_servers: List[str]
     codecs: List[str]
     config_version: int
+    # Present only when Tailscale is set up in HA-Phone (see backend/tailnet.py).
+    tailscale: Optional[dict] = None
 
 
 class DeviceRegisterIn(SQLModel):
@@ -655,6 +673,7 @@ class MobileDeviceOut(SQLModel):
     created_at: datetime
     last_seen_at: Optional[datetime]
     last_ip: str
+    tailscale_ip: str = ""
 
 
 

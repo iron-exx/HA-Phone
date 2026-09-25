@@ -407,6 +407,15 @@ async def delete_extension(
     if vm:
         session.delete(vm)
     _remove_extension_from_ring_groups(session, existing.number)
+    # Paired app devices go with the extension: SQLite reuses the id, and stale
+    # rows would otherwise attach old phones (with valid device tokens) to the next
+    # extension created. Their tailnet nodes are removed too (best effort).
+    from fastapi.concurrency import run_in_threadpool
+    from backend.models import MobileDevice
+    from backend.routers.tailscale import remove_phone_from_tailnet
+    for dev in session.exec(select(MobileDevice).where(MobileDevice.extension_id == extension_id)).all():
+        await run_in_threadpool(remove_phone_from_tailnet, session, dev)
+        session.delete(dev)
     session.delete(existing)
     session.commit()
     summary = _regenerate_extension_bundle(session, f"extensions.delete:{existing.number}")

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.120
+
+**Neu - Tailscale: Apps unterwegs erreichbar**
+- Neuer Menüpunkt „Tailscale“. Ein Assistent führt in drei Schritten durch die Einrichtung: Tailscale-Add-on in Home Assistant, Zugang (OAuth-Client) in der Tailscale-Konsole anlegen, Client-ID und Secret einfügen. „Verbindung testen und speichern“ prüft live, ob Zugang, Rechte und Tag stimmen, und speichert erst dann. Das Secret wird verschlüsselt gespeichert und nie wieder angezeigt.
+- Bei jeder QR-Kopplung bekommt die App automatisch einen einmaligen Tailscale-Schlüssel für ihr Handy. Klappt das nicht, wird trotzdem gekoppelt (nur im Heimnetz).
+- Die Seite zeigt die Handys im Tailnet mit Nebenstelle und letzter Verbindung. Einzelne Handys lassen sich entfernen, und „Tailscale trennen“ entfernt auf Wunsch alle.
+- Wird ein App-Gerät widerrufen, verschwindet sein Handy auch aus dem Tailnet.
+
+**Fehlerbehebung**
+- Beim Löschen einer Nebenstelle werden jetzt auch ihre gekoppelten App-Geräte gelöscht. Vorher konnten alte Handys an einer später neu angelegten Nebenstelle hängen bleiben.
+
 ## 0.7.119
 
 **Sicherheit - Admin-Anmeldung**

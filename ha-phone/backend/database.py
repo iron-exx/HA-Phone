@@ -125,6 +125,10 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE mobiledevice ADD COLUMN device_token_hash TEXT NOT NULL DEFAULT ''")
                 )
                 conn.commit()
+            for col in ("tailscale_node_id", "tailscale_ip"):
+                if col not in cols:
+                    conn.execute(text(f"ALTER TABLE mobiledevice ADD COLUMN {col} TEXT NOT NULL DEFAULT ''"))
+                    conn.commit()
         if "trunk" in tables:
             cols = [c["name"] for c in inspector.get_columns("trunk")]
             if "codecs" not in cols:
