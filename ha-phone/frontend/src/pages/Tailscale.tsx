@@ -98,7 +98,8 @@ export default function Tailscale() {
       if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Laden fehlgeschlagen"));
       const data: TailscaleConfig = await resp.json();
       setCfg(data);
-      setClientId(data.client_id);
+      // Keep what the admin typed while nothing is stored yet (a failed test reloads too).
+      if (data.configured) setClientId(data.client_id);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -151,12 +152,12 @@ export default function Tailscale() {
       if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen"));
       const result: CheckResult = await resp.json();
       setCheck(result);
+      await load();
       if (result.ok) {
         toast.success("Tailscale ist verbunden.");
         setClientSecret("");
         setEditing(false);
         setShowAuto(false);
-        await load();
       } else {
         toast.error("Noch nicht alles in Ordnung, siehe Prüfung.");
       }
@@ -178,6 +179,7 @@ export default function Tailscale() {
       });
       if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Test fehlgeschlagen"));
       setCheck(await resp.json());
+      await load();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

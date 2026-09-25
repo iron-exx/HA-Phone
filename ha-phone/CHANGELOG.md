@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.122
+
+**Fehlerbehebung - Tailscale-Seite**
+- Nach „Verbindung testen“ aktualisiert sich die Seite jetzt vollständig (vorher stand oben weiter „Noch nicht gefunden“, obwohl der Test Tailscale gefunden hatte).
+- Eine eingetippte Client-ID bleibt nach einem fehlgeschlagenen Test stehen.
+
 ## 0.7.121
 
 **Verbesserung - Tailscale ohne Einrichtung in HA-Phone**
