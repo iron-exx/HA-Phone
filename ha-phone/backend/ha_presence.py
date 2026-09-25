@@ -59,17 +59,43 @@ async def fetch_states(persons: set[str], transport: httpx.AsyncBaseTransport | 
     return out
 
 
-async def fetch_home_name(transport: httpx.AsyncBaseTransport | None = None) -> str | None:
-    """Friendly name of zone.home (what a person at home may report as state)."""
+def home_zone_names(zones: list[dict]) -> frozenset[str]:
+    """Names a person at home may report: "home", zone.home's name and every zone that
+    overlaps zone.home (e.g. an extra "Zuhause" zone drawn around the house)."""
+    import math
+    names = {_HOME}
+    home = next((z for z in zones if z.get("entity_id") == "zone.home"), None)
+    if not home:
+        return frozenset(names)
+    ha = home.get("attributes") or {}
+    names.add(ha.get("friendly_name") or "")
+
+    def dist_m(a: dict, b: dict) -> float:
+        lat1, lon1, lat2, lon2 = map(math.radians, (a["latitude"], a["longitude"], b["latitude"], b["longitude"]))
+        h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+        return 6371000 * 2 * math.asin(math.sqrt(h))
+
+    for z in zones:
+        za = z.get("attributes") or {}
+        try:
+            if dist_m(ha, za) <= float(ha.get("radius", 100)) + float(za.get("radius", 100)):
+                names.add(za.get("friendly_name") or "")
+        except (KeyError, TypeError, ValueError):
+            continue
+    return frozenset(n for n in names if n)
+
+
+async def fetch_home_names(transport: httpx.AsyncBaseTransport | None = None) -> frozenset[str]:
     token = os.environ.get("SUPERVISOR_TOKEN", "")
     if not token:
-        return None
+        return frozenset({_HOME})
     try:
         async with httpx.AsyncClient(timeout=5, transport=transport) as client:
-            resp = await client.get(f"{_CORE_API}/states/zone.home", headers={"Authorization": f"Bearer {token}"})
-        return (resp.json().get("attributes") or {}).get("friendly_name") if resp.status_code == 200 else None
+            resp = await client.get(f"{_CORE_API}/states", headers={"Authorization": f"Bearer {token}"})
+        states = resp.json() if resp.status_code == 200 else []
     except (httpx.HTTPError, ValueError):
-        return None
+        states = []
+    return home_zone_names([z for z in states if str(z.get("entity_id", "")).startswith("zone.")])
 
 
 def _ext_persons() -> dict[str, str]:
@@ -82,7 +108,7 @@ async def refresh_once() -> bool:
     global door_excluded
     mapping = _ext_persons()
     states = await fetch_states(set(mapping.values()))
-    home_names = frozenset({_HOME} | ({await fetch_home_name()} - {None}))
+    home_names = await fetch_home_names()
     now = excluded_extensions(mapping, states, home_names)
     if now == door_excluded:
         return False

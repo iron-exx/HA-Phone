@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.129
+
+**Fehlerbehebung - Anwesenheit mit eigener „Zuhause“-Zone**
+- Als zu Hause zählt jetzt auch jede Zone, die mit der Heim-Zone überlappt, z. B. eine zusätzliche Zone „Zuhause“ um das Haus. Vorher zählte nur die Heim-Zone selbst („Home“/„home“), und Personen in „Zuhause“ galten als unterwegs.
+
 ## 0.7.128
 
 **Fehlerbehebung - Anwesenheit „Zuhause“**

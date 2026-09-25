@@ -70,8 +70,12 @@ def test_home_zone_name_counts_as_home():
     assert ha_presence.excluded_extensions(M, states) == frozenset()
 
 
-@pytest.mark.asyncio
-async def test_home_zone_name_is_read(monkeypatch):
-    monkeypatch.setenv("SUPERVISOR_TOKEN", "tok")
-    t = httpx.MockTransport(lambda r: httpx.Response(200, json={"state": "0", "attributes": {"friendly_name": "Zuhause"}}))
-    assert await ha_presence.fetch_home_name(transport=t) == "Zuhause"
+def test_overlapping_zone_counts_as_home():
+    """Real install: zone.home "Home" plus a separate zone.zuhause around the house."""
+    zones = [
+        {"entity_id": "zone.home", "attributes": {"friendly_name": "Home", "latitude": 52.0, "longitude": 8.0, "radius": 100}},
+        {"entity_id": "zone.zuhause", "attributes": {"friendly_name": "Zuhause", "latitude": 52.0005, "longitude": 8.0, "radius": 50}},
+        {"entity_id": "zone.buero", "attributes": {"friendly_name": "Büro", "latitude": 52.1, "longitude": 8.1, "radius": 100}},
+    ]
+    assert ha_presence.home_zone_names(zones) == {"home", "Home", "Zuhause"}
+    assert ha_presence.home_zone_names([]) == {"home"}
