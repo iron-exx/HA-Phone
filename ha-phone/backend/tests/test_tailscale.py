@@ -170,10 +170,22 @@ def test_invalid_tag_rejected(client, fake_ts):
     assert resp.status_code == 422
 
 
-def test_access_token_is_cached(client, connected):
+def test_connection_test_always_gets_a_fresh_token(client, connected):
+    """Tags live in the token: after editing the credential, the test must see the change."""
     calls = connected.token_calls
     client.post("/api/tailscale/test", json={"client_id": "cid"})
-    assert connected.token_calls == calls
+    assert connected.token_calls == calls + 1
+
+
+def test_access_token_is_cached_between_pairings(client, connected):
+    ext_id, num, body = _pair(client)
+    try:
+        calls = connected.token_calls
+        client.post("/api/mobile/device/tailscale-key",
+                    json={"device_id": body["device_id"], "device_token": body["device_token"]})
+        assert connected.token_calls == calls
+    finally:
+        client.delete(f"/api/extensions/{ext_id}")
 
 
 # ── pairing ──

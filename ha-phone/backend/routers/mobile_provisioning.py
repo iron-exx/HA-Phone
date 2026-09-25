@@ -407,10 +407,11 @@ _last_key_request: dict = {}
 async def request_tailscale_key(data: DeviceAuthIn, session: Session = Depends(get_session)):
     device = authenticate_device(session, data.device_id, data.device_token)
     now = time.monotonic()
-    last = _last_key_request.get(device.id, 0.0)
-    if now - last < TAILSCALE_KEY_INTERVAL_S:
+    # Keyed by the pairing (token hash), not the row id: SQLite reuses ids.
+    slot = device.device_token_hash
+    if now - _last_key_request.get(slot, float("-inf")) < TAILSCALE_KEY_INTERVAL_S:
         raise HTTPException(status_code=429, detail="Bitte eine Minute warten.")
-    _last_key_request[device.id] = now
+    _last_key_request[slot] = now
     ext = session.get(Extension, device.extension_id)
     await run_in_threadpool(tailscale_router.remove_phone_from_tailnet, session, device)
     session.add(device)

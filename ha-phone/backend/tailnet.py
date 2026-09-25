@@ -227,7 +227,9 @@ class TailscaleClient:
             detail = self._detail(resp)
             if "tag" in detail.lower():
                 raise TailscaleError(
-                    f"Der Tag {tag} fehlt in der Tailscale-Policy oder ist dem Zugang nicht zugeordnet ({detail}).", 400)
+                    f"Tailscale erlaubt den Tag {tag} nicht. Prüfe: (1) Access controls enthält unter "
+                    f"\"tagOwners\" den Eintrag {tag} und ist gespeichert, (2) der Zugang hat bei Keys \u2192 "
+                    f"Auth Keys genau diesen einen Tag ({detail}).", 400)
             raise TailscaleError(f"Tailscale lehnt den Schlüssel ab: {detail}", 400)
         if resp.status_code >= 400:
             raise TailscaleError(f"Schlüssel erstellen fehlgeschlagen (HTTP {resp.status_code}): {self._detail(resp)}",
@@ -259,7 +261,14 @@ class TailscaleClient:
             raise TailscaleError(f"Gerät entfernen fehlgeschlagen (HTTP {resp.status_code}).", resp.status_code)
 
     # -- live check for the admin UI --
+    def forget_token(self) -> None:
+        with self._lock:
+            self._token_cache.pop((self.api_base, self.client_id, self.client_secret), None)
+
     def check(self, tag: str, pbx: TailnetAddress) -> CheckResult:
+        # Scopes and tags are baked into the access token when it is issued: after the
+        # admin edits the credential in the console, only a fresh token sees the change.
+        self.forget_token()
         res = CheckResult()
         res.steps.append(CheckStep(
             "addon", not pbx.missing,

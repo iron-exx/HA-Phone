@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.123
+
+**Fehlerbehebung - Tailscale-Verbindungstest**
+- Nach einer Änderung am Zugang in der Tailscale-Konsole (z. B. Tag nachgetragen) meldete der Test weiter den alten Fehler, weil HA-Phone das Zugangs-Token bis zu einer Stunde wiederverwendet hat. Der Test holt jetzt immer ein frisches Token.
+- Genauere Fehlermeldung, wenn Tailscale den Tag ablehnt.
+- Die Sperre „ein neuer Tailscale-Schlüssel pro Minute“ gilt jetzt je Kopplung und wird nicht mehr an ein später neu gekoppeltes Gerät vererbt.
+
 ## 0.7.122
 
 **Fehlerbehebung - Tailscale-Seite**
