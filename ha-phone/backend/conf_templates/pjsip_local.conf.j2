@@ -45,3 +45,24 @@ external_media_address     = {{ ip }}
 {% endif %}
 {{ local_nets()|safe }}
 {% endif %}
+{% if tls and tailnet_ip %}
+
+; Tailscale: own TLS transport for phones reaching the box through the tailnet
+; (HA Tailscale add-on, interface tailscale0). Here 100.64.0.0/10 is NOT local,
+; so Asterisk puts the box's tailnet address into Contact and SDP. Over
+; transport-tls the SDP would carry the LAN address, unreachable from a phone
+; on mobile data. The app registers here (port 5063) while its tunnel runs.
+[transport-tls-tailnet]
+type       = transport
+protocol   = tls
+bind       = 0.0.0.0:5063
+cert_file  = {{ tls_cert }}
+priv_key_file = {{ tls_key }}
+method     = tlsv1_2
+allow_reload = yes
+external_signaling_address = {{ tailnet_ip }}
+external_media_address     = {{ tailnet_ip }}
+local_net                  = 192.168.0.0/16
+local_net                  = 10.0.0.0/8
+local_net                  = 172.16.0.0/12
+{% endif %}

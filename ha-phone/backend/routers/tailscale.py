@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from backend import tailnet
+from backend.pjsip_local import TAILNET_SIP_PORT
 from backend.database import get_session
 from backend.models import Extension, MobileDevice, TailnetConfig
 
@@ -59,7 +60,9 @@ def phone_tailscale_block(session: Session, ext: Extension, device: MobileDevice
         "pbx_tailnet_ip": addr.ipv4,
         "pbx_tailnet_ipv6": addr.ipv6,
         "pbx_magicdns": settings.pbx_magicdns or None,
-        "sip_domain_tailnet": f"{addr.ipv4}:5061" if addr.ipv4 else None,
+        # Own transport with the tailnet address in Contact/SDP (pjsip_local.conf.j2).
+        "sip_domain_tailnet": f"{addr.ipv4}:{TAILNET_SIP_PORT}" if addr.ipv4 else None,
+        "sip_port_tailnet": TAILNET_SIP_PORT,
         "api_base_tailnet": f"http://{addr.ipv4}" if addr.ipv4 else None,
     }
     cfg = get_config(session)

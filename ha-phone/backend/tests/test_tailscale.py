@@ -229,7 +229,8 @@ def test_pairing_hands_out_a_one_time_key(client, connected):
         assert ts["login"] == "auth_key" and ts["auth_key"].startswith("tskey-auth-")
         assert ts["hostname"] == f"haphone-{num}-pixel-6"
         assert ts["pbx_tailnet_ip"] == PBX_V4
-        assert ts["sip_domain_tailnet"] == f"{PBX_V4}:5061"
+        assert ts["sip_domain_tailnet"] == f"{PBX_V4}:5063"
+        assert ts["sip_port_tailnet"] == 5063
         assert ts["api_base_tailnet"] == f"http://{PBX_V4}"
         created = list(connected.keys.values())[-1]
         assert created["expirySeconds"] == 3600
@@ -333,3 +334,24 @@ def test_repairing_the_same_phone_retires_the_old_pairing(client, connected):
         assert client.post("/api/mobile/device/tailscale", json={**auth, "node_id": "x"}).status_code == 401
     finally:
         client.delete(f"/api/extensions/{ext_id}")
+
+
+def test_tailnet_transport_rendered_only_with_tailnet_address(tmp_data_dir, monkeypatch):
+    from backend import pjsip_local
+    tls = tmp_data_dir / "asterisk" / "tls"
+    tls.mkdir(parents=True, exist_ok=True)
+    (tls / "asterisk.crt").write_text("x")
+    (tls / "asterisk.key").write_text("x")
+    conf = (tmp_data_dir / "asterisk" / "pjsip_local.conf")
+    pjsip_local.write_pjsip_local("203.0.113.5", tailnet_ip=None)
+    assert "transport-tls-tailnet" not in conf.read_text()
+    monkeypatch.setattr(tailnet, "detect_tailnet_address",
+                        lambda: tailnet.TailnetAddress(ipv4=PBX_V4, missing=False))
+    assert pjsip_local.refresh_for_tailnet() is True
+    text = conf.read_text()
+    section = text.split("[transport-tls-tailnet]", 1)[1]
+    assert "bind       = 0.0.0.0:5063" in section
+    assert f"external_media_address     = {PBX_V4}" in section
+    assert "100.64.0.0/10" not in section  # tailnet peers are NOT local here
+    assert "external_media_address     = 203.0.113.5" in text  # public IP kept
+    assert pjsip_local.refresh_for_tailnet() is False  # unchanged -> no reload

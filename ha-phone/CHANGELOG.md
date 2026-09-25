@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.125
+
+**Fehlerbehebung - Ton und Türvideo unterwegs über Tailscale**
+- Asterisk schrieb auch für Handys im Tailnet die Heimnetz-Adresse der Box in die Gesprächsdaten. Im Mobilfunk wären Ton und Türvideo dann nicht angekommen. Neu ist ein eigener TLS-Zugang für Tailscale (Port 5063), der die Tailscale-Adresse der Box meldet. Die App (ab 1.1.1) meldet sich im Tunnel dort an.
+- Die Anlage richtet diesen Zugang automatisch ein, sobald das Tailscale-Add-on läuft (Prüfung jede Minute, auch wenn Tailscale erst nach HA-Phone startet).
+- Der Policy-Abschnitt auf der Tailscale-Seite enthält jetzt auch Port 5063.
+
 ## 0.7.124
 
 **Verbesserung - Neu gekoppeltes Handy räumt auf**

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -19,6 +20,29 @@ from backend.routers import auth as auth_router
 # .warning()+ ever reached the container logs. That made "did the LDAP
 # server actually bind port 389" impossible to diagnose from logs alone.
 logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+
+TAILNET_WATCH_INTERVAL_S = 60
+
+
+async def _watch_tailnet_transport():
+    """Adds/updates [transport-tls-tailnet] once the Tailscale add-on is up (it may start
+    after HA-Phone, or its address may change), then reloads res_pjsip."""
+    from fastapi.concurrency import run_in_threadpool
+    from backend import ami
+    from backend.pjsip_local import refresh_for_tailnet
+
+    log = logging.getLogger(__name__)
+    while True:
+        try:
+            if await run_in_threadpool(refresh_for_tailnet):
+                log.info("tailnet address changed, pjsip transports re-rendered")
+                await ami.ami_reload_pjsip()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.warning("tailnet transport check failed: %s", exc)
+        await asyncio.sleep(TAILNET_WATCH_INTERVAL_S)
 
 
 @asynccontextmanager
@@ -58,7 +82,9 @@ async def lifespan(app: FastAPI):
         stun_server = None
         import logging
         logging.getLogger(__name__).warning("STUN server not started: %s", exc)
+    tailnet_task = asyncio.create_task(_watch_tailnet_transport())
     yield
+    tailnet_task.cancel()
     if stun_server is not None:
         await stun_server.stop()
     if ldap_server is not None:

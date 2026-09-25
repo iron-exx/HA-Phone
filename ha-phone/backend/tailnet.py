@@ -324,5 +324,5 @@ ACL_SNIPPET = """\
 },
 "grants": [
   { "src": ["tag:haphone-phone"], "dst": ["tag:haphone-pbx"],
-    "ip": ["tcp:5061", "tcp:80", "udp:3478", "udp:10000-10200"] }
+    "ip": ["tcp:5061", "tcp:5063", "tcp:80", "udp:3478", "udp:10000-10200"] }
 ]"""
