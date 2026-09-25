@@ -45,6 +45,7 @@ interface TailnetPhone {
   os: string;
   extension_number: number | null;
   device_name: string;
+  removable: boolean;
 }
 
 function StepIcon({ step }: { step: CheckStep }) {
@@ -89,6 +90,7 @@ export default function Tailscale() {
   const [phones, setPhones] = useState<TailnetPhone[] | null>(null);
   const [phonesError, setPhonesError] = useState("");
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [showAuto, setShowAuto] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -121,8 +123,8 @@ export default function Tailscale() {
   }, [load]);
 
   useEffect(() => {
-    if (cfg?.configured) loadPhones();
-  }, [cfg?.configured, loadPhones]);
+    if (cfg?.pbx.found || cfg?.configured) loadPhones();
+  }, [cfg?.pbx.found, cfg?.configured, loadPhones]);
 
   async function save() {
     if (!clientId.trim()) {
@@ -153,6 +155,7 @@ export default function Tailscale() {
         toast.success("Tailscale ist verbunden.");
         setClientSecret("");
         setEditing(false);
+        setShowAuto(false);
         await load();
       } else {
         toast.error("Noch nicht alles in Ordnung, siehe Prüfung.");
@@ -250,202 +253,230 @@ export default function Tailscale() {
           onChange={(e) => setClientSecret(e.target.value)}
           placeholder={cfg.configured ? "leer lassen = bisheriges behalten" : "tskey-client-…"} />
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button onClick={save} disabled={busy}>
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
           Verbindung testen und speichern
         </Button>
-        {cfg.configured && (
-          <Button variant="outline" onClick={() => { setEditing(false); setCheck(null); }} disabled={busy}>
-            Abbrechen
-          </Button>
-        )}
+        <Button variant="outline" disabled={busy}
+          onClick={() => { setEditing(false); setShowAuto(false); setCheck(null); }}>
+          Abbrechen
+        </Button>
       </div>
       <CheckList result={check} />
     </div>
   );
 
-  // ── Not connected yet: three-step assistant ──
-  if (!cfg.configured) {
-    return (
-      <div className="max-w-2xl">
-        <h1 className="text-xl font-semibold mb-2">Tailscale</h1>
-        <p className="text-sm text-muted-foreground mb-8">
-          Unterwegs erreichbar: Deine HA-Phone-Apps verbinden sich über dein Tailscale-Netz automatisch mit der
-          Anlage. Kein Portfreigeben, kein Router-Umbau. Du richtest das hier einmal ein, danach bekommt jedes
-          Handy den Zugang beim QR-Scan von selbst.
-        </p>
+  const autoGuide = (
+    <ol className="list-decimal pl-5 space-y-4 text-sm">
+      <li>
+        <b>Tags anlegen.</b> Öffne in der Tailscale-Konsole <b>Access controls</b>, füge diesen Abschnitt oben
+        in die Policy ein (direkt nach der ersten geschweiften Klammer; gibt es „tagOwners“ oder „grants“ schon, dort nur die Einträge ergänzen) und klicke <b>Save</b>:
+        <pre className="mt-2 rounded bg-muted p-3 text-xs overflow-x-auto">{cfg.acl_snippet}</pre>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm"
+            onClick={() => copyToClipboard(cfg.acl_snippet, "Policy-Abschnitt kopiert.")}>
+            <Copy className="h-3.5 w-3.5" /> Abschnitt kopieren
+          </Button>
+          <a href="https://login.tailscale.com/admin/acls/file" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm font-medium underline self-center">
+            Access controls öffnen <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      </li>
+      <li>
+        <b>Zugang anlegen.</b>{" "}
+        <a href={cfg.console_url} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 font-medium underline">
+          Trust credentials öffnen <ExternalLink className="h-3.5 w-3.5" />
+        </a>{" "}
+        → <b>New credential</b> → <b>OAuth</b>.
+        <ul className="list-disc pl-5 mt-2 space-y-1">
+          <li>Seite <b>Settings</b>: als Beschreibung z. B. „HA-Phone“ eintragen, <b>Continue</b>.</li>
+          <li>Seite <b>Scopes</b>: oben „Custom scopes“ lassen.</li>
+          <li>Unten <b>Devices</b> aufklappen → bei <b>Core</b> das Häkchen <b>Write</b>.</li>
+          <li><b>Keys</b> aufklappen → bei <b>Auth Keys</b> das Häkchen <b>Write</b>.</li>
+          <li>Im Feld <b>Tags</b>, das dann erscheint, <b>{cfg.tag}</b> wählen. Fehlt der Tag, ist Schritt 1 noch
+            nicht gespeichert.</li>
+          <li><b>Generate credential</b> klicken.</li>
+        </ul>
+      </li>
+      <li>
+        <b>Einfügen.</b> Tailscale zeigt jetzt Client-ID und Client-Secret. Das Secret gibt es nur dieses eine Mal,
+        also direkt hier einfügen:
+        <div className="mt-3">{credentialsForm}</div>
+      </li>
+    </ol>
+  );
 
-        <Card className="mb-4">
-          <CardHeader>
-            <span className="text-base font-semibold">1 · Tailscale auf Home Assistant</span>
-          </CardHeader>
-          <CardContent className="text-sm space-y-2">
-            {cfg.pbx.found ? (
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600" /> Gefunden: <span className="font-mono">{pbxAddr}</span>
-              </p>
-            ) : (
-              <>
-                <p className="flex items-start gap-2">
-                  <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600" />
-                  <span>
-                    Noch nicht gefunden. Installiere in Home Assistant das Add-on <b>Tailscale</b> (Einstellungen →
-                    Add-ons → Add-on-Store), starte es und melde dich über den Link im Add-on an.
-                    „Userspace networking“ muss ausgeschaltet bleiben.
-                  </span>
-                </p>
-                <Button variant="outline" size="sm" onClick={load}>Erneut prüfen</Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="mb-4">
-          <CardHeader>
-            <span className="text-base font-semibold">2 · Zugang für HA-Phone anlegen</span>
-          </CardHeader>
-          <CardContent className="text-sm space-y-3">
-            <ol className="list-decimal pl-5 space-y-2">
-              <li>
-                Öffne die Tailscale-Konsole und melde dich an (z. B. mit GitHub).{" "}
-                <a href={cfg.console_url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 font-medium underline">
-                  Tailscale-Konsole öffnen <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              </li>
-              <li>
-                Gibt es die Tags noch nicht? Füge unter <b>Access controls</b> diesen Abschnitt in die Policy ein
-                und speichere:
-                <pre className="mt-2 rounded bg-muted p-3 text-xs overflow-x-auto">{cfg.acl_snippet}</pre>
-                <Button variant="outline" size="sm" className="mt-2"
-                  onClick={() => copyToClipboard(cfg.acl_snippet, "Policy-Abschnitt kopiert.")}>
-                  <Copy className="h-3.5 w-3.5" /> Kopieren
-                </Button>
-              </li>
-              <li>
-                Unter <b>Settings → Trust credentials</b> einen neuen <b>OAuth-Client</b> anlegen. Häkchen bei
-                <b> Auth Keys – Write</b> und <b>Devices Core – Write</b>, als Tag <b>{cfg.tag}</b> wählen.
-              </li>
-              <li>Client-ID und Client-Secret kopieren. Das Secret zeigt Tailscale nur einmal an.</li>
-            </ol>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <span className="text-base font-semibold">3 · Einfügen und verbinden</span>
-          </CardHeader>
-          <CardContent>{credentialsForm}</CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // ── Connected: status, switch, phones ──
   return (
     <div className="max-w-3xl">
-      <h1 className="text-xl font-semibold mb-8">Tailscale</h1>
+      <h1 className="text-xl font-semibold mb-2">Tailscale</h1>
+      <p className="text-sm text-muted-foreground mb-8">
+        Unterwegs erreichbar: Die HA-Phone-App verbindet sich über dein Tailscale-Netz mit der Anlage, auch im
+        Mobilfunk. Kein Portfreigeben, kein Router-Umbau.
+      </p>
 
       <Card className="mb-4">
         <CardHeader>
-          <span className="text-base font-semibold flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" /> Verbunden
-          </span>
+          <span className="text-base font-semibold">Tailscale auf Home Assistant</span>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
-            <dt className="text-muted-foreground">Tailnet</dt>
-            <dd className="font-mono">{cfg.tailnet || "–"}</dd>
-            <dt className="text-muted-foreground">Anlage</dt>
-            <dd className="font-mono">
-              {cfg.pbx_magicdns || "–"} {pbxAddr && `(${pbxAddr})`}
-              {!cfg.pbx.found && (
-                <span className="ml-2 text-red-600 font-sans">tailscale0 fehlt – läuft das Add-on?</span>
-              )}
-            </dd>
-            <dt className="text-muted-foreground">Tag für Handys</dt>
-            <dd className="font-mono">{cfg.tag}</dd>
-          </dl>
+        <CardContent className="text-sm space-y-3">
+          {cfg.pbx.found ? (
+            <p className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              Läuft: <span className="font-mono">{cfg.pbx_magicdns || pbxAddr}</span>
+              {cfg.pbx_magicdns && <span className="font-mono text-muted-foreground">({pbxAddr})</span>}
+            </p>
+          ) : (
+            <>
+              <p className="flex items-start gap-2">
+                <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600" />
+                <span>Noch nicht gefunden. So geht's:</span>
+              </p>
+              <ol className="list-decimal pl-10 space-y-1">
+                <li>Home Assistant → <b>Einstellungen → Add-ons → Add-on-Store</b>, nach <b>Tailscale</b> suchen,
+                  installieren und starten.</li>
+                <li>Im Reiter <b>Protokoll</b> des Add-ons steht ein Anmelde-Link. Öffnen, mit deinem Konto anmelden
+                  (z. B. GitHub) und <b>Connect</b> klicken.</li>
+                <li>Die Option „Userspace networking“ ausgeschaltet lassen.</li>
+              </ol>
+              <Button variant="outline" size="sm" onClick={load}>Erneut prüfen</Button>
+            </>
+          )}
 
-          <label htmlFor="ts-enabled" className="flex items-center gap-3 cursor-pointer">
-            <ToggleSwitch id="ts-enabled" checked={cfg.enabled} ariaLabel="Neue App-Kopplungen mit Tailscale"
+          <label htmlFor="ts-enabled" className="flex items-center gap-3 cursor-pointer pt-2">
+            <ToggleSwitch id="ts-enabled" checked={cfg.enabled} ariaLabel="Unterwegs-Zugang bei neuen Kopplungen"
               onToggle={toggleEnabled} />
             <span>Neue App-Kopplungen bekommen den Unterwegs-Zugang</span>
           </label>
 
-          {editing ? credentialsForm : (
+          {cfg.pbx.found && cfg.enabled && (
+            <div className="rounded bg-muted p-3 space-y-1">
+              {cfg.configured ? (
+                <p><b>Vollautomatisch:</b> Beim QR-Scan tritt das Handy ohne weitere Anmeldung deinem Tailnet bei.</p>
+              ) : (
+                <>
+                  <p><b>So geht's am Handy:</b> Nach dem QR-Scan öffnet die App einmal die Tailscale-Anmeldung. Mit
+                    deinem Konto anmelden und <b>Connect</b> tippen, fertig.</p>
+                  <p className="text-muted-foreground">
+                    Tipp: Tailscale meldet solche Handys nach 180 Tagen ab. In der Tailscale-Konsole unter
+                    Machines beim Handy „…“ → <b>Disable key expiry</b> wählen, dann bleibt es dauerhaft drin. Oder
+                    unten die Vollautomatik einrichten.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mb-4">
+        <CardHeader>
+          <span className="text-base font-semibold flex items-center gap-2">
+            {cfg.configured && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+            Vollautomatisch (optional)
+          </span>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          {cfg.configured && !editing ? (
             <>
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+                <dt className="text-muted-foreground">Status</dt>
+                <dd>Verbunden, Handys treten beim QR-Scan automatisch bei</dd>
+                <dt className="text-muted-foreground">Tailnet</dt>
+                <dd className="font-mono">{cfg.tailnet || "–"}</dd>
+                <dt className="text-muted-foreground">Tag für Handys</dt>
+                <dd className="font-mono">{cfg.tag}</dd>
+              </dl>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={retest} disabled={busy}>
                   {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                   Verbindung erneut testen
                 </Button>
                 <Button variant="outline" onClick={() => { setEditing(true); setCheck(null); }}>Zugang ändern</Button>
-                <Button variant="destructive" onClick={() => setConfirmDisconnect(true)}>Tailscale trennen</Button>
+                <Button variant="destructive" onClick={() => setConfirmDisconnect(true)}>Zugang entfernen</Button>
               </div>
               <CheckList result={check} />
+              {confirmDisconnect && (
+                <div className="rounded border border-red-300 p-3 space-y-2">
+                  <p>Neue Handys müssen sich dann selbst bei Tailscale anmelden. Sollen die bisherigen Handys
+                    außerdem aus dem Tailnet entfernt werden?</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="destructive" size="sm" onClick={() => disconnect(true)} disabled={busy}>
+                      Ja, Handys entfernen
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => disconnect(false)} disabled={busy}>
+                      Nur Zugang entfernen
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmDisconnect(false)}>Abbrechen</Button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : cfg.configured && editing ? (
+            credentialsForm
+          ) : showAuto ? (
+            autoGuide
+          ) : (
+            <>
+              <p>
+                Damit müssen sich neue Handys nicht mehr selbst anmelden, und nichts läuft nach 180 Tagen ab. Dafür
+                legst du einmal in der Tailscale-Konsole einen Zugang für HA-Phone an (etwa 2 Minuten).
+              </p>
+              <Button variant="outline" onClick={() => setShowAuto(true)}>Einrichten</Button>
             </>
           )}
-
-          {confirmDisconnect && (
-            <div className="rounded border border-red-300 p-3 space-y-2">
-              <p>Alle Handys verlieren den Unterwegs-Zugang. Sollen sie auch aus dem Tailnet entfernt werden?</p>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="destructive" size="sm" onClick={() => disconnect(true)} disabled={busy}>
-                  Ja, Handys entfernen
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => disconnect(false)} disabled={busy}>
-                  Nur Zugang löschen
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setConfirmDisconnect(false)}>Abbrechen</Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <span className="text-base font-semibold">Handys im Tailnet</span>
-        </CardHeader>
-        <CardContent className="text-sm">
-          {phones === null ? (
-            <Skeleton className="h-16" />
-          ) : phonesError ? (
-            <p className="text-red-600">{phonesError}</p>
-          ) : phones.length === 0 ? (
-            <p className="text-muted-foreground">
-              Noch keine. Koppel ein Handy per QR-Code (Provisioning), es tritt dann automatisch bei.
-            </p>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-muted-foreground">
-                  <th className="py-1 font-normal">Gerät</th>
-                  <th className="py-1 font-normal">Nebenstelle</th>
-                  <th className="py-1 font-normal">Tailnet-IP</th>
-                  <th className="py-1 font-normal">Zuletzt online</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {phones.map((p) => (
-                  <tr key={p.id} className="border-t">
-                    <td className="py-2">{p.device_name || p.hostname}</td>
-                    <td className="py-2">{p.extension_number ?? "–"}</td>
-                    <td className="py-2 font-mono">{p.addresses.find((a) => !a.includes(":")) ?? "–"}</td>
-                    <td className="py-2">{relativeTime(p.last_seen)}</td>
-                    <td className="py-2 text-right">
-                      <Button variant="outline" size="sm" onClick={() => removePhone(p)}>Entfernen</Button>
-                    </td>
+      {(cfg.pbx.found || cfg.configured) && (
+        <Card>
+          <CardHeader>
+            <span className="text-base font-semibold">Handys im Tailnet</span>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {phones === null ? (
+              <Skeleton className="h-16" />
+            ) : phonesError ? (
+              <p className="text-red-600">{phonesError}</p>
+            ) : phones.length === 0 ? (
+              <p className="text-muted-foreground">
+                Noch keine. Koppel ein Handy per QR-Code (Provisioning), es tritt dann dem Tailnet bei.
+              </p>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="py-1 font-normal">Gerät</th>
+                    <th className="py-1 font-normal">Nebenstelle</th>
+                    <th className="py-1 font-normal">Tailnet-IP</th>
+                    <th className="py-1 font-normal">Zuletzt online</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </CardContent>
-      </Card>
+                </thead>
+                <tbody>
+                  {phones.map((p) => (
+                    <tr key={p.id} className="border-t">
+                      <td className="py-2">{p.device_name || p.hostname}</td>
+                      <td className="py-2">{p.extension_number ?? "–"}</td>
+                      <td className="py-2 font-mono">{p.addresses.find((a) => !a.includes(":")) ?? "–"}</td>
+                      <td className="py-2">{relativeTime(p.last_seen)}</td>
+                      <td className="py-2 text-right">
+                        {p.removable ? (
+                          <Button variant="outline" size="sm" onClick={() => removePhone(p)}>Entfernen</Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">in der Konsole entfernen</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

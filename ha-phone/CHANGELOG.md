@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.121
+
+**Verbesserung - Tailscale ohne Einrichtung in HA-Phone**
+- Läuft das Tailscale-Add-on in Home Assistant, reicht das jetzt: Nach dem QR-Scan öffnet die App einmal die Tailscale-Anmeldung, du meldest dich an und tippst „Connect“. Einen Zugang (OAuth-Client) in HA-Phone braucht es dafür nicht mehr.
+- Die Vollautomatik mit OAuth-Client ist jetzt optional und hat eine Schritt-für-Schritt-Anleitung für die Tailscale-Konsole (welche Häkchen, welcher Tag). Schlägt dort die Schlüsselerstellung fehl, meldet sich das Handy einfach selbst an.
+- Die Liste „Handys im Tailnet“ funktioniert auch ohne OAuth-Client.
+- Der Schalter „Neue App-Kopplungen bekommen den Unterwegs-Zugang“ gilt für beide Wege.
+
 ## 0.7.120
 
 **Neu - Tailscale: Apps unterwegs erreichbar**

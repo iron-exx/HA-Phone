@@ -178,10 +178,34 @@ def test_access_token_is_cached(client, connected):
 
 # ── pairing ──
 
-def test_pairing_without_tailscale_has_no_block(client, fake_ts):
+def test_pairing_without_oauth_client_asks_the_phone_to_log_in(client, fake_ts):
+    ext_id, num, body = _pair(client)
+    try:
+        ts = body["tailscale"]
+        assert ts["login"] == "interactive" and ts["auth_key"] is None
+        assert ts["pbx_tailnet_ip"] == PBX_V4
+    finally:
+        client.delete(f"/api/extensions/{ext_id}")
+
+
+def test_pairing_without_tailscale_on_the_box_has_no_block(client, fake_ts, monkeypatch):
+    monkeypatch.setattr(tailnet, "detect_tailnet_address", lambda: tailnet.TailnetAddress())
     ext_id, num, body = _pair(client)
     try:
         assert body["tailscale"] is None
+    finally:
+        client.delete(f"/api/extensions/{ext_id}")
+
+
+def test_device_list_without_oauth_client_comes_from_the_apps(client, fake_ts):
+    ext_id, num, body = _pair(client)
+    try:
+        client.post("/api/mobile/device/tailscale", json={
+            "device_id": body["device_id"], "device_token": body["device_token"],
+            "node_id": "nSELF1", "ip": "100.80.9.9"})
+        devs = [d for d in client.get("/api/tailscale/devices").json() if d["id"] == "nSELF1"]
+        assert devs and devs[0]["extension_number"] == num
+        assert devs[0]["addresses"] == ["100.80.9.9"] and devs[0]["removable"] is False
     finally:
         client.delete(f"/api/extensions/{ext_id}")
 
@@ -190,7 +214,7 @@ def test_pairing_hands_out_a_one_time_key(client, connected):
     ext_id, num, body = _pair(client)
     try:
         ts = body["tailscale"]
-        assert ts["auth_key"].startswith("tskey-auth-")
+        assert ts["login"] == "auth_key" and ts["auth_key"].startswith("tskey-auth-")
         assert ts["hostname"] == f"haphone-{num}-pixel-6"
         assert ts["pbx_tailnet_ip"] == PBX_V4
         assert ts["sip_domain_tailnet"] == f"{PBX_V4}:5061"
@@ -205,7 +229,7 @@ def test_pairing_still_works_when_tailscale_fails(client, connected):
     connected.key_error = (500, "boom")
     ext_id, num, body = _pair(client)
     try:
-        assert body["tailscale"] is None
+        assert body["tailscale"]["login"] == "interactive"
         assert body["sip_password"]
     finally:
         client.delete(f"/api/extensions/{ext_id}")
@@ -217,6 +241,7 @@ def test_switched_off_hands_out_no_key(client, connected):
     try:
         assert body["tailscale"] is None
     finally:
+        client.patch("/api/tailscale/config", json={"enabled": True})
         client.delete(f"/api/extensions/{ext_id}")
 
 
