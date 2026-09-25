@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.124
+
+**Verbesserung - Neu gekoppeltes Handy räumt auf**
+- Wird dasselbe Handy erneut per QR-Code gekoppelt, widerruft die Anlage die alte Kopplung und entfernt das alte Gerät aus dem Tailnet. Vorher blieben pro Neukopplung Karteileichen in der Tailscale-Geräteliste.
+
 ## 0.7.123
 
 **Fehlerbehebung - Tailscale-Verbindungstest**

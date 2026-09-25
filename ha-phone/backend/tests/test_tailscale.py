@@ -314,3 +314,22 @@ def test_disconnect_can_remove_all_phones(client, connected):
         assert client.get("/api/tailscale/config").json()["configured"] is False
     finally:
         client.delete(f"/api/extensions/{ext_id}")
+
+
+def test_repairing_the_same_phone_retires_the_old_pairing(client, connected):
+    ext_id, num, first = _pair(client)
+    try:
+        auth = {"device_id": first["device_id"], "device_token": first["device_token"]}
+        client.post("/api/mobile/device/tailscale", json={**auth, "node_id": "nOLD1", "ip": "100.80.0.1"})
+        start = client.post("/api/mobile/provision/start",
+                            json={"extension_number": num, "platform": "android", "device_name": "Pixel 6"})
+        again = client.post("/api/mobile/provision/complete", json={
+            "provisioning_token": start.json()["provisioning_token"],
+            "push_token": "", "os_device_id": "emu", "device_name": "Pixel 6",
+        })
+        assert again.status_code == 200
+        assert "nOLD1" in connected.deleted_devices
+        # The old device token is dead.
+        assert client.post("/api/mobile/device/tailscale", json={**auth, "node_id": "x"}).status_code == 401
+    finally:
+        client.delete(f"/api/extensions/{ext_id}")

@@ -296,6 +296,26 @@ async def complete_provisioning(
     session.commit()
     session.refresh(device)
 
+    # The same phone paired again (new QR, same OS device id): the old pairing is dead,
+    # the app has already forgotten it. Revoke it and remove its tailnet node.
+    if data.os_device_id:
+        stale = session.exec(
+            select(MobileDevice).where(
+                MobileDevice.os_device_id == data.os_device_id,
+                MobileDevice.id != device.id,
+                MobileDevice.status != "revoked",
+            )
+        ).all()
+        for old in stale:
+            await run_in_threadpool(tailscale_router.remove_phone_from_tailnet, session, old)
+            old.status = "revoked"
+            old.push_token = ""
+            old.device_token_hash = ""
+            old.updated_at = datetime.utcnow()
+            session.add(old)
+        if stale:
+            session.commit()
+
     # One-time tailnet key (only when Tailscale is set up; failures keep pairing LAN-only).
     ts_block = await run_in_threadpool(tailscale_router.phone_tailscale_block, session, ext, device)
 
