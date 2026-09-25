@@ -665,6 +665,9 @@ class ProvisioningCompleteOut(SQLModel):
     config_version: int
     # Present only when Tailscale is set up in HA-Phone (see backend/tailnet.py).
     tailscale: Optional[dict] = None
+    # SHA-256 of the box's TLS cert (SIP TLS + HTTPS API) and the HTTPS port; see backend/tls_pin.py.
+    tls_fingerprint: str = ""
+    api_https_port: int = 0
 
 
 class DeviceRegisterIn(SQLModel):

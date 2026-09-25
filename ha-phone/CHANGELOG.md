@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.130
+
+**Sicherheit - verschlüsselte Verbindung zur HA-Phone App**
+- Die App-Schnittstelle ist jetzt zusätzlich per HTTPS auf Port 8443 erreichbar, mit demselben Zertifikat wie SIP-TLS (5061). Die Weboberfläche bleibt auf Port 80.
+- Der Kopplungs-QR-Code enthält den Fingerabdruck dieses Zertifikats. Die App prüft damit, dass sie wirklich mit dieser Anlage spricht, auch über Tailscale. Ältere App-Versionen koppeln weiterhin wie bisher.
+
 ## 0.7.129
 
 **Fehlerbehebung - Anwesenheit mit eigener „Zuhause“-Zone**

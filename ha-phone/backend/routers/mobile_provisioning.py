@@ -33,6 +33,7 @@ from backend.auth import get_current_user as get_current_admin_user
 from backend.crypto import EncryptedString
 from backend.routers.extensions import door_actions_of
 from backend.routers import tailscale as tailscale_router
+from backend import tls_pin
 from fastapi.concurrency import run_in_threadpool
 
 # Admin-gated CRUD/control router (start provisioning, revoke, list devices).
@@ -221,6 +222,10 @@ def start_provisioning(
     # port remap) — embed the bare LAN IP so the phone knows which box to
     # talk to; no port needed.
     qr_url = f"haphone://provision?t={jwt_token}&host={_lan_ip()}"
+    # Cert pin for the app (SIP TLS + HTTPS API); the QR code is the trusted channel.
+    pin = tls_pin.pin_fields()
+    if pin:
+        qr_url += f"&fp={pin['tls_fingerprint']}&https={pin['api_https_port']}"
     # Also support universal link for App Store distribution
     # universal_url = f"https://{_lan_ip()}/app/setup?t={jwt_token}"
 
@@ -335,6 +340,7 @@ async def complete_provisioning(
         codecs=["opus", "g722", "ulaw", "alaw"],
         config_version=1,
         tailscale=ts_block,
+        **tls_pin.pin_fields(),
     )
 
 
@@ -573,5 +579,6 @@ def get_mobile_config(
         "turn_servers": [],
         "codecs": ["opus", "g722", "ulaw", "alaw"],
         "config_version": 1,
+        **tls_pin.pin_fields(),
     }
 
