@@ -85,10 +85,14 @@ async def lifespan(app: FastAPI):
     tailnet_task = asyncio.create_task(_watch_tailnet_transport())
     from backend.doorbell_listener import DoorbellListener, listener_enabled
     doorbell_task = asyncio.create_task(DoorbellListener().run()) if listener_enabled() else None
+    from backend import ha_presence
+    presence_task = asyncio.create_task(ha_presence.watch()) if listener_enabled() else None
     yield
     tailnet_task.cancel()
     if doorbell_task is not None:
         doorbell_task.cancel()
+    if presence_task is not None:
+        presence_task.cancel()
     if stun_server is not None:
         await stun_server.stop()
     if ldap_server is not None:

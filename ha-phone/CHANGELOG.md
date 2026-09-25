@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.127
+
+**Neu - Türklingel unterwegs nur, wenn niemand zu Hause ist**
+- Neues Feld „Gehört zu (Home-Assistant-Person)“ an der Nebenstelle, z. B. `person.sandro`. Klingelt eine Türstation über eine Klingelgruppe, bleiben die Telefone von Personen still, die unterwegs sind, solange jemand anderes zu Hause ist. Ist niemand zu Hause, klingeln alle, damit man die Tür auch von unterwegs öffnen kann.
+- Die Anlage fragt die Anwesenheit jede Minute bei Home Assistant ab und passt die Klingelgruppen der Türstationen automatisch an. Ist der Zustand unbekannt, klingelt das Telefon trotzdem.
+- Gilt für Türstationen mit „Nur intern“ (Klingelgruppen). Direkte Anrufe an eine einzelne Nebenstelle klingeln weiterhin immer.
+
 ## 0.7.126
 
 **Neu - Klingel-Verlauf mit Foto**

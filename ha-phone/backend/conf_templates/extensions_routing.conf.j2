@@ -154,7 +154,7 @@ exten => {{ ivr_menu.number }},1,NoOp(Internal-only IVR {{ ivr_menu.name }})
 {% for ring_group in ring_groups %}
 {% if ring_group.number and ring_group_dials.get(ring_group.id, '') %}
 exten => {{ ring_group.number }},1,NoOp(Internal-only call to ring group {{ ring_group.name }})
- same => n,Dial({{ ring_group_dials.get(ring_group.id, '') }},{{ ring_group.ring_timeout }})
+ same => n,Dial({{ door_ring_group_dials.get(ring_group.id, '') }},{{ ring_group.ring_timeout }})
  same => n,Hangup()
 {% endif %}
 {% endfor %}

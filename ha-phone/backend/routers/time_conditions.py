@@ -55,6 +55,7 @@ def _build_dial_string(
     ring_group: RingGroup,
     ext_groups_by_id: dict[int, ExtensionGroup] | None = None,
     video_numbers: set[str] | frozenset[str] = frozenset(),
+    exclude: set[str] | frozenset[str] = frozenset(),
 ) -> str:
     """Resolve a ring group's members into a Dial()-ready PJSIP/... & ... string.
     Members come from two additive sources: direct extension_numbers, and any
@@ -70,7 +71,7 @@ def _build_dial_string(
             group = ext_groups_by_id.get(int(raw_gid))
             if group:
                 numbers.extend(n.strip() for n in group.extension_numbers.split(",") if n.strip())
-    deduped = list(dict.fromkeys(numbers))
+    deduped = [n for n in dict.fromkeys(numbers) if n not in exclude]
     return "&".join(dial_target(n, video_numbers) for n in deduped)
 
 
@@ -129,6 +130,14 @@ def _regenerate_routing_conf(session: Session) -> None:
     video_numbers = {str(e.number) for e in extensions if e.video_capable}
     ring_group_dials = {
         rg.id: _build_dial_string(rg, ext_groups_by_id, video_numbers) for rg in ring_groups_list
+    }
+    # Door stations (internal-only context): phones of people who are away stay silent
+    # while someone is at home (ha_presence.py). Never an empty group: then ring all.
+    from backend import ha_presence
+    door_ring_group_dials = {
+        rg.id: (_build_dial_string(rg, ext_groups_by_id, video_numbers, ha_presence.door_excluded)
+                or ring_group_dials[rg.id])
+        for rg in ring_groups_list
     }
     routes = session.exec(select(Route)).all()
     outbound_rules = session.exec(
@@ -244,6 +253,7 @@ def _regenerate_routing_conf(session: Session) -> None:
             "time_conditions": time_conditions,
             "ring_groups": ring_groups_list,
             "ring_group_dials": ring_group_dials,
+            "door_ring_group_dials": door_ring_group_dials,
             "routes": routes,
             "route_dids": route_dids,
             "outbound_rules": outbound_rules,

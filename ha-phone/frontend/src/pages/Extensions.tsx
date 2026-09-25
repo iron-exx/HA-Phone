@@ -110,6 +110,11 @@ const editSchema = extensionSchema.extend({
     .max(512, "Max 512 Zeichen")
     .regex(/^(camera\.[a-z0-9_]+|https?:\/\/\S+)?$/, "camera.name oder http(s):// Adresse")
     .default(""),
+  ha_person: z
+    .string()
+    .max(128, "Max 128 Zeichen")
+    .regex(/^(person\.[a-z0-9_]+)?$/, "z. B. person.sandro")
+    .default(""),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -469,6 +474,7 @@ function EditExtensionDialog({
       recording_allowed: extension.recording_allowed ?? false,
       door_open_webhook: extension.door_open_webhook ?? "",
       doorbell_camera: extension.doorbell_camera ?? "",
+      ha_person: extension.ha_person ?? "",
     },
   });
   const [saving, setSaving] = useState(false);
@@ -484,7 +490,7 @@ function EditExtensionDialog({
       return;
     }
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string; doorbell_camera: string }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string; doorbell_camera: string; ha_person: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
@@ -496,6 +502,7 @@ function EditExtensionDialog({
       recording_allowed: values.recording_allowed,
       door_open_webhook: (values.door_open_webhook ?? "").trim(),
       doorbell_camera: (values.doorbell_camera ?? "").trim(),
+      ha_person: (values.ha_person ?? "").trim(),
     };
     if (values.sip_password && values.sip_password.length > 0) {
       body.sip_password = values.sip_password;
@@ -633,6 +640,22 @@ function EditExtensionDialog({
                   </FormControl>
                   <p className="text-xs text-muted-foreground">
                     Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App ruft diese Adresse auf (POST mit JSON), auch schon während es klingelt. Die App sieht die Adresse nie. Leer = die App sendet im Gespräch den Tür-Öffnen-Code.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="ha_person"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gehört zu (Home-Assistant-Person)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="person.sandro" className="font-mono" {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Klingelt die Türstation, bleibt dieses Telefon still, solange die Person unterwegs und jemand anderes zu Hause ist. Ist niemand zu Hause, klingelt es auch unterwegs. Leer = klingelt immer.
                   </p>
                   <FormMessage />
                 </FormItem>

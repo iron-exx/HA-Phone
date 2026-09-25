@@ -18,6 +18,7 @@ export interface Extension {
   recording_allowed?: boolean;
   door_open_webhook?: string;
   doorbell_camera?: string;
+  ha_person?: string;
   // sip_password is never returned by the API
 }
 

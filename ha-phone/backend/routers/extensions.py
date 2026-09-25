@@ -301,6 +301,7 @@ def _extension_out(extension: Extension) -> ExtensionOut:
         recording_allowed=extension.recording_allowed,
         door_open_webhook=extension.door_open_webhook,
         doorbell_camera=extension.doorbell_camera,
+        ha_person=extension.ha_person,
     )
 
 

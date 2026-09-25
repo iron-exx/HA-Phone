@@ -111,6 +111,9 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN door_open_webhook TEXT NOT NULL DEFAULT ''")
                 )
                 conn.commit()
+            if "ha_person" not in cols:
+                conn.execute(text("ALTER TABLE extension ADD COLUMN ha_person TEXT NOT NULL DEFAULT ''"))
+                conn.commit()
             if "doorbell_camera" not in cols:
                 conn.execute(
                     text("ALTER TABLE extension ADD COLUMN doorbell_camera TEXT NOT NULL DEFAULT ''")
