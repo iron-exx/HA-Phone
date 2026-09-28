@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.137
+
+**Fehlerbehebung - App unterwegs über Tailscale**
+- Die App-Schnittstelle hält Verbindungen jetzt 30 statt 5 Sekunden offen. Über ein Tailscale-Relay scheiterten sonst regelmäßig Anfragen mit „Connection closed before full header was received“, und die App zeigte „Anlage nicht erreichbar“.
+
 ## 0.7.136
 
 **Protokoll**

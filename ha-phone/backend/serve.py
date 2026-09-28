@@ -14,10 +14,16 @@ from backend import tls_pin
 
 log = logging.getLogger("ha_phone.serve")
 
+KEEP_ALIVE_S = 30
+
 
 def _servers() -> list:
     http_port = int(os.environ.get("BPX_HTTP_PORT", "80"))
-    http = uvicorn.Config("backend.main:app", host="0.0.0.0", port=http_port, log_level="info")
+    # Keep-alive 30 s instead of uvicorn's 5 s: over a Tailscale relay the FIN reaches the
+    # app late, and it then reused an already closed connection (app 1.6.5 also drops idle
+    # connections after 3 s).
+    http = uvicorn.Config("backend.main:app", host="0.0.0.0", port=http_port, log_level="info",
+                          timeout_keep_alive=KEEP_ALIVE_S)
     servers = [uvicorn.Server(http)]
     if tls_pin.cert_path().is_file() and tls_pin.key_path().is_file():
         https = uvicorn.Config(
@@ -26,6 +32,7 @@ def _servers() -> list:
             port=int(os.environ.get("BPX_HTTPS_PORT", str(tls_pin.HTTPS_PORT))),
             log_level="info",
             lifespan="off",
+            timeout_keep_alive=KEEP_ALIVE_S,
             ssl_certfile=str(tls_pin.cert_path()),
             ssl_keyfile=str(tls_pin.key_path()),
         )

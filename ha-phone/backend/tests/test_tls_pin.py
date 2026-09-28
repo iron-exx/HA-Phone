@@ -99,6 +99,7 @@ def test_serve_adds_https_without_lifespan_only_with_cert(cert):
         assert http.config.port == 80 and http.config.lifespan == "auto"
         assert https.config.port == 8443 and https.config.lifespan == "off"
         assert https.config.ssl_certfile.endswith("asterisk.crt")
+        assert http.config.timeout_keep_alive == 30 and https.config.timeout_keep_alive == 30
     finally:
         key.unlink()
     assert len(serve._servers()) == 1
