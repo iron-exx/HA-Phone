@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.132
+
+**Fehlerbehebung - Tailscale-Freigabe für HTTPS**
+- Die Vorlage für die Tailscale-Zugriffsregeln (Seite „Tailscale“) enthält jetzt auch Port 8443 (verschlüsselte App-Schnittstelle seit 0.7.130). Ohne diese Freigabe konnten per Schlüssel gekoppelte Handys unterwegs keine Kontakte, Mailbox usw. laden. **Bitte den Abschnitt auf der Seite „Tailscale“ neu kopieren und in der Tailscale-Konsole unter „Access controls“ ersetzen.**
+
 ## 0.7.131
 
 **Neu - Rückfall auf die Handynummer**
