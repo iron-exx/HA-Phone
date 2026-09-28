@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.136
+
+**Protokoll**
+- Der Test-Anruf meldete im Protokoll fälschlich „failed“, obwohl das Handy klingelte. Das Warten auf die Annahme gilt nicht mehr als Fehler.
+
 ## 0.7.135
 
 **Fehlerbehebung - Test-Anruf zuverlässig am richtigen Handy**

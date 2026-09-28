@@ -442,8 +442,14 @@ async def originate_test_call(number: str, device_id: int | None = None) -> None
     """Rings the requesting app (see test_call_originate)."""
     action = test_call_originate(number, device_id)
     _log.info("test call %s: device %s via %s", number, device_id, action["Channel"])
-    async with asyncio.timeout(_AMI_TIMEOUT):
-        manager = await _get_manager()
-        response = await manager.send_action(action)
+    manager = await _get_manager()
+    try:
+        async with asyncio.timeout(_AMI_TIMEOUT):
+            response = await manager.send_action(action)
+    except TimeoutError:
+        # The AMI client waits for OriginateResponse, which only comes once the call is
+        # answered or rings out (up to 30 s). The call is already ringing: not an error.
+        _log.info("test call %s: originate sent, still ringing", number)
+        return
     if response.get("Response") != "Success":
         raise RuntimeError(response.get("Message", "Originate failed"))

@@ -24,3 +24,18 @@ def test_target_context_filters_the_app_contact(client, tmp_data_dir):
     # A ';' would start a comment in extensions.conf and cut the line.
     body = [l for l in ctx.splitlines() if not l.startswith(";")]
     assert not any(";" in l for l in body)
+
+
+def test_slow_originate_response_is_not_an_error(monkeypatch):
+    import asyncio
+
+    class _Slow:
+        async def send_action(self, action, as_list=False):
+            await asyncio.sleep(10)
+
+    async def _mgr():
+        return _Slow()
+
+    monkeypatch.setattr(ami, "_get_manager", _mgr)
+    monkeypatch.setattr(ami, "_AMI_TIMEOUT", 0.05)
+    asyncio.run(ami.originate_test_call("11", device_id=17))  # must not raise
