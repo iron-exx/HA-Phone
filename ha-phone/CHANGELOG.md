@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.134
+
+**Diagnose**
+- Der Test-Anruf schreibt ins Protokoll, welche Geräte der Nebenstelle gefunden wurden und welches angerufen wird.
+
 ## 0.7.133
 
 **Fehlerbehebung - Test-Anruf klingelt das richtige Gerät**

@@ -434,7 +434,9 @@ async def _device_contact_uri(manager, number: str, device_id: int) -> str:
     # Dialplan functions over AMI Getvar: PJSIPShowContacts hangs on this Asterisk build.
     names = [n.strip() for n in (await _getvar(manager, f"PJSIP_AOR({number},contact)")).split(",") if n.strip()]
     uris = [await _getvar(manager, f"PJSIP_CONTACT({name},uri)") for name in names]
-    return pick_device_contact(uris, device_id)
+    picked = pick_device_contact(uris, device_id)
+    _log.info("test call %s: device %s, contacts %s -> %s", number, device_id, uris, picked or "fallback PJSIP/" + number)
+    return picked
 
 
 async def originate_test_call(number: str, device_id: int | None = None) -> None:
