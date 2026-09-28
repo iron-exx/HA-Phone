@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.133
+
+**Fehlerbehebung - Test-Anruf klingelt das richtige Gerät**
+- „Test-Anruf an mich“ in der App klingelte bei Nebenstellen mit mehreren Geräten (z. B. Tischtelefon und App) nur das zuerst angemeldete Gerät, oft das Tischtelefon. Jetzt ruft die Anlage genau das Handy an, das den Test angefordert hat (ab App 1.6.3). Bei älteren Apps bleibt es beim bisherigen Verhalten.
+
 ## 0.7.132
 
 **Fehlerbehebung - Tailscale-Freigabe für HTTPS**

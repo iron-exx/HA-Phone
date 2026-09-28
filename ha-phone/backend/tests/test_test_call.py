@@ -20,7 +20,8 @@ def test_test_call_rings_own_extension_and_is_rate_limited(client, paired):
             if orig.await_count:
                 break
             client.get("/api/mobile/directory", headers=_auth(paired))  # let the event loop run
-        orig.assert_awaited_once_with("87")
+        # The requesting device, so the PBX rings exactly this app (not the desk phone).
+        orig.assert_awaited_once_with("87", device_id=paired["device_id"])
         again = client.post("/api/mobile/test-call", json={"delay_sec": 0}, headers=_auth(paired))
     assert again.status_code == 429
 

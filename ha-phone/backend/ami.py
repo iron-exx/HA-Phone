@@ -410,20 +410,52 @@ async def stop_recording(number: str, peer: str) -> bool:
 TEST_CALL_CALLERID = '"HA-Phone Test" <>'
 
 
-async def originate_test_call(number: str) -> None:
-    """Rings PJSIP/<number> directly (no forwarding, no ring group) into [haphone-testcall].
+def pick_device_contact(uris: list[str], device_id: int) -> str:
+    """The contact URI of one app (its Contact carries ;haphone-dev=<id>, app 1.6.3+), else ""."""
+    tag = f"haphone-dev={int(device_id)}"
+    for uri in uris:
+        params = uri.split(";")[1:]
+        if tag in params:
+            return uri
+    return ""
 
-    Deliberately plain PJSIP/<number>, NOT ${PJSIP_DIAL_CONTACTS()}: with several
-    registered devices (max_contacts=3) this rings only ONE contact (chan_pjsip picks
-    the first), which is not necessarily the requesting app. Originating to the
-    requesting device's own contact URI would need the app's Contact from the AOR
-    (not tracked per MobileDevice) - left as a follow-up.
+
+def test_call_channel(number: str, contact_uri: str) -> str:
+    """PJSIP/<n>/<uri> rings exactly that contact; PJSIP/<n> only the first registered one."""
+    return f"PJSIP/{number}/{contact_uri}" if contact_uri else f"PJSIP/{number}"
+
+
+async def _getvar(manager, expression: str) -> str:
+    response = await manager.send_action({"Action": "Getvar", "Variable": expression})
+    return str(response.get("Value") or "") if response.get("Response") == "Success" else ""
+
+
+async def _device_contact_uri(manager, number: str, device_id: int) -> str:
+    # Dialplan functions over AMI Getvar: PJSIPShowContacts hangs on this Asterisk build.
+    names = [n.strip() for n in (await _getvar(manager, f"PJSIP_AOR({number},contact)")).split(",") if n.strip()]
+    uris = [await _getvar(manager, f"PJSIP_CONTACT({name},uri)") for name in names]
+    return pick_device_contact(uris, device_id)
+
+
+async def originate_test_call(number: str, device_id: int | None = None) -> None:
+    """Rings the requesting app into [haphone-testcall] (no forwarding, no ring group).
+
+    An extension can have several devices (desk phone + app, max_contacts=3), and a plain
+    PJSIP/<number> rings only the first contact, often the desk phone. So the app's own
+    contact (;haphone-dev=<device id>) is looked up and dialled directly; apps before 1.6.3
+    have no tag and fall back to PJSIP/<number>.
     """
     async with asyncio.timeout(_AMI_TIMEOUT):
         manager = await _get_manager()
+        contact = ""
+        if device_id is not None:
+            try:
+                contact = await _device_contact_uri(manager, number, device_id)
+            except Exception as exc:  # lookup is best effort; ringing the extension still works
+                _log.warning("test call: contact lookup for %s failed: %s", number, exc)
         response = await manager.send_action({
             "Action": "Originate",
-            "Channel": f"PJSIP/{number}",
+            "Channel": test_call_channel(number, contact),
             "Context": "haphone-testcall",
             "Exten": "s",
             "Priority": "1",

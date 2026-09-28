@@ -533,10 +533,10 @@ class TestCallIn(BaseModel):
     delay_sec: int = Field(default=10, ge=0, le=60)
 
 
-async def _ring_later(number: str, delay: int) -> None:
+async def _ring_later(number: str, delay: int, device_id: int | None = None) -> None:
     await asyncio.sleep(delay)
     try:
-        await ami.originate_test_call(number)
+        await ami.originate_test_call(number, device_id=device_id)
     except Exception as exc:  # the app already got 202; log for the admin
         _log.warning("test call to %s failed: %s", number, exc)
 
@@ -554,7 +554,7 @@ async def request_test_call(
     if last is not None and now - last < TEST_CALL_COOLDOWN_SEC:
         raise HTTPException(status_code=429, detail=f"Bitte {int(TEST_CALL_COOLDOWN_SEC - (now - last)) + 1} s warten")
     _last_test_call[device.id] = now
-    task = asyncio.create_task(_ring_later(str(own.number), data.delay_sec))
+    task = asyncio.create_task(_ring_later(str(own.number), data.delay_sec, device.id))
     _test_call_tasks.add(task)
     task.add_done_callback(_test_call_tasks.discard)
     return {"scheduled": True, "delay_sec": data.delay_sec, "number": str(own.number)}
