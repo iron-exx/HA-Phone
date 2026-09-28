@@ -67,6 +67,25 @@ exten => s,1,NoOp(HA-Phone test call)
  same => n,Echo()
  same => n,Hangup()
 
+; The ringing side of the test call (Originate Local/<ext>@haphone-testcall-target):
+; of all devices of the extension only the requesting app (its Contact carries
+; ;haphone-dev=<id>, app 1.6.3+). PJSIP_DIAL_CONTACTS, not an AMI contact query:
+; PJSIPShowContacts / PJSIP_AOR hang on this Asterisk build. No match (older app,
+; HAPHONE_DEV unset): PJSIP/<ext> as before. The regex avoids ';' (config comment);
+; the loop uses GotoIf because app_while / app_exec are not built.
+[haphone-testcall-target]
+exten => _X.,1,NoOp(HA-Phone test call to ${EXTEN}, device ${HAPHONE_DEV})
+ same => n,Set(ALL=${PJSIP_DIAL_CONTACTS(${EXTEN})})
+ same => n,Set(TARGET=)
+ same => n,GotoIf($["${HAPHONE_DEV}" = ""]?dial)
+ same => n(next),Set(ITEM=${SHIFT(ALL,&)})
+ same => n,GotoIf($[${LEN(${ITEM})} = 0]?dial)
+ same => n,GotoIf(${REGEX("haphone-dev=${HAPHONE_DEV}([^0-9]|$)" ${ITEM})}?found:next)
+ same => n(found),Set(TARGET=${ITEM})
+ same => n(dial),NoOp(Test call target: ${IF($["${TARGET}" = ""]?PJSIP/${EXTEN}:${TARGET})})
+ same => n,Dial(${IF($["${TARGET}" = ""]?PJSIP/${EXTEN}:${TARGET})},30)
+ same => n,Hangup()
+
 ; Internal calls + outbound dial rules
 [from-internal]
 

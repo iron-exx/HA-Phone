@@ -1,63 +1,26 @@
 """Test call rings exactly the requesting app: its Contact carries ;haphone-dev=<device id>
-(app 1.6.3+), the PBX finds it via PJSIP_AOR/PJSIP_CONTACT and dials that URI."""
-import asyncio
-
+(app 1.6.3+); [haphone-testcall-target] picks that contact from PJSIP_DIAL_CONTACTS."""
 from backend import ami
 
 
-def test_pick_contact_by_device_id():
-    uris = [
-        "sip:11@192.168.7.21:5060",
-        "sip:11@192.168.178.22:49660;transport=TLS;ob;haphone-dev=17",
-        "sip:11@100.111.167.107:40000;transport=TLS;ob;haphone-dev=170",
-    ]
-    assert ami.pick_device_contact(uris, 17) == uris[1]
-    assert ami.pick_device_contact(uris, 170) == uris[2]
-    assert ami.pick_device_contact(uris, 5) == ""
-    assert ami.pick_device_contact([], 17) == ""
+def test_originate_goes_through_the_target_context_with_the_device():
+    a = ami.test_call_originate("11", device_id=17)
+    assert a["Channel"] == "Local/11@haphone-testcall-target/n"
+    assert a["Context"] == "haphone-testcall"
+    assert a["Variable"] == "__HAPHONE_DEV=17"
 
 
-def test_channel_targets_the_contact_or_falls_back():
-    assert ami.test_call_channel("11", "sip:11@1.2.3.4:5;transport=TLS;haphone-dev=17") == \
-        "PJSIP/11/sip:11@1.2.3.4:5;transport=TLS;haphone-dev=17"
-    assert ami.test_call_channel("11", "") == "PJSIP/11"
+def test_originate_without_device_has_no_variable():
+    assert "Variable" not in ami.test_call_originate("11")
 
 
-class _FakeManager:
-    def __init__(self, values):
-        self.values = values
-        self.sent = []
-
-    async def send_action(self, action, as_list=False):
-        self.sent.append(action)
-        if action["Action"] == "Getvar":
-            return {"Response": "Success", "Value": self.values.get(action["Variable"], "")}
-        return {"Response": "Success"}
-
-
-def test_originate_uses_the_device_contact(monkeypatch):
-    fake = _FakeManager({
-        "PJSIP_AOR(11,contact)": "11;@aaa,11;@bbb",
-        "PJSIP_CONTACT(11;@aaa,uri)": "sip:11@192.168.7.21:5060",
-        "PJSIP_CONTACT(11;@bbb,uri)": "sip:11@192.168.178.22:49660;transport=TLS;ob;haphone-dev=17",
-    })
-
-    async def _mgr():
-        return fake
-
-    monkeypatch.setattr(ami, "_get_manager", _mgr)
-    asyncio.run(ami.originate_test_call("11", device_id=17))
-    originate = [a for a in fake.sent if a["Action"] == "Originate"][0]
-    assert originate["Channel"] == "PJSIP/11/sip:11@192.168.178.22:49660;transport=TLS;ob;haphone-dev=17"
-
-
-def test_originate_without_match_rings_the_extension(monkeypatch):
-    fake = _FakeManager({"PJSIP_AOR(11,contact)": ""})
-
-    async def _mgr():
-        return fake
-
-    monkeypatch.setattr(ami, "_get_manager", _mgr)
-    asyncio.run(ami.originate_test_call("11", device_id=17))
-    originate = [a for a in fake.sent if a["Action"] == "Originate"][0]
-    assert originate["Channel"] == "PJSIP/11"
+def test_target_context_filters_the_app_contact(client, tmp_data_dir):
+    client.post("/api/extensions", json={"number": 45, "display_name": "T", "sip_password": "securepass1234567"})
+    routing = (tmp_data_dir / "asterisk" / "extensions_routing.conf").read_text()
+    ctx = routing.split("[haphone-testcall-target]")[1].split("\n[")[0]
+    assert "PJSIP_DIAL_CONTACTS(${EXTEN})" in ctx
+    assert 'REGEX("haphone-dev=${HAPHONE_DEV}([^0-9]|$)" ${ITEM})' in ctx
+    assert "Dial(${IF($[\"${TARGET}\" = \"\"]?PJSIP/${EXTEN}:${TARGET})},30)" in ctx
+    # A ';' would start a comment in extensions.conf and cut the line.
+    body = [l for l in ctx.splitlines() if not l.startswith(";")]
+    assert not any(";" in l for l in body)

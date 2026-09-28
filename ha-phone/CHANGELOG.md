@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.135
+
+**Fehlerbehebung - Test-Anruf zuverlässig am richtigen Handy**
+- Die Suche nach dem Gerät lief über eine Abfrage, die in dieser Asterisk-Version hängen bleibt. Der Test-Anruf klingelte deshalb weiter beim zuerst angemeldeten Gerät. Jetzt wählt der Wählplan das anfordernde Handy direkt aus.
+
 ## 0.7.134
 
 **Diagnose**

@@ -119,6 +119,6 @@ def test_originate_test_call_uses_name_only_callerid():
         import asyncio
         asyncio.run(ami.originate_test_call("87"))
     action = fake_manager.send_action.call_args[0][0]
-    assert action["Channel"] == "PJSIP/87"
+    assert action["Channel"] == "Local/87@haphone-testcall-target/n"
     assert action["CallerID"] == '"HA-Phone Test" <>'
     assert "<0>" not in action["CallerID"]
