@@ -13,6 +13,7 @@ export interface Extension {
   numeric_callerid?: boolean;
   video_capable?: boolean;
   presence_status?: string;
+  is_door?: boolean;
   door_open_code?: string;
   door_actions?: DoorAction[];
   recording_allowed?: boolean;

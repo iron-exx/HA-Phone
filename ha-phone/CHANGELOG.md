@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.138
+
+**Neu - Schalter „Türstation“ an der Nebenstelle**
+- Ob eine Nebenstelle eine Türklingel oder Türsprechstelle ist, stellst du jetzt direkt ein (Nebenstellen → bearbeiten → „Türstation“). Das funktioniert mit jedem Hersteller (Akuvox, 2N, DoorBird, Fanvil …) und mit beliebig vielen Türen.
+- Nur Türstationen erscheinen im Klingel-Verlauf, und nur sie klingeln in der HA-Phone App als Tür. Bisher galt eine Nebenstelle erst als Tür, wenn ein Öffnen-Code, ein Webhook, eine Aktion oder ein Klingelbild eingetragen war. Eine Klingel ohne diese Angaben fehlte im Verlauf.
+- Tür-Öffnen-Code, Webhook, Klingelbild und Aktionen stehen jetzt direkt unter dem Schalter und erscheinen nur bei Türstationen.
+- Beim Update wird jede Nebenstelle, bei der schon eine dieser Tür-Angaben gesetzt ist, automatisch als Türstation markiert.
+
 ## 0.7.137
 
 **Fehlerbehebung - App unterwegs über Tailscale**

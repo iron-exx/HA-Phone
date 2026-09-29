@@ -45,12 +45,8 @@ def image_dir() -> Path:
 
 
 def is_door(ext: Extension) -> bool:
-    """Same meaning as in the app: something that makes this extension a door station."""
-    try:
-        actions = json.loads(ext.door_actions or "[]")
-    except ValueError:
-        actions = []
-    return bool(ext.door_open_code or ext.door_open_webhook or actions or ext.doorbell_camera)
+    """The admin's "Türstation" switch; the app gets the same flag in its directory."""
+    return bool(ext.is_door)
 
 
 # ── AMI event state machine (no I/O) ───────────────────────────────────────────

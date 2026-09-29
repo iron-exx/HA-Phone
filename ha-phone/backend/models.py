@@ -81,8 +81,12 @@ class Extension(SQLModel, table=True):
     presence_status: str = Field(default="available", max_length=32)
     transport: str = "udp"  # udp | tls  (D-06: TLS/SRTP test extension provisioning)
     media_encryption: str = "none"  # none | sdes | dtls
+    # "Türstation": this extension is a door station (any manufacturer). The only thing
+    # that makes it a door for the doorbell history and the app; the door fields below
+    # only apply when it is set.
+    is_door: bool = False
     # DTMF digits a phone sends to this (door station) extension to open the door.
-    # Delivered to the mobile app via /api/mobile/directory. Empty = not a door.
+    # Delivered to the mobile app via /api/mobile/directory.
     door_open_code: str = Field(default="", max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
     # JSON list of DoorAction (stored as text; the API exposes a list).
     door_actions: str = Field(default="[]")
@@ -118,6 +122,7 @@ class ExtensionCreate(SQLModel):
     presence_status: str = Field(default="available", max_length=32)
     transport: str = "udp"
     media_encryption: str = "none"
+    is_door: bool = False
     door_open_code: str = Field(default="", max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
     door_actions: List[DoorAction] = Field(default=[], max_length=MAX_DOOR_ACTIONS)
     recording_allowed: bool = False
@@ -181,6 +186,7 @@ class ExtensionUpdate(SQLModel):
     presence_status: Optional[str] = Field(default=None, max_length=32)
     transport: Optional[str] = Field(default=None, max_length=8)
     media_encryption: Optional[str] = Field(default=None, max_length=8)
+    is_door: Optional[bool] = None
     door_open_code: Optional[str] = Field(default=None, max_length=16, regex=DOOR_OPEN_CODE_PATTERN)
     door_actions: Optional[List[DoorAction]] = Field(default=None, max_length=MAX_DOOR_ACTIONS)
     recording_allowed: Optional[bool] = None
@@ -241,6 +247,7 @@ class ExtensionOut(SQLModel):
     internal_only: bool = False
     numeric_callerid: bool = False
     presence_status: str = "available"
+    is_door: bool = False
     door_open_code: str = ""
     door_actions: List[dict] = []
     recording_allowed: bool = False

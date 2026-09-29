@@ -148,14 +148,14 @@ def test_directory_includes_door_code_video_presence_and_self(client, paired):
         "/api/extensions",
         json={
             "number": 88, "display_name": "Haustür", "sip_password": "securepass1234567",
-            "door_open_code": "*1", "video_capable": True,
+            "door_open_code": "*1", "video_capable": True, "is_door": True,
         },
     )
     try:
         body = client.get("/api/mobile/directory", headers=_auth(paired)).json()
         entry = next(e for e in body["extensions"] if e["number"] == "88")
         assert entry == {
-            "number": "88", "name": "Haustür", "video": True,
+            "number": "88", "name": "Haustür", "video": True, "is_door": True,
             "door_open_code": "*1", "door_open_remote": False, "has_camera": False, "presence": "available", "door_actions": [],
         }
         assert body["self"] == {"number": "87", "name": "Auth Test", "presence": "available", "recording_allowed": False, "test_call": True}

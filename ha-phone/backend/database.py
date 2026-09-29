@@ -122,6 +122,18 @@ def run_migrations(engine: Engine) -> None:
                     text("ALTER TABLE extension ADD COLUMN doorbell_camera TEXT NOT NULL DEFAULT ''")
                 )
                 conn.commit()
+            if "is_door" not in cols:
+                conn.execute(text("ALTER TABLE extension ADD COLUMN is_door BOOLEAN NOT NULL DEFAULT 0"))
+                # Before the switch an extension was a door when any door setting was
+                # filled in. Carry that over once, when the column is created; later the
+                # admin's switch alone decides.
+                door_cols = [c for c in ("door_open_code", "door_open_webhook", "doorbell_camera") if c in cols]
+                conditions = [f"{c} != ''" for c in door_cols]
+                if "door_actions" in cols:
+                    conditions.append("door_actions NOT IN ('', '[]')")
+                if conditions:
+                    conn.execute(text(f"UPDATE extension SET is_door = 1 WHERE {' OR '.join(conditions)}"))
+                conn.commit()
             if "recording_allowed" not in cols:
                 conn.execute(
                     text("ALTER TABLE extension ADD COLUMN recording_allowed BOOLEAN NOT NULL DEFAULT 0")

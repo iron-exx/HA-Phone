@@ -533,6 +533,9 @@ def get_mobile_directory(
                 "number": str(e.number),
                 "name": e.display_name,
                 "video": e.video_capable,
+                # "Türstation" switch: the app treats only these as doors (ringing,
+                # "Türklingel trotzdem", door card). Older PBX versions lack the key.
+                "is_door": e.is_door,
                 "door_open_code": e.door_open_code,
                 # Whether the slider can open this door without a call; the URL stays on the PBX.
                 "door_open_remote": bool(e.door_open_webhook),

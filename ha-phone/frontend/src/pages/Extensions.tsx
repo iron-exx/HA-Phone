@@ -77,6 +77,7 @@ const extensionSchema = z.object({
   video_capable: z.boolean().default(false),
   internal_only: z.boolean().default(false),
   numeric_callerid: z.boolean().default(false),
+  is_door: z.boolean().default(false),
   door_open_code: z
     .string()
     .max(16, "Max 16 Zeichen")
@@ -263,7 +264,7 @@ function AddExtensionDialog({
 }) {
   const form = useForm<ExtensionFormValues>({
     resolver: zodResolver(extensionSchema),
-    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, video_capable: false, internal_only: false, numeric_callerid: false, door_open_code: "" },
+    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, video_capable: false, internal_only: false, numeric_callerid: false, is_door: false, door_open_code: "" },
   });
   const [saving, setSaving] = useState(false);
   const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>([]);
@@ -389,6 +390,19 @@ function AddExtensionDialog({
             />
             <FormField
               control={form.control}
+              name="is_door"
+              render={({ field }) => (
+                <ToggleRow
+                  id={field.name}
+                  label="Türstation"
+                  description="Diese Nebenstelle ist eine Türklingel oder Türsprechstelle (Akuvox, 2N, DoorBird, Fanvil …). Nur Türstationen erscheinen im Klingel-Verlauf, klingeln in der App als Tür und bekommen Tür öffnen, Klingelbild und Aktionen."
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
+              )}
+            />
+            <FormField
+              control={form.control}
               name="numeric_callerid"
               render={({ field }) => (
                 <ToggleRow
@@ -474,6 +488,7 @@ function EditExtensionDialog({
       video_capable: extension.video_capable ?? false,
       internal_only: extension.internal_only ?? false,
       numeric_callerid: extension.numeric_callerid ?? false,
+      is_door: extension.is_door ?? false,
       door_open_code: extension.door_open_code ?? "",
       presence_status: extension.presence_status || "available",
       recording_allowed: extension.recording_allowed ?? false,
@@ -485,6 +500,7 @@ function EditExtensionDialog({
   });
   const [saving, setSaving] = useState(false);
   const [doorActions, setDoorActions] = useState<DoorAction[]>(extension.door_actions ?? []);
+  const isDoor = form.watch("is_door");
   const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>(
     getExtensionRingGroupIds(extension, ringGroups)
   );
@@ -496,12 +512,13 @@ function EditExtensionDialog({
       return;
     }
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string; doorbell_camera: string; ha_person: string; mobile_fallback: string }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; is_door: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string; doorbell_camera: string; ha_person: string; mobile_fallback: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
       internal_only: values.internal_only,
       numeric_callerid: values.numeric_callerid,
+      is_door: values.is_door,
       door_open_code: values.door_open_code ?? "",
       door_actions: doorActions,
       presence_status: values.presence_status,
@@ -609,6 +626,73 @@ function EditExtensionDialog({
             />
             <FormField
               control={form.control}
+              name="is_door"
+              render={({ field }) => (
+                <ToggleRow
+                  id={field.name}
+                  label="Türstation"
+                  description="Diese Nebenstelle ist eine Türklingel oder Türsprechstelle (Akuvox, 2N, DoorBird, Fanvil …). Nur Türstationen erscheinen im Klingel-Verlauf, klingeln in der App als Tür und bekommen Tür öffnen, Klingelbild und Aktionen."
+                  checked={field.value}
+                  onToggle={field.onChange}
+                />
+              )}
+            />
+            {isDoor && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="door_open_code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tür-Öffnen-Code (DTMF)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="z.B. *1" {...field} />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Die HA-Phone App zeigt beim Klingeln und im Gespräch die Taste „Tür öffnen" und sendet diese Tasten.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="door_open_webhook"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tür-Öffnen-Webhook</FormLabel>
+                      <FormControl>
+                        <Input placeholder="z.B. http://homeassistant.local:8123/api/webhook/haustuer" className="font-mono" {...field} />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App ruft diese Adresse auf (POST mit JSON), auch schon während es klingelt. Die App sieht die Adresse nie. Leer = die App sendet im Gespräch den Tür-Öffnen-Code.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="doorbell_camera"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Klingelbild-Quelle</FormLabel>
+                      <FormControl>
+                        <Input placeholder="camera.haustuer oder http://tuer.local/snapshot.jpg" className="font-mono" {...field} />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Bei jedem Klingeln holt die Anlage hier ein Foto für den Klingel-Verlauf und die App. Eine Home-Assistant-Kamera (<code>camera.…</code>) oder die Snapshot-Adresse der Türstation, Zugangsdaten als <code>http://benutzer:passwort@…</code>. Leer = Klingeln ohne Foto.
+                      </p>
+                      <SnapshotTestButton source={field.value ?? ""} />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DoorActionsEditor value={doorActions} onChange={setDoorActions} />
+              </>
+            )}
+            <FormField
+              control={form.control}
               name="numeric_callerid"
               render={({ field }) => (
                 <ToggleRow
@@ -618,38 +702,6 @@ function EditExtensionDialog({
                   checked={field.value}
                   onToggle={field.onChange}
                 />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="door_open_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tür-Öffnen-Code (DTMF)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="z.B. *1 — leer = keine Türstation" {...field} />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Nur für Türsprechstellen: Die HA-Phone App zeigt beim Klingeln und im Gespräch die Taste „Tür öffnen" und sendet diese Tasten.
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="door_open_webhook"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tür-Öffnen-Webhook</FormLabel>
-                  <FormControl>
-                    <Input placeholder="z.B. http://homeassistant.local:8123/api/webhook/haustuer" className="font-mono" {...field} />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App ruft diese Adresse auf (POST mit JSON), auch schon während es klingelt. Die App sieht die Adresse nie. Leer = die App sendet im Gespräch den Tür-Öffnen-Code.
-                  </p>
-                  <FormMessage />
-                </FormItem>
               )}
             />
             <FormField
@@ -684,24 +736,6 @@ function EditExtensionDialog({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="doorbell_camera"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Klingelbild-Quelle</FormLabel>
-                  <FormControl>
-                    <Input placeholder="camera.haustuer oder http://tuer.local/snapshot.jpg" className="font-mono" {...field} />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Bei jedem Klingeln holt die Anlage hier ein Foto für den Klingel-Verlauf und die App. Eine Home-Assistant-Kamera (<code>camera.…</code>) oder die Snapshot-Adresse der Türstation, Zugangsdaten als <code>http://benutzer:passwort@…</code>. Leer = Klingeln ohne Foto.
-                  </p>
-                  <SnapshotTestButton source={field.value ?? ""} />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DoorActionsEditor value={doorActions} onChange={setDoorActions} />
             <FormField
               control={form.control}
               name="recording_allowed"

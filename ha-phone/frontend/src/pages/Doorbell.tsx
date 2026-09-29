@@ -52,8 +52,8 @@ export default function Doorbell() {
         <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4" /> Aktualisieren</Button>
       </div>
       <p className="text-sm text-muted-foreground mb-6">
-        Jedes Klingeln an einer Türstation der letzten 30 Tage. Das Foto kommt aus der „Klingelbild-Quelle“ der
-        Türstation (Nebenstellen → Türstation bearbeiten).
+        Jedes Klingeln an einer Türstation der letzten 30 Tage. Als Türstation zählt jede Nebenstelle mit dem
+        Schalter „Türstation“ (Nebenstellen → bearbeiten). Das Foto kommt aus ihrer „Klingelbild-Quelle“.
       </p>
 
       {events === null ? (

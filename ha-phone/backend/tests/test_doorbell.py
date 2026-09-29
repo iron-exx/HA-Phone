@@ -107,7 +107,7 @@ def door(client):
     for number in range(99, 9, -1):
         resp = client.post("/api/extensions", json={
             "number": number, "display_name": "Haustür", "sip_password": "securepass1234567",
-            "doorbell_camera": "http://door.local/snap.jpg"})
+            "is_door": True, "doorbell_camera": "http://door.local/snap.jpg"})
         if resp.status_code in (200, 201):
             break
     yield resp.json()

@@ -296,6 +296,7 @@ def _extension_out(extension: Extension) -> ExtensionOut:
         internal_only=extension.internal_only,
         numeric_callerid=extension.numeric_callerid,
         presence_status=extension.presence_status,
+        is_door=extension.is_door,
         door_open_code=extension.door_open_code,
         door_actions=door_actions_of(extension),
         recording_allowed=extension.recording_allowed,
