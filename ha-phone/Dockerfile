@@ -253,6 +253,6 @@ HEALTHCHECK \
   --interval=10s \
   --timeout=5s \
   --retries=3 \
-  --start-period=30s \
+  --start-period=300s \
   --start-interval=5s \
   CMD asterisk -rx "core waitfullybooted" 2>/dev/null || exit 1

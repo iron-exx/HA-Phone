@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.139
+
+**Fehlerbehebung - Neustart-Schleife bei ausgelastetem Home Assistant**
+- Braucht der Start länger als etwa eine Minute (z. B. wenn Home Assistant gerade viel zu tun hat), hielt der Watchdog des Supervisors das Add-on für defekt und startete es immer wieder neu. Die Anlage kam dann nicht mehr hoch. Das Add-on hat jetzt bis zu 5 Minuten Zeit zum Starten.
+
 ## 0.7.138
 
 **Neu - Schalter „Türstation“ an der Nebenstelle**
