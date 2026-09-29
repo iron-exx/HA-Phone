@@ -5,12 +5,13 @@
 ## Features
 
 - **Any SIP trunk** — works with all standard SIP providers (Telekom, Vodafone, 1&1, Sipgate, Deutsche Glasfaser, and many more)
-- **IP phones & softphones** — any SIP-compatible device: desk phones (Grandstream, Snom, Yealink), Android/iOS softphones (Linphone, Zoiper, Acrobits)
-- **SIP video doorbells** — Akuvox and other SIP-capable intercoms
+- **HA-Phone App** — companion app for Android: QR pairing, rings like a normal call even when locked, door camera before you answer, open the door with a swipe
+- **Door stations** — Akuvox, 2N, DoorBird, Fanvil and other SIP intercoms: doorbell history with a photo of every ring, door-open webhook, Home Assistant action buttons
+- **IP phones & softphones** — desk phones and DECT bases (Yealink, Grandstream, Fanvil, Gigaset, Snom) with auto-provisioning, any SIP softphone
+- **Remote access via Tailscale** — no port forwarding; the app joins your tailnet during pairing
 - **Web admin UI** — dark-theme dashboard with live status, no SSH or config files needed
-- **Extensions** — internal SIP extensions with auto-generated passwords
-- **Call routing** — time-based routing, ring groups, voicemail
-- **In-app updates** — update directly from the UI via Home Assistant Supervisor
+- **Call routing** — inbound routes, ring groups, IVR menus, time conditions, voicemail with email
+- **In-app updates and backup** — via the Home Assistant Supervisor
 
 ## Installation
 
@@ -23,7 +24,7 @@
 
 ## Documentation
 
-See [DOCS.md](DOCS.md) for network setup, SIP trunk configuration, and softphone guides.
+See [DOCS.md](DOCS.md) for network, trunk, extensions, door stations and remote access.
 
 ## Support
 
