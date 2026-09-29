@@ -115,7 +115,7 @@ const editSchema = extensionSchema.extend({
   ha_person: z
     .string()
     .max(128, "Max 128 Zeichen")
-    .regex(/^(person\.[a-z0-9_]+)?$/, "z. B. person.sandro")
+    .regex(/^(person\.[a-z0-9_]+)?$/, "z. B. person.anna")
     .default(""),
   mobile_fallback: z
     .string()
@@ -765,7 +765,7 @@ function EditExtensionDialog({
                     <FormItem>
                       <FormLabel>Gehört zu (Home-Assistant-Person)</FormLabel>
                       <FormControl>
-                        <Input placeholder="person.sandro" className="font-mono" {...field} />
+                        <Input placeholder="person.anna" className="font-mono" {...field} />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
                         Klingelt die Türstation, bleibt dieses Telefon still, solange die Person unterwegs und jemand anderes zu Hause ist. Ist niemand zu Hause, klingelt es auch unterwegs. Leer = klingelt immer.

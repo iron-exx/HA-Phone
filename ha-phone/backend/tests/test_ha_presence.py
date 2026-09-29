@@ -6,24 +6,24 @@ from backend import ha_presence
 from backend.models import RingGroup
 from backend.routers.time_conditions import _build_dial_string
 
-M = {"13": "person.sandro", "14": "person.larissa"}
+M = {"13": "person.anna", "14": "person.max"}
 
 
 def test_someone_home_leaves_out_the_away_phones():
-    assert ha_presence.excluded_extensions(M, {"person.sandro": "not_home", "person.larissa": "home"}) == {"13"}
+    assert ha_presence.excluded_extensions(M, {"person.anna": "not_home", "person.max": "home"}) == {"13"}
 
 
 def test_nobody_home_rings_everyone():
-    assert ha_presence.excluded_extensions(M, {"person.sandro": "not_home", "person.larissa": "work"}) == frozenset()
+    assert ha_presence.excluded_extensions(M, {"person.anna": "not_home", "person.max": "work"}) == frozenset()
 
 
 def test_unknown_state_never_silences_a_phone():
-    assert ha_presence.excluded_extensions(M, {"person.sandro": None, "person.larissa": "home"}) == frozenset()
-    assert ha_presence.excluded_extensions(M, {"person.sandro": "unavailable", "person.larissa": "home"}) == frozenset()
+    assert ha_presence.excluded_extensions(M, {"person.anna": None, "person.max": "home"}) == frozenset()
+    assert ha_presence.excluded_extensions(M, {"person.anna": "unavailable", "person.max": "home"}) == frozenset()
 
 
 def test_zone_other_than_home_counts_as_away():
-    assert ha_presence.excluded_extensions(M, {"person.sandro": "Büro", "person.larissa": "home"}) == {"13"}
+    assert ha_presence.excluded_extensions(M, {"person.anna": "Büro", "person.max": "home"}) == {"13"}
 
 
 def test_dial_string_skips_excluded_extensions():
@@ -39,11 +39,11 @@ async def test_fetch_states_via_supervisor(monkeypatch):
 
     def handler(req):
         assert req.headers["authorization"] == "Bearer tok"
-        if req.url.path.endswith("person.sandro"):
+        if req.url.path.endswith("person.anna"):
             return httpx.Response(200, json={"state": "home"})
         return httpx.Response(404)
-    states = await ha_presence.fetch_states({"person.sandro", "person.gone"}, transport=httpx.MockTransport(handler))
-    assert states == {"person.sandro": "home", "person.gone": None}
+    states = await ha_presence.fetch_states({"person.anna", "person.gone"}, transport=httpx.MockTransport(handler))
+    assert states == {"person.anna": "home", "person.gone": None}
 
 
 def test_ha_person_is_validated(client):
@@ -54,16 +54,16 @@ def test_ha_person_is_validated(client):
             break
     ext_id = resp.json()["id"]
     try:
-        assert client.patch(f"/api/extensions/{ext_id}", json={"ha_person": "Person Sandro"}).status_code == 422
-        ok = client.patch(f"/api/extensions/{ext_id}", json={"ha_person": "person.sandro"})
-        assert ok.status_code == 200 and ok.json()["ha_person"] == "person.sandro"
+        assert client.patch(f"/api/extensions/{ext_id}", json={"ha_person": "Person Anna"}).status_code == 422
+        ok = client.patch(f"/api/extensions/{ext_id}", json={"ha_person": "person.anna"})
+        assert ok.status_code == 200 and ok.json()["ha_person"] == "person.anna"
     finally:
         client.delete(f"/api/extensions/{ext_id}")
 
 
 def test_home_zone_name_counts_as_home():
     """Real install: people at home report "Zuhause" (zone.home friendly name)."""
-    states = {"person.sandro": "not_home", "person.larissa": "Zuhause"}
+    states = {"person.anna": "not_home", "person.max": "Zuhause"}
     home = frozenset({"home", "Zuhause"})
     assert ha_presence.excluded_extensions(M, states, home) == {"13"}
     # Without knowing the zone name, "Zuhause" is away -> nobody home -> everyone rings.

@@ -14,7 +14,7 @@
   Registration IDENTITY (AOR) vs AUTH credential are DIFFERENT on the aarenet/outbox
   platform (used by Deutsche Glasfaser as white-label, SBC "AareSwitch"):
     - auth username  = the SIP account from the provider letter (e.g. 30501827343)
-    - AOR / From / Contact user = the PHONE NUMBER with leading 0 (e.g. 063483260104)
+    - AOR / From / Contact user = the PHONE NUMBER with leading 0 (e.g. 0301234567)
   Registering the AOR as the auth account returns "404 Not Found" after auth succeeds,
   because the registrar keys the AOR on the phone number, not the account. So the
   registration/from/contact user is the phone number; only [trunk-auth] uses the account.

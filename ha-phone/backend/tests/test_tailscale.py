@@ -100,7 +100,7 @@ def _pair(client):
 # ── unit ──
 
 def test_device_hostname_is_a_dns_label():
-    assert tailnet.device_hostname(13, "Pixel 6 (Sandro)") == "haphone-13-pixel-6-sandro"
+    assert tailnet.device_hostname(13, "Pixel 6 (Anna)") == "haphone-13-pixel-6-anna"
     assert tailnet.device_hostname(13, "") == "haphone-13"
     assert len(tailnet.device_hostname(13, "x" * 200)) <= 63
 

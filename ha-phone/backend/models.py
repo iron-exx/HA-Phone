@@ -614,7 +614,7 @@ class MobileDevice(SQLModel, table=True):
     os_device_id: str = Field(default="", max_length=128)
     # App version that provisioned this device
     app_version: str = Field(default="", max_length=32)
-    # Human-readable device name (e.g. "Sandro's iPhone 15")
+    # Human-readable device name (e.g. "Annas iPhone 15")
     device_name: str = Field(default="", max_length=96)
     # Provisioning status: "pending" | "active" | "revoked"
     status: str = Field(default="pending", max_length=16)

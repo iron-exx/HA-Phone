@@ -404,9 +404,9 @@ def test_diagnostics_overview(client, mock_ami):
             "channel": "PJSIP/11-00000001",
             "state": "Up",
             "caller_id_num": "11",
-            "caller_id_name": "sandro",
+            "caller_id_name": "anna",
             "connected_line_num": "12",
-            "connected_line_name": "larissa",
+            "connected_line_name": "max",
             "application": "Dial",
             "context": "from-internal",
             "extension": "12",
@@ -885,7 +885,7 @@ def test_trunk_conf_keeps_auth_username_separate_from_registered_number(client, 
             "domain": "voice.example.net",
             "auth_username": "30501827343",
             "password": "mysecretpassword",
-            "phone_number": "063483260104",
+            "phone_number": "0301234567",
             "reg_refresh": 60,
         },
     )
@@ -893,10 +893,10 @@ def test_trunk_conf_keeps_auth_username_separate_from_registered_number(client, 
     conf_path = tmp_data_dir / "asterisk" / "pjsip_trunk.conf"
     content = conf_path.read_text()
     assert "server_uri = sip:sip.example.com" in content
-    assert "client_uri = sip:063483260104@voice.example.net" in content
-    assert "contact_user = 063483260104" in content
+    assert "client_uri = sip:0301234567@voice.example.net" in content
+    assert "contact_user = 0301234567" in content
     assert "username = 30501827343" in content
-    assert "from_user = 063483260104" in content
+    assert "from_user = 0301234567" in content
     assert "from_domain = voice.example.net" in content
     assert "send_pai = yes" in content
     assert "send_rpid = yes" in content

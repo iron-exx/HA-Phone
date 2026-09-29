@@ -77,7 +77,7 @@
 ## 0.7.127
 
 **Neu - Türklingel unterwegs nur, wenn niemand zu Hause ist**
-- Neues Feld „Gehört zu (Home-Assistant-Person)“ an der Nebenstelle, z. B. `person.sandro`. Klingelt eine Türstation über eine Klingelgruppe, bleiben die Telefone von Personen still, die unterwegs sind, solange jemand anderes zu Hause ist. Ist niemand zu Hause, klingeln alle, damit man die Tür auch von unterwegs öffnen kann.
+- Neues Feld „Gehört zu (Home-Assistant-Person)“ an der Nebenstelle, z. B. `person.anna`. Klingelt eine Türstation über eine Klingelgruppe, bleiben die Telefone von Personen still, die unterwegs sind, solange jemand anderes zu Hause ist. Ist niemand zu Hause, klingeln alle, damit man die Tür auch von unterwegs öffnen kann.
 - Die Anlage fragt die Anwesenheit jede Minute bei Home Assistant ab und passt die Klingelgruppen der Türstationen automatisch an. Ist der Zustand unbekannt, klingelt das Telefon trotzdem.
 - Gilt für Türstationen mit „Nur intern“ (Klingelgruppen). Direkte Anrufe an eine einzelne Nebenstelle klingeln weiterhin immer.
 
@@ -658,11 +658,11 @@
 
 **Fix (kritisch) - Interne Anrufe kamen als "Anonymous" an**
 - Live per SIP-Trace bewiesen: Asterisk 22 anonymisiert den From-Header auf Dial()-erzeugten Anruf-Legs (`"Anonymous" <sip:anonymous@anonymous.invalid>`), wenn der Ziel-Endpoint `trust_id_outbound` nicht gesetzt hat. Direkt erzeugte Kanaele (AMI Originate auf PJSIP/xx) trugen die korrekte Kennung - nur der Dialplan-Pfad anonymisierte. Folgen: jeder interne Anruf zeigte "Anonym", und Linphone iOS zeigte fuer die ungueltige anonymous-URI teils gar keine Anruf-UI (SIP-Stack antwortete 180 Ringing, Display blieb leer).
-- Fix: `trust_id_outbound = yes` auf allen Extension-Endpoints - interne Nebenstellen sind eigene, vertrauenswuerdige Geraete. Vorab live am laufenden System verifiziert (Config-Patch + Reload + Testanruf: From wieder `"sandro" <sip:11@...>`).
+- Fix: `trust_id_outbound = yes` auf allen Extension-Endpoints - interne Nebenstellen sind eigene, vertrauenswuerdige Geraete. Vorab live am laufenden System verifiziert (Config-Patch + Reload + Testanruf: From wieder `"anna" <sip:11@...>`).
 
 **Feature - Altgeraete-Modus pro Nebenstelle**
 - Neue Option je Nebenstelle: "Altgeraete-Modus". Anrufe AN dieses Geraet senden nur die Nummer als Anrufername (`Set(CALLERID(name)=${CALLERID(num)})` vor dem Dial).
-- Hintergrund: Alte SIP-Clients wie Androids eingestellter nativer SIP-Stack verwerfen nicht-numerische Anzeigenamen und zeigen "Anonym" - per Testreihe belegt (Anzeigename "sandro" -> Anonym, "11" -> Nummer wird angezeigt).
+- Hintergrund: Alte SIP-Clients wie Androids eingestellter nativer SIP-Stack verwerfen nicht-numerische Anzeigenamen und zeigen "Anonym" - per Testreihe belegt (Anzeigename "anna" -> Anonym, "11" -> Nummer wird angezeigt).
 - Moderne Geraete ohne die Option sehen weiterhin den Klarnamen des Anrufers.
 - DB-Migration `extension.numeric_callerid` + Checkbox in Anlegen-/Bearbeiten-Dialog.
 
@@ -907,7 +907,7 @@
 ## 0.7.27
 
 **Fix — ausgehende Rufnummer-Anzeige (CLIP)**
-- Bei ausgehenden Anrufen wurde die eigene Rufnummer nicht angezeigt. Ursache: die CallerID ging als nationale `0…`-Nummer raus; aarenet/DG präsentiert nur E.164. Die CallerID (→ P-Asserted-Identity) wird jetzt automatisch nach E.164 normalisiert (`063483260104` → `+4963483260104`). Der From-URI-User bleibt die registrierte (nationale) Identität, damit die Anrufannahme nicht beeinträchtigt wird.
+- Bei ausgehenden Anrufen wurde die eigene Rufnummer nicht angezeigt. Ursache: die CallerID ging als nationale `0…`-Nummer raus; aarenet/DG präsentiert nur E.164. Die CallerID (→ P-Asserted-Identity) wird jetzt automatisch nach E.164 normalisiert (`0301234567` → `+4963483260104`). Der From-URI-User bleibt die registrierte (nationale) Identität, damit die Anrufannahme nicht beeinträchtigt wird.
 
 ## 0.7.26
 
@@ -935,7 +935,7 @@
 ## 0.7.22
 
 **Fix (kritisch — der eigentliche 404-Grund, per Trace + Provider-Doku belegt)**
-- Trunk-REGISTER bekam nach erfolgreicher Auth ein `404 Not Found` (Server: AareSwitch/aarenet, die Plattform hinter Deutsche Glasfaser/outbox). Ursache: Auf dieser Plattform sind **Auth-Username und Registrierungs-Identität (AOR) verschieden**. Wir haben die AOR = Auth-Account registriert; der Registrar erwartet aber die **Rufnummer** als AOR. Template getrennt: `[trunk-auth]` nutzt weiter den Anmeldenamen (SIP-Account), aber `client_uri`/`from_user`/`contact_user` nutzen jetzt die **Rufnummer** (Feld „Rufnummer/CallerID"). Für DG die Rufnummer mit führender 0 eintragen (z.B. `063483260104`, wie im Portal).
+- Trunk-REGISTER bekam nach erfolgreicher Auth ein `404 Not Found` (Server: AareSwitch/aarenet, die Plattform hinter Deutsche Glasfaser/outbox). Ursache: Auf dieser Plattform sind **Auth-Username und Registrierungs-Identität (AOR) verschieden**. Wir haben die AOR = Auth-Account registriert; der Registrar erwartet aber die **Rufnummer** als AOR. Template getrennt: `[trunk-auth]` nutzt weiter den Anmeldenamen (SIP-Account), aber `client_uri`/`from_user`/`contact_user` nutzen jetzt die **Rufnummer** (Feld „Rufnummer/CallerID"). Für DG die Rufnummer mit führender 0 eintragen (z.B. `0301234567`, wie im Portal).
 
 ## 0.7.21
 
