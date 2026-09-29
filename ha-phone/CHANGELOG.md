@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.144
+
+**Oberfläche - eigenes Symbol in der Home-Assistant-Seitenleiste**
+- HA-Phone erscheint in der Seitenleiste jetzt mit einem Telefon-Symbol und dem Namen „HA-Phone“ statt mit dem Puzzlestück.
+
 ## 0.7.143
 
 **Fehlerbehebung - Kamerabilder für die App**
