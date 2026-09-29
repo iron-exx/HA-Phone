@@ -96,6 +96,8 @@ Switch on **Türstation** at the door station's extension. The door fields appea
 - **Klingelbild-Quelle** — a Home Assistant camera (`camera.…`) or the door station's snapshot URL (credentials as `http://user:password@…`). HA-Phone stores a picture of every ring for 30 days; see **Türklingel** in the sidebar. *Testbild holen* checks the source.
 - **Home-Assistant-Aktionen** — buttons in the app while the door rings or during the call, e.g. switching on a light.
 
+**Kameras für die App** (page **Türklingel**): choose which Home Assistant cameras (`camera.…`) the paired phones may show as extra previews and give them a name. Nothing is shared by default. Each phone chooses from this list under *Ich → Weitere Kameras*. While a door rings, HA-Phone fetches the shared cameras continuously, so the ringing phones get the newest picture without waiting. Cameras that build every picture from an RTSP stream can take 10–25 s per picture in Home Assistant; cameras with a still-image URL are much faster.
+
 For the camera preview before answering, switch on *Video-fähig* for the door station and for the phones. Put the phones into a ring group and let the door station call it.
 
 ---

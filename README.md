@@ -71,6 +71,8 @@ HA-Phone turns your Home Assistant into a complete telephone system: connect a S
 3. Switch on **Video-capable** (*Video-fähig*) for the door station and the phones that should see the camera. Video uses H.264 via SIP early media, so the picture is there before anyone answers.
 4. Create a ring group (e.g. `20 Doorbell`) with the phones that should ring and point the door station's call button to it.
 
+**Extra cameras for the app:** under **Türklingel → Kameras für die App** you choose which Home Assistant cameras the paired phones may show (e.g. garden or driveway) and give them a name for the app. Nothing is shared by default, so private cameras such as a baby monitor never reach a phone. Each phone picks from that list in the app; the pictures show on the start page, on the ringing screen and during a door call. While a door rings, HA-Phone keeps fetching the shared cameras, so every ringing phone gets the newest picture at once. Pictures always go through HA-Phone, the phones never talk to Home Assistant directly.
+
 Tip for phones that are away: set **Belongs to** (*Gehört zu (Home-Assistant-Person)*) at a mobile extension. While someone else is at home, the door does not ring that mobile. If nobody is at home, it rings everywhere.
 
 ## Remote access
