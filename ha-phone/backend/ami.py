@@ -438,6 +438,16 @@ def test_call_originate(number: str, device_id: int | None = None) -> dict:
     return action
 
 
+# OriginateResponse "Reason" (Asterisk AST_CONTROL_*) for the admin log.
+_ORIGINATE_REASONS = {
+    "0": "Gerät nicht erreichbar (nicht angemeldet oder keine Antwort)",
+    "1": "Gerät hat aufgelegt",
+    "3": "keine Antwort (Klingelzeit abgelaufen)",
+    "5": "besetzt",
+    "8": "Überlastung / kein Weg zum Gerät",
+}
+
+
 async def originate_test_call(number: str, device_id: int | None = None) -> None:
     """Rings the requesting app (see test_call_originate)."""
     action = test_call_originate(number, device_id)
@@ -451,5 +461,10 @@ async def originate_test_call(number: str, device_id: int | None = None) -> None
         # answered or rings out (up to 30 s). The call is already ringing: not an error.
         _log.info("test call %s: originate sent, still ringing", number)
         return
-    if response.get("Response") != "Success":
-        raise RuntimeError(response.get("Message", "Originate failed"))
+    # Answered or rung out within the timeout: panoramisk returns every message (the
+    # queued reply plus the OriginateResponse event) as a list.
+    replies = response if isinstance(response, list) else [response]
+    for reply in replies:
+        if reply.get("Response") != "Success":
+            reason = _ORIGINATE_REASONS.get(str(reply.get("Reason", "")), "")
+            raise RuntimeError(reason or reply.get("Message", "Originate failed"))

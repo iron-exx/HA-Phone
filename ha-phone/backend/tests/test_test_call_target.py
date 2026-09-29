@@ -39,3 +39,30 @@ def test_slow_originate_response_is_not_an_error(monkeypatch):
     monkeypatch.setattr(ami, "_get_manager", _mgr)
     monkeypatch.setattr(ami, "_AMI_TIMEOUT", 0.05)
     asyncio.run(ami.originate_test_call("11", device_id=17))  # must not raise
+
+
+def _mgr_returning(monkeypatch, reply):
+    class _Mgr:
+        async def send_action(self, action, as_list=False):
+            return reply
+
+    async def _get():
+        return _Mgr()
+    monkeypatch.setattr(ami, "_get_manager", _get)
+
+
+def test_quick_answer_gives_a_list_and_is_no_error(monkeypatch):
+    import asyncio
+    # Answered (or rung out) within the AMI timeout: panoramisk returns all messages.
+    _mgr_returning(monkeypatch, [{"Response": "Success", "Message": "Originate successfully queued"},
+                                 {"Event": "OriginateResponse", "Response": "Success", "Reason": "4"}])
+    asyncio.run(ami.originate_test_call("12", device_id=19))
+
+
+def test_failed_originate_in_a_list_raises_with_the_reason(monkeypatch):
+    import asyncio
+    import pytest
+    _mgr_returning(monkeypatch, [{"Response": "Success"},
+                                 {"Event": "OriginateResponse", "Response": "Failure", "Reason": "0"}])
+    with pytest.raises(RuntimeError, match="nicht erreichbar"):
+        asyncio.run(ami.originate_test_call("12", device_id=19))

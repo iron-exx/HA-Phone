@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.147
+
+**Fehlerbehebung - Fotos im Klingel-Verlauf fehlten**
+- Für das Foto beim Klingeln wartete die Anlage nur 4 Sekunden. Kameras über Home Assistant (z. B. die Türstation per RTSP) brauchen aber 7 bis 25 Sekunden. Jetzt wartet sie bis zu 25 Sekunden und versucht es bei einem Fehler ein zweites Mal.
+
+**Fehlerbehebung - „Test-Anruf an mich“**
+- Wurde der Test-Anruf schnell angenommen oder schlug er sofort fehl, meldete die Anlage einen internen Fehler statt des Ergebnisses. Jetzt steht im Protokoll, warum ein Test-Anruf nicht durchkam (z. B. „Gerät nicht erreichbar“).
+
+**Diagnose - welche Geräte die Tür anklingelt**
+- Bei jedem Klingeln schreibt die Anlage ins Protokoll, welches Gerät sie anruft (mit Anmeldeadresse) und wie es endete (angenommen, abgebrochen, nicht erreichbar). So lässt sich klären, warum ein Handy nicht klingelt.
+
 ## 0.7.146
 
 **Oberfläche - neues Seitenleisten-Symbol**

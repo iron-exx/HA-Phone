@@ -191,3 +191,33 @@ def test_admin_snapshot_test(client, monkeypatch):
     resp = client.post("/api/doorbell/test-snapshot", json={"source": "http://door.local/snap.jpg"})
     assert resp.status_code == 200 and resp.content == JPEG
     assert client.post("/api/doorbell/test-snapshot", json={"source": "gopher://x"}).status_code == 422
+
+
+def test_listener_logs_every_dialled_device_of_a_ring(client, door, caplog):
+    import logging
+    num = str(door["number"])
+    lst = DoorbellListener()
+    with caplog.at_level(logging.INFO, logger="backend.doorbell_listener"):
+        lst.handle(ring(uid="8.8", door=num))
+        lst.handle({"Event": "DialBegin", "Uniqueid": "8.8", "DestChannel": "PJSIP/12-00000001",
+                    "DialString": "12/sip:12@100.75.1.2:40000;transport=TLS;haphone-dev=19"})
+        lst.handle({"Event": "DialEnd", "Uniqueid": "8.8", "DestChannel": "PJSIP/12-00000001", "DialStatus": "CANCEL"})
+        lst.handle({"Event": "DialBegin", "Uniqueid": "9.9", "DestChannel": "PJSIP/30-1"})  # not a door call
+        lst.handle({"Event": "Hangup", "Uniqueid": "8.8"})
+    text = caplog.text
+    assert "dialing PJSIP/12-00000001 (12/sip:12@100.75.1.2" in text
+    assert "PJSIP/12-00000001 -> CANCEL" in text
+    assert "PJSIP/30-1" not in text
+
+
+@pytest.mark.asyncio
+async def test_ring_photo_waits_long_and_retries_once(monkeypatch):
+    calls = []
+
+    async def fake(source, *, transport=None, timeout=doorbell.SNAPSHOT_TIMEOUT_S):
+        calls.append(timeout)
+        return None if len(calls) == 1 else (JPEG, "image/jpeg")
+    monkeypatch.setattr(doorbell, "fetch_snapshot", fake)
+    from backend import doorbell_listener
+    assert await DoorbellListener._fetch_slow_ok("camera.tuer") == (JPEG, "image/jpeg")
+    assert calls == [doorbell_listener.RING_SNAPSHOT_TIMEOUT_S] * 2

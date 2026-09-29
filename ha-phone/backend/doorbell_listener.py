@@ -21,7 +21,9 @@ log = logging.getLogger(__name__)
 
 DOOR_CACHE_S = 30
 PRUNE_EVERY_S = 3600
-_EVENTS = ("Newchannel", "DialEnd", "Hangup")
+_EVENTS = ("Newchannel", "DialBegin", "DialEnd", "Hangup")
+# Door station cameras via HA can take 7-25 s per picture (ffmpeg on RTSP).
+RING_SNAPSHOT_TIMEOUT_S = 25.0
 
 
 def listener_enabled() -> bool:
@@ -29,8 +31,8 @@ def listener_enabled() -> bool:
 
 
 class DoorbellListener:
-    def __init__(self, fetch=doorbell.fetch_snapshot):
-        self._fetch = fetch
+    def __init__(self, fetch=None):
+        self._fetch = fetch or self._fetch_slow_ok
         self._doors: set[str] = set()
         self._doors_at = 0.0
         self._event_of: dict[str, int] = {}  # door channel Uniqueid -> DoorbellEvent.id
@@ -46,9 +48,30 @@ class DoorbellListener:
             self._doors_at = now
         return number in self._doors
 
+    @staticmethod
+    async def _fetch_slow_ok(source: str):
+        """The ring photo: one retry, and far more time than a live request needs."""
+        for _ in range(2):
+            image = await doorbell.fetch_snapshot(source, timeout=RING_SNAPSHOT_TIMEOUT_S)
+            if image:
+                return image
+        return None
+
+    def _log_leg(self, ev: dict) -> None:
+        """Which device a door call rang and how that leg ended (admin log, for
+        "the door did not ring my phone")."""
+        name = ev.get("Event", "")
+        if name not in ("DialBegin", "DialEnd") or not self.tracker.is_active(ev.get("Uniqueid", "")):
+            return
+        if name == "DialBegin":
+            log.info("doorbell leg: dialing %s (%s)", ev.get("DestChannel", "?"), ev.get("DialString", ""))
+        else:
+            log.info("doorbell leg: %s -> %s", ev.get("DestChannel", "?"), ev.get("DialStatus", "?"))
+
     def handle(self, ev: dict) -> None:
         """One AMI event (dict-like). Never raises into panoramisk."""
         try:
+            self._log_leg(ev)
             for action in self.tracker.on_event(ev):
                 self._apply(action)
         except Exception:

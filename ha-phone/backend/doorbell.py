@@ -76,6 +76,9 @@ class DoorbellTracker:
         self._is_door = is_door_number
         self._active: dict[str, bool] = {}  # door channel Uniqueid -> answered yet
 
+    def is_active(self, uniqueid: str) -> bool:
+        return uniqueid in self._active
+
     def on_event(self, ev: dict) -> list:
         name = ev.get("Event", "")
         if name == "Newchannel":
