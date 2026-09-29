@@ -34,6 +34,7 @@ from backend.models import (
     IVRMenu,
     OutboundRule,
     PhonebookEntry,
+    PreviewCamera,
     ProvisionedDevice,
     ProvisioningTemplate,
     RingGroup,
@@ -72,6 +73,7 @@ _MODELS_IN_DEPENDENCY_ORDER: list[type] = [
     ProvisionedDevice,
     Holiday,
     PhonebookEntry,
+    PreviewCamera,
 ]
 
 

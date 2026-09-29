@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
@@ -397,6 +397,27 @@ def doorbell_image(event_id: int, device: MobileDevice = Depends(_device), sessi
     if not path:
         raise HTTPException(status_code=404, detail="Kein Bild")
     return FileResponse(str(path), media_type="image/png" if path.suffix == ".png" else "image/jpeg")
+
+
+# ── Extra preview cameras (preview_cameras.py) ────────────────────────────────
+
+@public_router.get("/cameras")
+def list_cameras(device: MobileDevice = Depends(_device), session: Session = Depends(get_session)):
+    """Cameras the admin shared with the app; the phone picks which ones to show."""
+    from backend import preview_cameras
+    return preview_cameras.shared(session)
+
+
+@public_router.get("/cameras/{entity_id}/snapshot")
+async def camera_snapshot(entity_id: str, device: MobileDevice = Depends(_device),
+                          session: Session = Depends(get_session)):
+    from backend import preview_cameras
+    if not preview_cameras.is_shared(session, entity_id):
+        raise HTTPException(status_code=404, detail="Kamera nicht freigegeben")
+    image = await preview_cameras.snapshot(entity_id)
+    if not image:
+        raise HTTPException(status_code=502, detail="Kein Bild von der Kamera")
+    return Response(content=image[0], media_type=image[1], headers={"Cache-Control": "no-store"})
 
 
 class DoorActionIn(BaseModel):

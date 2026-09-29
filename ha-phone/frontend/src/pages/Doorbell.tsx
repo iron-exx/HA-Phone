@@ -6,6 +6,7 @@ import { DoorOpen, ImageOff, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SharedCamerasCard } from "@/components/SharedCamerasCard";
 import { apiErrorMessage } from "@/lib/apiError";
 
 interface DoorbellEvent {
@@ -56,6 +57,8 @@ export default function Doorbell() {
         Jedes Klingeln an einer Türstation der letzten 30 Tage. Als Türstation zählt jede Nebenstelle mit dem
         Schalter „Türstation“ (Nebenstellen → bearbeiten). Das Foto kommt aus ihrer „Klingelbild-Quelle“.
       </p>
+
+      <SharedCamerasCard />
 
       {events === null ? (
         <Skeleton className="h-40" />

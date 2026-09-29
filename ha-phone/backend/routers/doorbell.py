@@ -1,10 +1,11 @@
-"""Admin page "Türklingel": ring history, pictures, snapshot-source test."""
+"""Admin page "Türklingel": ring history, pictures, snapshot-source test, and the
+cameras shared with the app (preview_cameras.py)."""
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, select
 
-from backend import doorbell
+from backend import doorbell, preview_cameras
 from backend.database import get_session
 from backend.models import DOORBELL_CAMERA_PATTERN, DoorbellEvent, _match
 
@@ -57,3 +58,41 @@ async def test_snapshot(data: SnapshotTestIn):
     if not image:
         raise HTTPException(status_code=502, detail="Kein Bild erhalten (Adresse, Zugangsdaten oder Kamera prüfen)")
     return Response(content=image[0], media_type=image[1])
+
+
+# ── Cameras shared with the app ───────────────────────────────────────────────
+
+class SharedCameraIn(BaseModel):
+    entity_id: str = Field(pattern=preview_cameras.CAMERA_ENTITY_PATTERN)
+    name: str = Field(default="", max_length=64)
+
+
+class SharedCamerasIn(BaseModel):
+    cameras: list[SharedCameraIn] = Field(max_length=preview_cameras.MAX_SHARED)
+
+    @field_validator("cameras")
+    @classmethod
+    def _unique(cls, cameras: list[SharedCameraIn]) -> list[SharedCameraIn]:
+        if len({c.entity_id for c in cameras}) != len(cameras):
+            raise ValueError("Kamera doppelt in der Liste")
+        return cameras
+
+
+@router.get("/ha-cameras")
+async def ha_cameras():
+    """All camera.* entities in Home Assistant, to pick from."""
+    cameras = await preview_cameras.list_ha_cameras()
+    if cameras is None:
+        raise HTTPException(status_code=503, detail="Home Assistant nicht erreichbar")
+    return cameras
+
+
+@router.get("/preview-cameras")
+def get_preview_cameras(session: Session = Depends(get_session)):
+    return preview_cameras.shared(session)
+
+
+@router.put("/preview-cameras")
+def set_preview_cameras(data: SharedCamerasIn, session: Session = Depends(get_session)):
+    preview_cameras.replace_shared(session, [(c.entity_id, c.name.strip()) for c in data.cameras])
+    return preview_cameras.shared(session)

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.141
+
+**Neu - weitere Kameras für die App freigeben**
+- Unter „Türklingel“ gibt es den Abschnitt „Kameras für die App“. Dort wählst du, welche Kameras aus Home Assistant die gekoppelten Handys als zusätzliche Vorschau zeigen dürfen (z. B. Garten oder Einfahrt), und kannst ihnen einen Namen für die App geben. Ab Werk ist keine Kamera freigegeben. Nicht freigegebene Kameras (etwa ein Babyfon) sieht kein Handy.
+- Welche der freigegebenen Kameras ein Handy anzeigt, stellt jeder in der App ein (ab App 1.7.0). Die Bilder laufen immer über die Anlage, das Handy spricht nie direkt mit Home Assistant.
+- Die Freigabeliste ist Teil der Sicherung.
+
 ## 0.7.140
 
 **Oberfläche - einheitliche, breitere Dialoge**

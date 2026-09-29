@@ -807,3 +807,12 @@ class DoorbellEvent(SQLModel, table=True):
     door_opened: bool = False
     # File name under /data/doorbell (never taken from a request).
     image_file: str = Field(default="", max_length=128)
+
+
+class PreviewCamera(SQLModel, table=True):
+    """A Home Assistant camera the admin shares with the app (preview_cameras.py).
+    Phones only ever see cameras on this list, so e.g. a baby monitor stays private."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    entity_id: str = Field(unique=True, max_length=128)
+    name: str = Field(default="", max_length=64)
+    position: int = 0
