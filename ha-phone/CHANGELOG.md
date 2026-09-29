@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.146
+
+**Oberfläche - neues Seitenleisten-Symbol**
+- Das Symbol in der Home-Assistant-Seitenleiste zeigt jetzt einen Hörer mit ein- und ausgehenden Pfeilen (besser lesbar als das bisherige Telefon-Symbol).
+- Hinweis: Home Assistant übernimmt ein geändertes Symbol erst, wenn „In Seitenleiste anzeigen“ einmal aus- und wieder eingeschaltet wird (oder nach einem Neustart von Home Assistant).
+
 ## 0.7.145
 
 **Verbesserung - Kamerabilder beim Klingeln schneller**

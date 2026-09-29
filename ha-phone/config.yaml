@@ -1,5 +1,5 @@
 name: "HA-Phone"
-version: "0.7.145"
+version: "0.7.146"
 slug: "ha-phone"
 description: "SIP PBX for Home Assistant — any SIP trunk, IP phones, softphones, doorbells. Web UI, no CLI needed."
 url: "https://github.com/iron-exx/HA-Phone"
@@ -29,7 +29,7 @@ hassio_api: true
 ingress: true
 ingress_port: 80
 ingress_entry: "/"
-panel_icon: mdi:phone-voip
+panel_icon: mdi:phone-incoming-outgoing
 panel_title: HA-Phone
 
 map:
