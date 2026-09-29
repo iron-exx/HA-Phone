@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.148
+
+**Neu - App-Protokoll an die Anlage**
+- In der App (ab 1.7.3) sendet „Ich → Diagnose → Protokoll an die Anlage senden“ das Protokoll des Handys an die Anlage (Passwörter und Schlüssel entfernt). Die Anlage hebt die letzten 10 je Handy auf. So lässt sich klären, warum ein Handy nicht geklingelt hat, ohne das Handy anzuschließen.
+
 ## 0.7.147
 
 **Fehlerbehebung - Fotos im Klingel-Verlauf fehlten**

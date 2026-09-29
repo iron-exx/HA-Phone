@@ -399,6 +399,28 @@ def doorbell_image(event_id: int, device: MobileDevice = Depends(_device), sessi
     return FileResponse(str(path), media_type="image/png" if path.suffix == ".png" else "image/jpeg")
 
 
+# ── Diagnostic log upload (app_logs.py) ───────────────────────────────────────
+
+class DiagnosticsIn(BaseModel):
+    log: str = Field(min_length=1)
+    app_version: str = Field(default="", max_length=32)
+    note: str = Field(default="", max_length=500)
+
+
+@public_router.post("/diagnostics")
+def upload_diagnostics(data: DiagnosticsIn, device: MobileDevice = Depends(_device),
+                       session: Session = Depends(get_session)):
+    """The phone's own log, for the admin (Diagnose -> Protokoll an die Anlage senden)."""
+    from backend import app_logs
+    if len(data.log) > app_logs.MAX_BYTES * 2:
+        raise HTTPException(status_code=413, detail="Protokoll zu groß")
+    own = _own_extension(session, device)
+    header = (f"# HA-Phone app log: ext {own.number}, device {device.id} ({device.device_name}), "
+              f"app {data.app_version or device.app_version}, uploaded {time.strftime('%Y-%m-%d %H:%M:%S')}"
+              + (f"\n# note: {data.note}" if data.note else ""))
+    return {"name": app_logs.save(own.number, device.id, data.log, header)}
+
+
 # ── Extra preview cameras (preview_cameras.py) ────────────────────────────────
 
 @public_router.get("/cameras")

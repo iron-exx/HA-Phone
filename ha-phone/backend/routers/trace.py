@@ -95,6 +95,21 @@ async def diagnostics_overview():
     }
 
 
+@router.get("/diagnostics/app-logs")
+def app_log_list():
+    from backend import app_logs
+    return app_logs.listing()
+
+
+@router.get("/diagnostics/app-logs/{name}")
+def app_log_download(name: str):
+    from backend import app_logs
+    path = app_logs.path_of(name)
+    if not path:
+        raise HTTPException(status_code=404, detail="Protokoll nicht gefunden")
+    return FileResponse(str(path), media_type="text/plain; charset=utf-8", filename=name)
+
+
 @router.get("/diagnostics/config-regeneration")
 def config_regeneration_status():
     return get_regeneration_status()
