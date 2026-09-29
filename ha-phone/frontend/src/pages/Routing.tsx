@@ -1,3 +1,4 @@
+import { FormGrid, FormSpan } from "@/components/FormGrid";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -174,39 +175,41 @@ function AddRouteDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
+      <DialogContent size="form">
         <DialogHeader>
           <DialogTitle>Add Route</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="did"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>DID (Phone Number)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. +4922222222" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DestinationField
-              value={{ type: destinationType, target: form.watch("destination_id") }}
-              onChange={(next: DestinationValue) => {
-                form.setValue("destination_type", next.type);
-                form.setValue("destination_id", (next.target ?? 0) as number);
-              }}
-              allowedTypes={ROUTE_ALLOWED_DESTINATION_TYPES}
-              extensions={extensions}
-              ringGroups={ringGroups}
-              ivrMenus={ivrMenus}
-              keyBy="id"
-              label="Zieltyp"
-              error={form.formState.errors.destination_id?.message as string | undefined}
-            />
+            <FormGrid>
+              <FormField
+                control={form.control}
+                name="did"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>DID (Phone Number)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. +4922222222" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DestinationField
+                value={{ type: destinationType, target: form.watch("destination_id") }}
+                onChange={(next: DestinationValue) => {
+                  form.setValue("destination_type", next.type);
+                  form.setValue("destination_id", (next.target ?? 0) as number);
+                }}
+                allowedTypes={ROUTE_ALLOWED_DESTINATION_TYPES}
+                extensions={extensions}
+                ringGroups={ringGroups}
+                ivrMenus={ivrMenus}
+                keyBy="id"
+                label="Zieltyp"
+                error={form.formState.errors.destination_id?.message as string | undefined}
+              />
+            </FormGrid>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
                 Cancel
@@ -271,33 +274,35 @@ function EditRouteDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
+      <DialogContent size="form">
         <DialogHeader>
           <DialogTitle>Edit Route</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="did" render={({ field }) => (
-              <FormItem>
-                <FormLabel>DID (Phone Number)</FormLabel>
-                <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <DestinationField
-              value={{ type: destinationType, target: form.watch("destination_id") }}
-              onChange={(next: DestinationValue) => {
-                form.setValue("destination_type", next.type);
-                form.setValue("destination_id", (next.target ?? 0) as number);
-              }}
-              allowedTypes={ROUTE_ALLOWED_DESTINATION_TYPES}
-              extensions={extensions}
-              ringGroups={ringGroups}
-              ivrMenus={ivrMenus}
-              keyBy="id"
-              label="Zieltyp"
-              error={form.formState.errors.destination_id?.message as string | undefined}
-            />
+            <FormGrid>
+              <FormField control={form.control} name="did" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>DID (Phone Number)</FormLabel>
+                  <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <DestinationField
+                value={{ type: destinationType, target: form.watch("destination_id") }}
+                onChange={(next: DestinationValue) => {
+                  form.setValue("destination_type", next.type);
+                  form.setValue("destination_id", (next.target ?? 0) as number);
+                }}
+                allowedTypes={ROUTE_ALLOWED_DESTINATION_TYPES}
+                extensions={extensions}
+                ringGroups={ringGroups}
+                ivrMenus={ivrMenus}
+                keyBy="id"
+                label="Zieltyp"
+                error={form.formState.errors.destination_id?.message as string | undefined}
+              />
+            </FormGrid>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Route"}</Button>
@@ -402,75 +407,81 @@ function AddTimeConditionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
+      <DialogContent size="form">
         <DialogHeader><DialogTitle>Add Time Condition</DialogTitle></DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="name" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl><Input placeholder="e.g. Business Hours" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="did" render={({ field }) => (
-              <FormItem>
-                <FormLabel>DID (Phone Number)</FormLabel>
-                <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="open_hours_start" render={({ field }) => (
+            <FormGrid>
+              <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Open From</FormLabel>
-                  <FormControl><Input placeholder="07:00" {...field} /></FormControl>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl><Input placeholder="e.g. Business Hours" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="open_hours_end" render={({ field }) => (
+              <FormField control={form.control} name="did" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Open Until</FormLabel>
-                  <FormControl><Input placeholder="22:00" {...field} /></FormControl>
+                  <FormLabel>DID (Phone Number)</FormLabel>
+                  <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-            </div>
-            <FormField control={form.control} name="open_days" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Open Days</FormLabel>
-                <FormControl><WeekdayPicker value={field.value} onChange={field.onChange} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <DestinationField
-              value={{ type: form.watch("open_dest_type"), target: form.watch("open_destination") }}
-              onChange={(next: DestinationValue) => {
-                form.setValue("open_dest_type", next.type);
-                form.setValue("open_destination", (next.target ?? 0) as number);
-              }}
-              allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
-              extensions={extensions}
-              ringGroups={ringGroups}
-              ivrMenus={ivrMenus}
-              keyBy="id"
-              label="Ziel bei geöffnet"
-              error={form.formState.errors.open_destination?.message as string | undefined}
-            />
-            <DestinationField
-              value={{ type: form.watch("closed_dest_type"), target: form.watch("closed_destination") }}
-              onChange={(next: DestinationValue) => {
-                form.setValue("closed_dest_type", next.type);
-                form.setValue("closed_destination", (next.target ?? 0) as number);
-              }}
-              allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
-              extensions={extensions}
-              ringGroups={ringGroups}
-              ivrMenus={ivrMenus}
-              keyBy="id"
-              label="Ziel bei geschlossen"
-              error={form.formState.errors.closed_destination?.message as string | undefined}
-            />
+              <FormSpan>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="open_hours_start" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Open From</FormLabel>
+                      <FormControl><Input placeholder="07:00" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="open_hours_end" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Open Until</FormLabel>
+                      <FormControl><Input placeholder="22:00" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              </FormSpan>
+              <FormSpan>
+                <FormField control={form.control} name="open_days" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Open Days</FormLabel>
+                    <FormControl><WeekdayPicker value={field.value} onChange={field.onChange} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </FormSpan>
+              <DestinationField
+                value={{ type: form.watch("open_dest_type"), target: form.watch("open_destination") }}
+                onChange={(next: DestinationValue) => {
+                  form.setValue("open_dest_type", next.type);
+                  form.setValue("open_destination", (next.target ?? 0) as number);
+                }}
+                allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
+                extensions={extensions}
+                ringGroups={ringGroups}
+                ivrMenus={ivrMenus}
+                keyBy="id"
+                label="Ziel bei geöffnet"
+                error={form.formState.errors.open_destination?.message as string | undefined}
+              />
+              <DestinationField
+                value={{ type: form.watch("closed_dest_type"), target: form.watch("closed_destination") }}
+                onChange={(next: DestinationValue) => {
+                  form.setValue("closed_dest_type", next.type);
+                  form.setValue("closed_destination", (next.target ?? 0) as number);
+                }}
+                allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
+                extensions={extensions}
+                ringGroups={ringGroups}
+                ivrMenus={ivrMenus}
+                keyBy="id"
+                label="Ziel bei geschlossen"
+                error={form.formState.errors.closed_destination?.message as string | undefined}
+              />
+            </FormGrid>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Time Condition"}</Button>
@@ -536,75 +547,81 @@ function EditTimeConditionDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
+      <DialogContent size="form">
         <DialogHeader><DialogTitle>Edit Time Condition</DialogTitle></DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="name" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl><Input placeholder="e.g. Business Hours" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="did" render={({ field }) => (
-              <FormItem>
-                <FormLabel>DID (Phone Number)</FormLabel>
-                <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <div className="grid grid-cols-2 gap-4">
-              <FormField control={form.control} name="open_hours_start" render={({ field }) => (
+            <FormGrid>
+              <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Open From</FormLabel>
-                  <FormControl><Input placeholder="07:00" {...field} /></FormControl>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl><Input placeholder="e.g. Business Hours" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="open_hours_end" render={({ field }) => (
+              <FormField control={form.control} name="did" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Open Until</FormLabel>
-                  <FormControl><Input placeholder="22:00" {...field} /></FormControl>
+                  <FormLabel>DID (Phone Number)</FormLabel>
+                  <FormControl><Input placeholder="e.g. +4922222222" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-            </div>
-            <FormField control={form.control} name="open_days" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Open Days</FormLabel>
-                <FormControl><WeekdayPicker value={field.value} onChange={field.onChange} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <DestinationField
-              value={{ type: form.watch("open_dest_type"), target: form.watch("open_destination") }}
-              onChange={(next: DestinationValue) => {
-                form.setValue("open_dest_type", next.type);
-                form.setValue("open_destination", (next.target ?? 0) as number);
-              }}
-              allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
-              extensions={extensions}
-              ringGroups={ringGroups}
-              ivrMenus={ivrMenus}
-              keyBy="id"
-              label="Ziel bei geöffnet"
-              error={form.formState.errors.open_destination?.message as string | undefined}
-            />
-            <DestinationField
-              value={{ type: form.watch("closed_dest_type"), target: form.watch("closed_destination") }}
-              onChange={(next: DestinationValue) => {
-                form.setValue("closed_dest_type", next.type);
-                form.setValue("closed_destination", (next.target ?? 0) as number);
-              }}
-              allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
-              extensions={extensions}
-              ringGroups={ringGroups}
-              ivrMenus={ivrMenus}
-              keyBy="id"
-              label="Ziel bei geschlossen"
-              error={form.formState.errors.closed_destination?.message as string | undefined}
-            />
+              <FormSpan>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="open_hours_start" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Open From</FormLabel>
+                      <FormControl><Input placeholder="07:00" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="open_hours_end" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Open Until</FormLabel>
+                      <FormControl><Input placeholder="22:00" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              </FormSpan>
+              <FormSpan>
+                <FormField control={form.control} name="open_days" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Open Days</FormLabel>
+                    <FormControl><WeekdayPicker value={field.value} onChange={field.onChange} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </FormSpan>
+              <DestinationField
+                value={{ type: form.watch("open_dest_type"), target: form.watch("open_destination") }}
+                onChange={(next: DestinationValue) => {
+                  form.setValue("open_dest_type", next.type);
+                  form.setValue("open_destination", (next.target ?? 0) as number);
+                }}
+                allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
+                extensions={extensions}
+                ringGroups={ringGroups}
+                ivrMenus={ivrMenus}
+                keyBy="id"
+                label="Ziel bei geöffnet"
+                error={form.formState.errors.open_destination?.message as string | undefined}
+              />
+              <DestinationField
+                value={{ type: form.watch("closed_dest_type"), target: form.watch("closed_destination") }}
+                onChange={(next: DestinationValue) => {
+                  form.setValue("closed_dest_type", next.type);
+                  form.setValue("closed_destination", (next.target ?? 0) as number);
+                }}
+                allowedTypes={TIME_CONDITION_ALLOWED_DESTINATION_TYPES}
+                extensions={extensions}
+                ringGroups={ringGroups}
+                ivrMenus={ivrMenus}
+                keyBy="id"
+                label="Ziel bei geschlossen"
+                error={form.formState.errors.closed_destination?.message as string | undefined}
+              />
+            </FormGrid>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Time Condition"}</Button>

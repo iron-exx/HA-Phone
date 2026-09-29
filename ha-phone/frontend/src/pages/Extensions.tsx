@@ -67,6 +67,7 @@ import {
 import { copyToClipboard } from "@/lib/clipboard";
 import { SnapshotTestButton } from "@/components/SnapshotTestButton";
 import { DoorActionsEditor, doorActionsError } from "@/components/DoorActionsEditor";
+import { FormGrid, FormSection, FormSpan } from "@/components/FormGrid";
 
 // ---- Zod schema ----
 const extensionSchema = z.object({
@@ -310,110 +311,114 @@ function AddExtensionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
+      <DialogContent size="form">
         <DialogHeader>
           <DialogTitle>Nebenstelle hinzufügen</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Durchwahl (Nummer)</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="z.B. 10" className="font-mono" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="display_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Anzeigename</FormLabel>
-                  <FormControl>
-                    <Input placeholder="z.B. Büro" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="sip_password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SIP Passwort</FormLabel>
-                  <FormControl>
-                    <div className="flex gap-2">
-                      <Input type="text" placeholder="Auto-generiert" className="font-mono" {...field} />
-                      <Button type="button" variant="outline" onClick={generatePassword}
-                        className="cursor-pointer shrink-0"
-                        style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }}>
-                        Neu
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="video_capable"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Video-fähig"
-                  description="Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
-                  checked={field.value}
-                  onToggle={field.onChange}
+            <FormSection title="Allgemein">
+              <FormGrid>
+                <FormField
+                  control={form.control}
+                  name="number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Durchwahl (Nummer)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="z.B. 10" className="font-mono" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="internal_only"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Nur intern"
-                  description="Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle)."
-                  checked={field.value}
-                  onToggle={field.onChange}
+                <FormField
+                  control={form.control}
+                  name="display_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Anzeigename</FormLabel>
+                      <FormControl>
+                        <Input placeholder="z.B. Büro" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="is_door"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Türstation"
-                  description="Diese Nebenstelle ist eine Türklingel oder Türsprechstelle (Akuvox, 2N, DoorBird, Fanvil …). Nur Türstationen erscheinen im Klingel-Verlauf, klingeln in der App als Tür und bekommen Tür öffnen, Klingelbild und Aktionen."
-                  checked={field.value}
-                  onToggle={field.onChange}
+                <FormField
+                  control={form.control}
+                  name="sip_password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SIP Passwort</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-2">
+                          <Input type="text" placeholder="Auto-generiert" className="font-mono" {...field} />
+                          <Button type="button" variant="outline" onClick={generatePassword}
+                            className="cursor-pointer shrink-0"
+                            style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.1)" }}>
+                            Neu
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="numeric_callerid"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Altgeräte-Modus"
-                  description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.'}
-                  checked={field.value}
-                  onToggle={field.onChange}
+                <FormField
+                  control={form.control}
+                  name="video_capable"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Video-fähig"
+                      description="Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
                 />
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="internal_only"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Nur intern"
+                      description="Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle)."
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="is_door"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Türstation"
+                      description="Diese Nebenstelle ist eine Türklingel oder Türsprechstelle (Akuvox, 2N, DoorBird, Fanvil …). Nur Türstationen erscheinen im Klingel-Verlauf, klingeln in der App als Tür und bekommen Tür öffnen, Klingelbild und Aktionen."
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="numeric_callerid"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Altgeräte-Modus"
+                      description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.'}
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
+                />
+              </FormGrid>
+            </FormSection>
             {ringGroups.length > 0 && (
               <div className="space-y-2">
                 <FormLabel>Ring Groups</FormLabel>
@@ -553,103 +558,74 @@ function EditExtensionDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
+      <DialogContent size="form">
         <DialogHeader>
           <DialogTitle>Nebenstelle {extension.number} bearbeiten</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Durchwahl (Nummer)</FormLabel>
-                  <FormControl>
-                    <Input type="number" className="font-mono opacity-60 cursor-not-allowed" {...field} readOnly />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="display_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Anzeigename</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="sip_password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SIP Passwort</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Leer lassen = behalten" className="font-mono" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="video_capable"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Video-fähig"
-                  description="Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
-                  checked={field.value}
-                  onToggle={field.onChange}
-                />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="internal_only"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Nur intern"
-                  description="Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle)."
-                  checked={field.value}
-                  onToggle={field.onChange}
-                />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="is_door"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Türstation"
-                  description="Diese Nebenstelle ist eine Türklingel oder Türsprechstelle (Akuvox, 2N, DoorBird, Fanvil …). Nur Türstationen erscheinen im Klingel-Verlauf, klingeln in der App als Tür und bekommen Tür öffnen, Klingelbild und Aktionen."
-                  checked={field.value}
-                  onToggle={field.onChange}
-                />
-              )}
-            />
-            {isDoor && (
-              <>
+            <FormSection title="Allgemein">
+              <FormGrid>
                 <FormField
                   control={form.control}
-                  name="door_open_code"
+                  name="number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tür-Öffnen-Code (DTMF)</FormLabel>
+                      <FormLabel>Durchwahl (Nummer)</FormLabel>
                       <FormControl>
-                        <Input placeholder="z.B. *1" {...field} />
+                        <Input type="number" className="font-mono opacity-60 cursor-not-allowed" {...field} readOnly />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="display_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Anzeigename</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="sip_password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>SIP Passwort</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Leer lassen = behalten" className="font-mono" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="presence_status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Presence-Status</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {PRESENCE_STATUSES.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <p className="text-xs text-muted-foreground">
-                        Die HA-Phone App zeigt beim Klingeln und im Gespräch die Taste „Tür öffnen" und sendet diese Tasten.
+                        Bestimmt, welche Weiterleitungsregel (falls konfiguriert) für diesen Status
+                        gilt — siehe Weiterleitungsregeln unten in der Nebenstellen-Liste.
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -657,15 +633,142 @@ function EditExtensionDialog({
                 />
                 <FormField
                   control={form.control}
-                  name="door_open_webhook"
+                  name="video_capable"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Video-fähig"
+                      description="Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="internal_only"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Nur intern"
+                      description="Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle)."
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="numeric_callerid"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Altgeräte-Modus"
+                      description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.'}
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="recording_allowed"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Gesprächsaufzeichnung erlauben"
+                      description={"Die HA-Phone App darf Gespräche dieser Nebenstelle aufzeichnen (Taste „Aufnehmen“). Rechtlich nur mit Zustimmung aller Gesprächsteilnehmer zulässig (§ 201 StGB, DSGVO). Aufnahmen liegen unter /data/recordings/<Nebenstelle>/."}
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
+                />
+              </FormGrid>
+            </FormSection>
+            <FormSection title="Türstation">
+              <FormGrid>
+                <FormField
+                  control={form.control}
+                  name="is_door"
+                  render={({ field }) => (
+                    <ToggleRow
+                      id={field.name}
+                      label="Türstation"
+                      description="Diese Nebenstelle ist eine Türklingel oder Türsprechstelle (Akuvox, 2N, DoorBird, Fanvil …). Nur Türstationen erscheinen im Klingel-Verlauf, klingeln in der App als Tür und bekommen Tür öffnen, Klingelbild und Aktionen."
+                      checked={field.value}
+                      onToggle={field.onChange}
+                    />
+                  )}
+                />
+                {isDoor && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="door_open_code"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tür-Öffnen-Code (DTMF)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="z.B. *1" {...field} />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Die HA-Phone App zeigt beim Klingeln und im Gespräch die Taste „Tür öffnen" und sendet diese Tasten.
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="door_open_webhook"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tür-Öffnen-Webhook</FormLabel>
+                          <FormControl>
+                            <Input placeholder="z.B. http://homeassistant.local:8123/api/webhook/haustuer" className="font-mono" {...field} />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App ruft diese Adresse auf (POST mit JSON), auch schon während es klingelt. Die App sieht die Adresse nie. Leer = die App sendet im Gespräch den Tür-Öffnen-Code.
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="doorbell_camera"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Klingelbild-Quelle</FormLabel>
+                          <FormControl>
+                            <Input placeholder="camera.haustuer oder http://tuer.local/snapshot.jpg" className="font-mono" {...field} />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Bei jedem Klingeln holt die Anlage hier ein Foto für den Klingel-Verlauf und die App. Eine Home-Assistant-Kamera (<code>camera.…</code>) oder die Snapshot-Adresse der Türstation, Zugangsdaten als <code>http://benutzer:passwort@…</code>. Leer = Klingeln ohne Foto.
+                          </p>
+                          <SnapshotTestButton source={field.value ?? ""} />
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormSpan><DoorActionsEditor value={doorActions} onChange={setDoorActions} /></FormSpan>
+                  </>
+                )}
+              </FormGrid>
+            </FormSection>
+            <FormSection title="Handy und Erreichbarkeit">
+              <FormGrid>
+                <FormField
+                  control={form.control}
+                  name="ha_person"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tür-Öffnen-Webhook</FormLabel>
+                      <FormLabel>Gehört zu (Home-Assistant-Person)</FormLabel>
                       <FormControl>
-                        <Input placeholder="z.B. http://homeassistant.local:8123/api/webhook/haustuer" className="font-mono" {...field} />
+                        <Input placeholder="person.sandro" className="font-mono" {...field} />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
-                        Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App ruft diese Adresse auf (POST mit JSON), auch schon während es klingelt. Die App sieht die Adresse nie. Leer = die App sendet im Gespräch den Tür-Öffnen-Code.
+                        Klingelt die Türstation, bleibt dieses Telefon still, solange die Person unterwegs und jemand anderes zu Hause ist. Ist niemand zu Hause, klingelt es auch unterwegs. Leer = klingelt immer.
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -673,108 +776,22 @@ function EditExtensionDialog({
                 />
                 <FormField
                   control={form.control}
-                  name="doorbell_camera"
+                  name="mobile_fallback"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Klingelbild-Quelle</FormLabel>
+                      <FormLabel>Rückfall auf Handynummer</FormLabel>
                       <FormControl>
-                        <Input placeholder="camera.haustuer oder http://tuer.local/snapshot.jpg" className="font-mono" {...field} />
+                        <Input placeholder="0171 5551234" inputMode="tel" className="font-mono" {...field} />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
-                        Bei jedem Klingeln holt die Anlage hier ein Foto für den Klingel-Verlauf und die App. Eine Home-Assistant-Kamera (<code>camera.…</code>) oder die Snapshot-Adresse der Türstation, Zugangsdaten als <code>http://benutzer:passwort@…</code>. Leer = Klingeln ohne Foto.
+                        Ist kein Gerät dieser Nebenstelle erreichbar (App offline, Tischtelefon aus), ruft die Anlage diese Nummer über die Amtsleitung an, statt gleich auf die Mailbox zu gehen. Klingelt ein Gerät und niemand nimmt ab, geht es wie bisher auf die Mailbox. Achtung: Das Gespräch über die Amtsleitung kann Kosten verursachen. Leer = aus.
                       </p>
-                      <SnapshotTestButton source={field.value ?? ""} />
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <DoorActionsEditor value={doorActions} onChange={setDoorActions} />
-              </>
-            )}
-            <FormField
-              control={form.control}
-              name="numeric_callerid"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Altgeräte-Modus"
-                  description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.'}
-                  checked={field.value}
-                  onToggle={field.onChange}
-                />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="ha_person"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Gehört zu (Home-Assistant-Person)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="person.sandro" className="font-mono" {...field} />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Klingelt die Türstation, bleibt dieses Telefon still, solange die Person unterwegs und jemand anderes zu Hause ist. Ist niemand zu Hause, klingelt es auch unterwegs. Leer = klingelt immer.
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="mobile_fallback"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Rückfall auf Handynummer</FormLabel>
-                  <FormControl>
-                    <Input placeholder="0171 5551234" inputMode="tel" className="font-mono" {...field} />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Ist kein Gerät dieser Nebenstelle erreichbar (App offline, Tischtelefon aus), ruft die Anlage diese Nummer über die Amtsleitung an, statt gleich auf die Mailbox zu gehen. Klingelt ein Gerät und niemand nimmt ab, geht es wie bisher auf die Mailbox. Achtung: Das Gespräch über die Amtsleitung kann Kosten verursachen. Leer = aus.
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="recording_allowed"
-              render={({ field }) => (
-                <ToggleRow
-                  id={field.name}
-                  label="Gesprächsaufzeichnung erlauben"
-                  description={"Die HA-Phone App darf Gespräche dieser Nebenstelle aufzeichnen (Taste „Aufnehmen“). Rechtlich nur mit Zustimmung aller Gesprächsteilnehmer zulässig (§ 201 StGB, DSGVO). Aufnahmen liegen unter /data/recordings/<Nebenstelle>/."}
-                  checked={field.value}
-                  onToggle={field.onChange}
-                />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="presence_status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Presence-Status</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {PRESENCE_STATUSES.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Bestimmt, welche Weiterleitungsregel (falls konfiguriert) für diesen Status
-                    gilt — siehe Weiterleitungsregeln unten in der Nebenstellen-Liste.
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              </FormGrid>
+            </FormSection>
             {ringGroups.length > 0 && (
               <div className="space-y-2">
                 <FormLabel>Ring Groups</FormLabel>
@@ -920,7 +937,7 @@ function MobileAppQrDialog({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent size="sm">
         <DialogHeader>
           <DialogTitle>HA-Phone App fuer Nebenstelle {extension.number}</DialogTitle>
         </DialogHeader>

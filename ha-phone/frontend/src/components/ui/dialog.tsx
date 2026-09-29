@@ -47,13 +47,23 @@ function DialogOverlay({
   )
 }
 
+// One size per kind of dialog, so all dialogs of a kind look the same:
+// "sm" confirmations, QR codes and short notes; "form" every dialog with a form
+// (wide, two columns via FormGrid, scrolls inside when taller than the screen).
+const DIALOG_SIZES = {
+  sm: "sm:max-w-lg",
+  form: "w-[min(960px,calc(100vw-2rem))] max-w-[min(960px,calc(100vw-2rem))] sm:max-w-[min(960px,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6",
+} as const
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  size = "sm",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  size?: keyof typeof DIALOG_SIZES
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
@@ -61,7 +71,8 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border border-white/10 bg-[#050814] p-6 text-slate-100 shadow-2xl shadow-black/70 duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border border-white/10 bg-[#050814] p-6 text-slate-100 shadow-2xl shadow-black/70 duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          DIALOG_SIZES[size],
           className
         )}
         {...props}

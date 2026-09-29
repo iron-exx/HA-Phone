@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/apiUrl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DoorOpen, ImageOff, RefreshCw, Trash2 } from "lucide-react";
@@ -67,7 +68,7 @@ export default function Doorbell() {
               <button type="button" className="block w-full aspect-video bg-muted" onClick={() => ev.has_image && setZoom(ev)}
                 aria-label={ev.has_image ? "Foto vergrößern" : "Kein Foto"}>
                 {ev.has_image ? (
-                  <img src={`/api/doorbell/${ev.id}/image`} alt={`Klingeln ${ev.door_name}`} loading="lazy"
+                  <img src={apiUrl(`/api/doorbell/${ev.id}/image`)} alt={`Klingeln ${ev.door_name}`} loading="lazy"
                     className="w-full h-full object-cover" />
                 ) : (
                   <span className="flex h-full items-center justify-center text-muted-foreground">
@@ -97,7 +98,7 @@ export default function Doorbell() {
 
       {zoom && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setZoom(null)}>
-          <img src={`/api/doorbell/${zoom.id}/image`} alt="Klingelbild groß" className="max-h-full max-w-full rounded" />
+          <img src={apiUrl(`/api/doorbell/${zoom.id}/image`)} alt="Klingelbild groß" className="max-h-full max-w-full rounded" />
         </div>
       )}
     </div>

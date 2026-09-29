@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.140
+
+**Oberfläche - einheitliche, breitere Dialoge**
+- Alle Dialoge mit Formular (Nebenstelle anlegen und bearbeiten, Gerät im Provisioning, IVR-Menü, Routen, Zeitsteuerungen) sind jetzt gleich breit und zweispaltig. Der Nebenstellen-Dialog ist in „Allgemein“, „Türstation“ und „Handy und Erreichbarkeit“ gegliedert und viel kürzer.
+
+**Fehlerbehebung - Klingelbilder und Mailbox in der Home-Assistant-Seitenleiste**
+- Wird die Oberfläche über die Home-Assistant-Seitenleiste geöffnet, fehlten im Klingel-Verlauf die Fotos, und Mailbox-Nachrichten ließen sich nicht abspielen. Beides funktioniert jetzt.
+
 ## 0.7.139
 
 **Fehlerbehebung - Neustart-Schleife bei ausgelastetem Home Assistant**

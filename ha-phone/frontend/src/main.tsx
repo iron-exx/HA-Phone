@@ -1,3 +1,4 @@
+import { apiUrl } from "./lib/apiUrl";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -19,9 +20,7 @@ const ingressPath: string = (window as any).__INGRESS_PATH__ ?? "";
 if (ingressPath) {
   const origFetch = window.fetch.bind(window);
   window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-    if (typeof input === "string" && input.startsWith("/api/")) {
-      input = ingressPath + input;
-    }
+    if (typeof input === "string") input = apiUrl(input);
     return origFetch(input, init);
   };
 }

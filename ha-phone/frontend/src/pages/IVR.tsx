@@ -144,7 +144,7 @@ function AddIVRDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="w-[min(720px,calc(100vw-2rem))] max-w-[min(720px,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+      <DialogContent size="form">
         <DialogHeader>
           <DialogTitle>IVR-Menü anlegen</DialogTitle>
         </DialogHeader>
@@ -363,7 +363,7 @@ function EditIVRDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="w-[min(720px,calc(100vw-2rem))] max-w-[min(720px,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+      <DialogContent size="form">
         <DialogHeader>
           <DialogTitle>IVR-Menü bearbeiten</DialogTitle>
         </DialogHeader>

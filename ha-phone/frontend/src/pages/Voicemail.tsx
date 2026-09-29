@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/apiUrl";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
@@ -326,7 +327,7 @@ function VoicemailCard({
                   </div>
                   <div className="bg-muted rounded p-2">
                     <audio controls className="w-full"
-                      src={`/api/voicemail/messages/${extNum}/${msg.filename}`}
+                      src={apiUrl(`/api/voicemail/messages/${extNum}/${msg.filename}`)}
                     />
                   </div>
                 </div>
