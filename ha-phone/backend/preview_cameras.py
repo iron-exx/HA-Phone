@@ -75,9 +75,18 @@ def is_shared(session: Session, entity_id: str) -> bool:
 _cache: dict[str, tuple[float, tuple[bytes, str]]] = {}
 _locks: dict[str, asyncio.Lock] = {}
 
+# While a door rings, the shared cameras are fetched back to back in the background
+# (doorbell_listener starts/ends it), so the ringing phones get the newest finished
+# picture at once instead of each waiting 7-25 s for HA.
+WARM_MAX_S = 90.0        # safety stop if the Ended event is lost
+WARM_PAUSE_S = 0.5       # between two rounds
+WARM_MAX_AGE_S = 30.0    # older pictures are fetched on demand as usual
+_rings: dict[str, float] = {}   # ringing door channel -> deadline
+_warm_ids: list[str] = []
+_warm_task: Optional[asyncio.Task] = None
 
-async def snapshot(entity_id: str) -> Optional[tuple[bytes, str]]:
-    """Current picture; requests within CACHE_S (or waiting on a running fetch) share it."""
+
+async def _fetch_into_cache(entity_id: str) -> Optional[tuple[bytes, str]]:
     lock = _locks.setdefault(entity_id, asyncio.Lock())
     async with lock:
         hit = _cache.get(entity_id)
@@ -89,3 +98,51 @@ async def snapshot(entity_id: str) -> Optional[tuple[bytes, str]]:
         else:
             _cache.pop(entity_id, None)
         return image
+
+
+def _warming() -> bool:
+    now = time.monotonic()
+    for uid in [u for u, deadline in _rings.items() if deadline < now]:
+        _rings.pop(uid, None)
+    return bool(_rings)
+
+
+async def _warm_loop() -> None:
+    global _warm_task
+    try:
+        while _warming():
+            await asyncio.gather(*(_fetch_into_cache(e) for e in list(_warm_ids)))
+            await asyncio.sleep(WARM_PAUSE_S)
+    except Exception:
+        log.exception("preview cameras: warm-up failed")
+    finally:
+        _warm_task = None
+
+
+def ring_started(uniqueid: str, entity_ids: list[str]) -> None:
+    """A door rings: keep [entity_ids] fresh until ring_ended (or WARM_MAX_S)."""
+    global _warm_ids, _warm_task
+    if not entity_ids:
+        return
+    _warm_ids = list(entity_ids)
+    _rings[uniqueid] = time.monotonic() + WARM_MAX_S
+    if _warm_task is not None:
+        return
+    try:
+        _warm_task = asyncio.get_running_loop().create_task(_warm_loop())
+    except RuntimeError:  # no event loop (unit tests call the listener synchronously)
+        _rings.pop(uniqueid, None)
+
+
+def ring_ended(uniqueid: str) -> None:
+    _rings.pop(uniqueid, None)
+
+
+async def snapshot(entity_id: str) -> Optional[tuple[bytes, str]]:
+    """Current picture; requests within CACHE_S (or waiting on a running fetch) share it.
+    While a door rings, the newest warmed picture is returned without waiting."""
+    if _warming():
+        hit = _cache.get(entity_id)
+        if hit and time.monotonic() - hit[0] < WARM_MAX_AGE_S:
+            return hit[1]
+    return await _fetch_into_cache(entity_id)

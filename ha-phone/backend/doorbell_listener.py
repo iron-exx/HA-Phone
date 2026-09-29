@@ -13,7 +13,7 @@ import time
 
 from sqlmodel import Session, select
 
-from backend import doorbell
+from backend import doorbell, preview_cameras
 from backend.database import get_engine
 from backend.models import Extension
 
@@ -65,11 +65,13 @@ class DoorbellListener:
                 source = door.doorbell_camera if door else ""
                 if source:
                     self._spawn(self._snapshot(event.id, source))
+                preview_cameras.ring_started(action.uniqueid, [c["entity_id"] for c in preview_cameras.shared(s)])
             elif isinstance(action, doorbell.Answered):
                 event_id = self._event_of.get(action.uniqueid)
                 if event_id:
                     store.mark_answered(event_id, action.by)
             elif isinstance(action, doorbell.Ended):
+                preview_cameras.ring_ended(action.uniqueid)
                 event_id = self._event_of.pop(action.uniqueid, None)
                 if event_id:
                     store.mark_ended(event_id)

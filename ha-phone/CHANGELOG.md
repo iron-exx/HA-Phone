@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.145
+
+**Verbesserung - Kamerabilder beim Klingeln schneller**
+- Klingelt eine Tür, holt die Anlage die für die App freigegebenen Kameras sofort und danach laufend im Hintergrund, bis das Klingeln endet. Die klingelnden Handys bekommen so ohne Wartezeit das neueste Bild. Home Assistant wird dabei nur einmal pro Bild abgefragt, egal wie viele Handys klingeln.
+
 ## 0.7.144
 
 **Oberfläche - eigenes Symbol in der Home-Assistant-Seitenleiste**

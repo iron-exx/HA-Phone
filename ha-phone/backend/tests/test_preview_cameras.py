@@ -142,3 +142,43 @@ async def test_snapshot_is_shared_for_a_moment_and_failures_are_not_cached(ha, m
     monkeypatch.setattr(preview_cameras, "_transport", httpx.MockTransport(lambda r: httpx.Response(500)))
     assert await preview_cameras.snapshot("camera.garten") is None
     assert "camera.garten" not in preview_cameras._cache
+
+
+# ── warm-up while a door rings ──
+
+@pytest.fixture
+def warm(monkeypatch):
+    monkeypatch.setattr(preview_cameras, "WARM_PAUSE_S", 0.01)
+    monkeypatch.setattr(preview_cameras, "CACHE_S", 0.0)  # every round really fetches
+    yield
+    preview_cameras._rings.clear()
+
+
+@pytest.mark.asyncio
+async def test_ring_keeps_shared_cameras_fresh_and_phones_get_them_at_once(ha, warm):
+    import asyncio
+    preview_cameras.ring_started("1.1", ["camera.garten"])
+    for _ in range(50):
+        if "camera.garten" in preview_cameras._cache:
+            break
+        await asyncio.sleep(0.01)
+    assert preview_cameras._cache["camera.garten"][1][0] == JPEG
+    fetched = len(ha)
+    # While ringing, a phone gets the warmed picture without an extra HA fetch of its own.
+    preview_cameras._cache["camera.garten"] = (0.0 + preview_cameras.time.monotonic(), (b"old", "image/jpeg"))
+    assert (await preview_cameras.snapshot("camera.garten"))[0] == b"old"
+    await asyncio.sleep(0.05)
+    assert len(ha) > fetched  # the loop keeps fetching
+    preview_cameras.ring_ended("1.1")
+    await asyncio.sleep(0.05)
+    stopped_at = len(ha)
+    await asyncio.sleep(0.05)
+    assert len(ha) == stopped_at
+
+
+def test_ring_without_shared_cameras_or_event_loop_is_harmless(warm):
+    preview_cameras.ring_started("2.2", [])
+    preview_cameras.ring_started("3.3", ["camera.garten"])  # no running loop here
+    preview_cameras.ring_ended("3.3")
+    preview_cameras.ring_ended("never-started")
+    assert not preview_cameras._rings
