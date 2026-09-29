@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.142
+
+**Fehlerbehebung - Kamerabilder für die App**
+- Kameras, die in Home Assistant lange für ein Bild brauchen (z. B. die Türstation über RTSP, rund 7 Sekunden), lieferten der App kein Bild. Die Anlage wartet jetzt bis zu 12 Sekunden.
+- Fragen mehrere Handys dieselbe Kamera gleichzeitig ab, holt die Anlage das Bild nur einmal und gibt es an alle weiter. Das entlastet Home Assistant.
+
 ## 0.7.141
 
 **Neu - weitere Kameras für die App freigeben**

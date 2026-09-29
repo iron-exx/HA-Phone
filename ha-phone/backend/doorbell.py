@@ -130,14 +130,14 @@ def _image_or_none(resp: httpx.Response) -> Optional[tuple[bytes, str]]:
     return resp.content, ctype
 
 
-async def fetch_snapshot(source: str, *, transport: httpx.AsyncBaseTransport | None = None
-                         ) -> Optional[tuple[bytes, str]]:
+async def fetch_snapshot(source: str, *, transport: httpx.AsyncBaseTransport | None = None,
+                         timeout: float = SNAPSHOT_TIMEOUT_S) -> Optional[tuple[bytes, str]]:
     """(image bytes, content type) or None. Never raises."""
     source = (source or "").strip()
     if not source:
         return None
     try:
-        async with httpx.AsyncClient(timeout=SNAPSHOT_TIMEOUT_S, transport=transport,
+        async with httpx.AsyncClient(timeout=timeout, transport=transport,
                                      follow_redirects=False) as client:
             if source.startswith("camera."):
                 token = os.environ.get("SUPERVISOR_TOKEN", "")

@@ -35,6 +35,13 @@ def ha(monkeypatch):
     return fetched
 
 
+@pytest.fixture(autouse=True)
+def _no_cache():
+    preview_cameras._cache.clear()
+    yield
+    preview_cameras._cache.clear()
+
+
 @pytest.fixture
 def shared(client):
     yield
@@ -121,3 +128,17 @@ def test_phone_snapshot_502_when_camera_gives_no_picture(client, paired, shared,
     monkeypatch.setattr(preview_cameras, "_transport", httpx.MockTransport(lambda r: httpx.Response(500)))
     client.put("/api/doorbell/preview-cameras", json={"cameras": [{"entity_id": "camera.garten", "name": "Garten"}]})
     assert client.get("/api/mobile/cameras/camera.garten/snapshot", headers=_auth(paired)).status_code == 502
+
+
+@pytest.mark.asyncio
+async def test_snapshot_is_shared_for_a_moment_and_failures_are_not_cached(ha, monkeypatch):
+    assert (await preview_cameras.snapshot("camera.garten"))[0] == JPEG
+    assert (await preview_cameras.snapshot("camera.garten"))[0] == JPEG
+    assert ha == ["camera.garten"]  # second call from the cache
+    monkeypatch.setattr(preview_cameras, "CACHE_S", 0.0)
+    await preview_cameras.snapshot("camera.garten")
+    assert ha == ["camera.garten", "camera.garten"]
+
+    monkeypatch.setattr(preview_cameras, "_transport", httpx.MockTransport(lambda r: httpx.Response(500)))
+    assert await preview_cameras.snapshot("camera.garten") is None
+    assert "camera.garten" not in preview_cameras._cache

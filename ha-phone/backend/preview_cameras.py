@@ -3,8 +3,10 @@ paired phones may show (e.g. garden, driveway); the app then chooses from that l
 Pictures always go through the add-on (Supervisor API), phones never talk to HA."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import time
 from typing import Optional
 
 import httpx
@@ -17,6 +19,10 @@ log = logging.getLogger(__name__)
 
 CAMERA_ENTITY_PATTERN = r"^camera\.[a-z0-9_]{1,120}$"
 MAX_SHARED = 12
+# HA builds a picture per request (ffmpeg on RTSP cameras can take ~7 s), so allow
+# more than the doorbell's 4 s and share one fetch between phones and thumbnails.
+SNAPSHOT_TIMEOUT_S = 12.0
+CACHE_S = 2.0
 _CORE_API = "http://supervisor/core/api"
 # Test hook (httpx.MockTransport in tests).
 _transport: Optional[httpx.AsyncBaseTransport] = None
@@ -65,5 +71,20 @@ def is_shared(session: Session, entity_id: str) -> bool:
     return session.exec(select(PreviewCamera).where(PreviewCamera.entity_id == entity_id)).first() is not None
 
 
+_cache: dict[str, tuple[float, tuple[bytes, str]]] = {}
+_locks: dict[str, asyncio.Lock] = {}
+
+
 async def snapshot(entity_id: str) -> Optional[tuple[bytes, str]]:
-    return await doorbell.fetch_snapshot(entity_id, transport=_transport)
+    """Current picture; requests within CACHE_S (or waiting on a running fetch) share it."""
+    lock = _locks.setdefault(entity_id, asyncio.Lock())
+    async with lock:
+        hit = _cache.get(entity_id)
+        if hit and time.monotonic() - hit[0] < CACHE_S:
+            return hit[1]
+        image = await doorbell.fetch_snapshot(entity_id, transport=_transport, timeout=SNAPSHOT_TIMEOUT_S)
+        if image:
+            _cache[entity_id] = (time.monotonic(), image)
+        else:
+            _cache.pop(entity_id, None)
+        return image
