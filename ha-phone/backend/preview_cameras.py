@@ -19,9 +19,10 @@ log = logging.getLogger(__name__)
 
 CAMERA_ENTITY_PATTERN = r"^camera\.[a-z0-9_]{1,120}$"
 MAX_SHARED = 12
-# HA builds a picture per request (ffmpeg on RTSP cameras can take ~7 s), so allow
-# more than the doorbell's 4 s and share one fetch between phones and thumbnails.
-SNAPSHOT_TIMEOUT_S = 12.0
+# HA builds a picture per request (ffmpeg on RTSP cameras: 7-25 s measured on a
+# door station), so allow far more than the doorbell's 4 s (the app waits 30 s) and
+# share one fetch between phones and thumbnails.
+SNAPSHOT_TIMEOUT_S = 25.0
 CACHE_S = 2.0
 _CORE_API = "http://supervisor/core/api"
 # Test hook (httpx.MockTransport in tests).

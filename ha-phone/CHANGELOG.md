@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.143
+
+**Fehlerbehebung - Kamerabilder für die App**
+- Die Türstation braucht in Home Assistant 7 bis 25 Sekunden pro Bild (gemessen). Die Anlage wartet jetzt bis zu 25 statt 12 Sekunden, damit die App auch bei langsamen Kameras ein Bild bekommt.
+
 ## 0.7.142
 
 **Fehlerbehebung - Kamerabilder für die App**
