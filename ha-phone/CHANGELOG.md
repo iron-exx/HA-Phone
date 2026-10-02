@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.152
+
+**Fehlerbehebung - Fanvil-Telefone wurden nicht eingerichtet**
+- Das Fanvil V65 hat seine Datei von der Anlage abgeholt, aber nichts davon übernommen. Die Vorlagen „Fanvil“ und „Fanvil V65“ nutzten Einstellungsnamen, die das Telefon nicht kennt (z. B. „SIP1 Register Enable“ statt „SIP1 Enable Reg“). Außerdem fehlten der Kopf im exakten Fanvil-Format und das Dateiende `<<END OF FILE>>`. Die Vorlagen sind jetzt nach dem Konfigurations-Export eines echten V65 aufgebaut: Nebenstelle, Server und Proxy (eine alte Proxy-Adresse wird überschrieben), Sprache, Zeitzone Mitteleuropa mit Sommerzeit sowie die 9 Funktionstasten.
+- Vorhandene, nicht selbst bearbeitete Fanvil-Vorlagen werden beim Start automatisch ersetzt, auch wenn sie umbenannt wurden. Selbst bearbeitete Vorlagen bleiben unverändert. Kopf und Dateiende ergänzt die Anlage bei jeder Fanvil-Datei automatisch.
+- Funktionstasten im Gerätedialog: Kurzwahl, BLF, Leitung, Intercom und Parken. Bereits eingetragene Kurzwahl-, BLF- und Park-Tasten bleiben erhalten. Leerzeichen in Nummern werden entfernt.
+- Entfernt wurden die Felder „Klingeltöne“, „Zeitzone“, „Early Media“ und „Pickup“. Das Telefon hat sie nie ausgewertet.
+
 ## 0.7.151
 
 **Oberfläche - Kameras für die App übersichtlicher**

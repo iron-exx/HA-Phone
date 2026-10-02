@@ -1,4 +1,4 @@
-"""Fanvil V65 has 9 DSS keys: builtin template, upgrade of existing templates, rendering."""
+"""Fanvil V65: verified config format, 9 DSS keys, upgrade of existing templates, rendering."""
 from sqlmodel import Session, select
 
 from backend.database import get_engine
@@ -12,12 +12,74 @@ def _v65():
     return next(t for t in prov.BUILTIN_TEMPLATES if t["name"] == prov._FANVIL_V65_FULL_NAME)["content"]
 
 
-def test_builtin_v65_template_has_nine_keys():
-    content = _v65()
-    for n in range(1, 10):
-        assert f"Memory DSS Key{n} Type :{{{{fanvil_dss{n}_type | default('0')}}}}" in content
-        assert f"Memory DSS Key{n} Label :{{{{fanvil_dss{n}_label | default('')}}}}" in content
-    assert "Memory DSS Key10" not in content
+def _device_cfg(extra, accounts=None):
+    accounts = accounts or [{"number": "14", "display_name": "Büro", "sip_username": "14", "sip_auth": "14",
+                             "sip_password": "geheim", "label": "Büro"}]
+    subs = {"accounts": accounts, "sip_server": "192.168.7.10", "sip_port": "5060"}
+    subs.update(prov._fanvil_vars(extra))
+    subs.update(extra)
+    return prov._fanvil_cfg_normalize(prov._render(_v65(), subs))
+
+
+def test_v65_file_has_the_frame_the_phone_requires():
+    out = _device_cfg({})
+    header = out.split("\r\n")[0]
+    assert header.startswith("<<VOIP CONFIG FILE>>Version:2.0000000000")
+    assert len(header) + 2 == 64
+    assert out.endswith("<<END OF FILE>>\r\n")
+    assert "\n" not in out.replace("\r\n", "")
+
+
+def test_v65_uses_the_key_names_of_the_phones_own_export():
+    out = _device_cfg({})
+    for line in ("SIP1 Phone Number       :14", "SIP1 Register Addr      :192.168.7.10",
+                 "SIP1 Register User      :14", "SIP1 Register Pswd      :geheim", "SIP1 Enable Reg         :1",
+                 "SIP1 Proxy Addr         :192.168.7.10", "Default Language   :de", "--Sidekey Config1--:"):
+        assert line + "\r\n" in out
+    for invented in ("Register Enable", "PREFERENCE", "Memory DSS"):
+        assert invented not in out
+
+
+def test_v65_keys_map_to_fanvil_memory_and_line_keys():
+    out = _device_cfg({"fanvil_dss1_type": "1", "fanvil_dss1_value": "+49 525 2448013", "fanvil_dss1_label": "Larissa",
+                       "fanvil_dss2_type": "2", "fanvil_dss2_value": "19", "fanvil_dss2_label": "Tür",
+                       "fanvil_dss3_type": "line", "fanvil_dss3_line": "2",
+                       "fanvil_dss4_type": "1", "fanvil_dss4_value": "",
+                       "fanvil_dss9_type": "16", "fanvil_dss9_value": "700"})
+    assert "Fkey1 Type               :1\r\nFkey1 Value              :+495252448013@1/f\r\n" in out
+    assert "Fkey1 Title              :Larissa\r\n" in out
+    assert "Fkey2 Value              :19@1/bc\r\n" in out
+    assert "Fkey3 Type               :2\r\nFkey3 Value              :SIP2\r\n" in out
+    assert "Fkey4 Type               :0\r\n" in out  # speed dial without number = empty
+    assert "Fkey9 Value              :700@1/c\r\n" in out
+    assert "Fkey10" not in out
+
+
+def test_v65_provisions_every_assigned_extension_as_a_line():
+    accounts = [{"number": n, "display_name": f"N{n}", "sip_username": n, "sip_auth": n, "sip_password": "pw",
+                 "label": f"N{n}"} for n in ("14", "15")]
+    out = _device_cfg({}, accounts)
+    assert "SIP2 Phone Number       :15\r\n" in out and "SIP2 Enable Reg         :1\r\n" in out
+
+
+def test_shipped_fanvil_v65_revisions_are_upgraded_even_when_renamed(client):
+    with Session(get_engine()) as s:
+        rows = [ProvisioningTemplate(name=f"Fanvil V65 (angepasst {i})", vendor="Fanvil", file_pattern="{mac}.cfg",
+                                     content=old, builtin=True)
+                for i, old in enumerate(prov._FANVIL_V65_MEMORY_DSS_CONTENTS)]
+        edited = ProvisioningTemplate(name="Fanvil V65 eigene", vendor="Fanvil", file_pattern="{mac}.cfg",
+                                      content=prov._FANVIL_V65_MEMORY_DSS_CONTENTS[1] + "## eigene Zeile\n")
+        for r in [*rows, edited]:
+            s.add(r)
+        s.commit()
+        assert prov.repair_broken_builtin_templates(s) is True
+        for r in [*rows, edited]:
+            s.refresh(r)
+        assert all(r.content == _v65() for r in rows)
+        assert edited.content.endswith("## eigene Zeile\n")
+        for r in [*rows, edited]:
+            s.delete(r)
+        s.commit()
 
 
 def test_existing_six_key_templates_get_keys_7_to_9_and_keep_user_edits(client):
@@ -50,12 +112,6 @@ def test_templates_without_the_standard_block_are_not_touched(client):
         for t in s.exec(select(ProvisioningTemplate)).all():
             if t.id in others:
                 assert t.content == others[t.id]
-
-
-def test_key9_renders_with_device_values():
-    out = prov._render(_v65(), {"fanvil_dss9_type": "2", "fanvil_dss9_value": "19", "fanvil_dss9_label": "Indoorview",
-                                "fanvil_dss9_pickup": "**19", "fanvil_dss9_line": "1"})
-    assert "Memory DSS Key9 Type :2" in out and "Memory DSS Key9 Label :Indoorview" in out
 
 
 def test_extensions_are_listed_by_number(client):

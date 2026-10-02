@@ -113,12 +113,41 @@ _FANVIL_DSS_FIELDS = (("Type", "type", "0"), ("Value", "value", ""), ("Line", "l
 
 
 def fanvil_dss_lines(keys) -> str:
-    """'Memory DSS KeyN ...' lines filled from the per-device fanvil_dssN_* variables."""
+    """'Memory DSS KeyN ...' lines of the pre-0.7.152 V65 template (invented key
+    names the phone ignores). Only kept to recognize and upgrade old templates."""
     return "".join(
         f"Memory DSS Key{n} {field} :{{{{fanvil_dss{n}_{var} | default('{default}')}}}}\n"
         for n in keys for field, var, default in _FANVIL_DSS_FIELDS
     )
 
+
+# Fanvil text config: every key name below is taken verbatim from a real V65's
+# own export (web UI -> Maintenance -> Export Configurations). The phone only
+# applies a file whose 64-byte header line ends in CRLF and that is closed by
+# <<END OF FILE>> - _fanvil_cfg_normalize() enforces both at serve time.
+# "--Sidekey Config1--" is not decoration: Fkey1..9 repeat on every key page,
+# the label selects page 1.
+_FANVIL_CFG_HEADER = "<<VOIP CONFIG FILE>>Version:2.0000000000"
+_FANVIL_CFG_END = "<<END OF FILE>>"
+_FANVIL_SIP_LINES = (
+    "<SIP CONFIG MODULE>\n"
+    "--SIP Line List--  :\n"
+    "{% for a in accounts %}"
+    "SIP{{ loop.index }} Phone Number       :{{ a.sip_username }}\n"
+    "SIP{{ loop.index }} Display Name       :{{ a.display_name }}\n"
+    "SIP{{ loop.index }} Sip Name           :{{ a.label }}\n"
+    "SIP{{ loop.index }} Register Addr      :{{ sip_server }}\n"
+    "SIP{{ loop.index }} Register Port      :{{ sip_port }}\n"
+    "SIP{{ loop.index }} Register User      :{{ a.sip_auth }}\n"
+    "SIP{{ loop.index }} Register Pswd      :{{ a.sip_password }}\n"
+    "SIP{{ loop.index }} Register TTL       :600\n"
+    "SIP{{ loop.index }} Enable Reg         :1\n"
+    "SIP{{ loop.index }} Proxy Addr         :{{ sip_server }}\n"
+    "SIP{{ loop.index }} Proxy Port         :{{ sip_port }}\n"
+    "SIP{{ loop.index }} Backup Addr        :\n"
+    "SIP{{ loop.index }} DTMF Mode          :1\n"
+    "{% endfor %}"
+)
 
 BUILTIN_TEMPLATES = [
     {
@@ -163,16 +192,10 @@ BUILTIN_TEMPLATES = [
         "vendor": "Fanvil",
         "file_pattern": "{mac}.cfg",
         "content": (
-            "<<VOIP CONFIG FILE>>Version:2.0000\n"
-            "## HA-Phone auto-provisioning — Fanvil. Editierbar.\n"
-            "<SIP CONFIG MODULE>\n"
-            "SIP1 Phone Number :{{sip_username}}\n"
-            "SIP1 Display Name :{{display_name}}\n"
-            "SIP1 Register User :{{sip_username}}\n"
-            "SIP1 Register Pswd :{{sip_password}}\n"
-            "SIP1 Register Addr :{{sip_server}}\n"
-            "SIP1 Register Port :{{sip_port}}\n"
-            "SIP1 Register Enable :1\n"
+            _FANVIL_CFG_HEADER + "\n"
+            "\n"
+            + _FANVIL_SIP_LINES
+            + "\n" + _FANVIL_CFG_END + "\n"
         ),
     },
     {
@@ -180,42 +203,31 @@ BUILTIN_TEMPLATES = [
         "vendor": "Fanvil",
         "file_pattern": "{mac}.cfg",
         "content": (
-            "<<VOIP CONFIG FILE>>Version:2.0000\n"
-            "## HA-Phone auto-provisioning — Fanvil V65. Editierbar.\n"
+            _FANVIL_CFG_HEADER + "\n"
             "\n"
-            "<PREFERENCE MODULE>\n"
-            "## Sprache: German, English, French, Spanish, Italian, Portuguese, Russian, Turkish\n"
-            "PREFERENCE Language :{{fanvil_language | default('German')}}\n"
-            "## Landeswahl für Ruftöne/Amtston: Germany, UK, USA, France, Spain, Italy, ...\n"
-            "PREFERENCE Active Tone :{{fanvil_tone | default('Germany')}}\n"
-            "## Zeitzone: z.B. Berlin(+1:00), Vienna(+1:00), Zurich(+1:00)\n"
-            "PREFERENCE Time Zone :{{fanvil_timezone | default('Berlin(+1:00)')}}\n"
-            "## NTP-Zeitserver für automatische Uhrzeitsynchronisation\n"
-            "PREFERENCE SNTP Server :pool.ntp.org\n"
-            "PREFERENCE SNTP Port :123\n"
-            "## Sommerzeit: Enable / Disable\n"
-            "PREFERENCE Summer Time :Enable\n"
+            + _FANVIL_SIP_LINES
+            + "\n"
+            "<PHONE FEATURE MODULE>\n"
+            "--Display Input--  :\n"
+            "Default Language   :{{ fanvil_language_code }}\n"
+            "--DateTime Config--:\n"
+            "Enable SNTP        :1\n"
+            "SNTP Server        :0.pool.ntp.org\n"
+            "Second SNTP Server :1.pool.ntp.org\n"
+            "Time Zone          :4\n"
+            "Time Zone Name     :UTC+1\n"
+            "DST Type           :1\n"
+            "DST Location       :11\n"
+            "DST Rule Mode      :0\n"
             "\n"
-            "<SIP CONFIG MODULE>\n"
-            "SIP1 Phone Number :{{sip_username}}\n"
-            "SIP1 Display Name :{{display_name}}\n"
-            "SIP1 Register User :{{sip_username}}\n"
-            "SIP1 Register Pswd :{{sip_password}}\n"
-            "SIP1 Register Addr :{{sip_server}}\n"
-            "SIP1 Register Port :{{sip_port}}\n"
-            "SIP1 Register Enable :1\n"
-            "## Early Media (183 Session Progress mit SDP): 1=aktiviert, 0=deaktiviert\n"
-            "SIP1 Early Media :{{fanvil_early_media | default('1')}}\n"
-            "## DTMF-Modus: 0=INBAND, 2=RFC2833, 4=SIP INFO\n"
-            "SIP1 DTMF Type :2\n"
-            "\n"
-            "<DSSKEY MODULE>\n"
-            "## --- Funktionstasten (DSS Keys) ---\n"
-            "## Typen: 0=Leer, 1=Speed Dial, 2=BLF, 3=URL, 4=Group Pickup,\n"
-            "##         6=Voice Mail, 9=DTMF, 13=Transfer, 14=Hold, 16=Park\n"
-            "## Zeile: 1 = SIP-Konto 1\n"
-            "## BLF-Beispiel: Type=2, Value=102, PickupValue=**102, Label=Buero\n"
-            + fanvil_dss_lines(range(1, FANVIL_V65_DSS_KEYS + 1))
+            "<DSSKEY CONFIG MODULE>\n"
+            "--Sidekey Config1--:\n"
+            "{% for k in fanvil_keys %}"
+            "Fkey{{ k.index }} Type               :{{ k.type }}\n"
+            "Fkey{{ k.index }} Value              :{{ k.value }}\n"
+            "Fkey{{ k.index }} Title              :{{ k.title }}\n"
+            "{% endfor %}"
+            "\n" + _FANVIL_CFG_END + "\n"
         ),
     },
     {
@@ -495,6 +507,64 @@ _FANVIL_V65_LEGACY_CONTENT = (
     "Memory DSS Key6 Label :\n"
 )
 
+# 0.7.99-0.7.151 V65 content (6, later 9 keys) and the original simple
+# "Fanvil" template: plausible-looking but invented key names ("SIP1 Register
+# Enable", "PREFERENCE ...", "Memory DSS Key..."), no <<END OF FILE>> and a
+# short LF header. The phone downloaded these and silently applied nothing.
+_FANVIL_V65_MEMORY_DSS_HEAD = (
+    "<<VOIP CONFIG FILE>>Version:2.0000\n"
+    "## HA-Phone auto-provisioning — Fanvil V65. Editierbar.\n"
+    "\n"
+    "<PREFERENCE MODULE>\n"
+    "## Sprache: German, English, French, Spanish, Italian, Portuguese, Russian, Turkish\n"
+    "PREFERENCE Language :{{fanvil_language | default('German')}}\n"
+    "## Landeswahl für Ruftöne/Amtston: Germany, UK, USA, France, Spain, Italy, ...\n"
+    "PREFERENCE Active Tone :{{fanvil_tone | default('Germany')}}\n"
+    "## Zeitzone: z.B. Berlin(+1:00), Vienna(+1:00), Zurich(+1:00)\n"
+    "PREFERENCE Time Zone :{{fanvil_timezone | default('Berlin(+1:00)')}}\n"
+    "## NTP-Zeitserver für automatische Uhrzeitsynchronisation\n"
+    "PREFERENCE SNTP Server :pool.ntp.org\n"
+    "PREFERENCE SNTP Port :123\n"
+    "## Sommerzeit: Enable / Disable\n"
+    "PREFERENCE Summer Time :Enable\n"
+    "\n"
+    "<SIP CONFIG MODULE>\n"
+    "SIP1 Phone Number :{{sip_username}}\n"
+    "SIP1 Display Name :{{display_name}}\n"
+    "SIP1 Register User :{{sip_username}}\n"
+    "SIP1 Register Pswd :{{sip_password}}\n"
+    "SIP1 Register Addr :{{sip_server}}\n"
+    "SIP1 Register Port :{{sip_port}}\n"
+    "SIP1 Register Enable :1\n"
+    "## Early Media (183 Session Progress mit SDP): 1=aktiviert, 0=deaktiviert\n"
+    "SIP1 Early Media :{{fanvil_early_media | default('1')}}\n"
+    "## DTMF-Modus: 0=INBAND, 2=RFC2833, 4=SIP INFO\n"
+    "SIP1 DTMF Type :2\n"
+    "\n"
+    "<DSSKEY MODULE>\n"
+    "## --- Funktionstasten (DSS Keys) ---\n"
+    "## Typen: 0=Leer, 1=Speed Dial, 2=BLF, 3=URL, 4=Group Pickup,\n"
+    "##         6=Voice Mail, 9=DTMF, 13=Transfer, 14=Hold, 16=Park\n"
+    "## Zeile: 1 = SIP-Konto 1\n"
+    "## BLF-Beispiel: Type=2, Value=102, PickupValue=**102, Label=Buero\n"
+)
+_FANVIL_V65_MEMORY_DSS_CONTENTS = [
+    _FANVIL_V65_MEMORY_DSS_HEAD + fanvil_dss_lines(range(1, 7)),
+    _FANVIL_V65_MEMORY_DSS_HEAD + fanvil_dss_lines(range(1, FANVIL_V65_DSS_KEYS + 1)),
+]
+_FANVIL_SIMPLE_LEGACY_CONTENT = (
+    "<<VOIP CONFIG FILE>>Version:2.0000\n"
+    "## HA-Phone auto-provisioning — Fanvil. Editierbar.\n"
+    "<SIP CONFIG MODULE>\n"
+    "SIP1 Phone Number :{{sip_username}}\n"
+    "SIP1 Display Name :{{display_name}}\n"
+    "SIP1 Register User :{{sip_username}}\n"
+    "SIP1 Register Pswd :{{sip_password}}\n"
+    "SIP1 Register Addr :{{sip_server}}\n"
+    "SIP1 Register Port :{{sip_port}}\n"
+    "SIP1 Register Enable :1\n"
+)
+
 # Every superseded shipped revision of a builtin template, by name. A row is
 # auto-upgraded to the current BUILTIN_TEMPLATES content ONLY if it still
 # exactly matches one of these - user-edited templates are never touched.
@@ -503,27 +573,24 @@ _OUTDATED_BUILTIN_CONTENTS: dict[str, list[str]] = {
         _N510_PROVIDERFRAME_BROKEN_CONTENT,
         _N510_PROVIDERFRAME_PRE_LDAP_CONTENT,
     ],
-    _FANVIL_V65_FULL_NAME: [_FANVIL_V65_LEGACY_CONTENT],
+    _FANVIL_V65_FULL_NAME: [_FANVIL_V65_LEGACY_CONTENT, *_FANVIL_V65_MEMORY_DSS_CONTENTS],
+    "Fanvil": [_FANVIL_SIMPLE_LEGACY_CONTENT],
 }
 
 
 def repair_broken_builtin_templates(session: Session) -> bool:
-    """Upgrade builtin template rows whose content exactly matches a known
-    superseded revision (e.g. the broken 0.7.77 N510 suffix scheme, or the
-    pre-LDAP 0.7.81 revision). A user's own edits to a builtin template
-    (explicitly supported - see BUILTIN_TEMPLATES comment) never match one
-    of the known old texts verbatim and are left alone."""
+    """Upgrade template rows whose content exactly matches a known superseded
+    builtin revision (e.g. the broken 0.7.77 N510 suffix scheme, the pre-LDAP
+    0.7.81 revision, the pre-0.7.152 Fanvil key names). Matched by content, not
+    by name, so a builtin the admin only renamed (e.g. "Fanvil V65 (angepasst)")
+    is upgraded too. A user's own edits never match a known old text verbatim
+    and are left alone."""
+    current = {t["name"]: t["content"] for t in BUILTIN_TEMPLATES}
+    upgrades = {old: current[name] for name, olds in _OUTDATED_BUILTIN_CONTENTS.items() for old in olds}
     changed = False
-    for name, old_contents in _OUTDATED_BUILTIN_CONTENTS.items():
-        tpl = session.exec(
-            select(ProvisioningTemplate).where(
-                ProvisioningTemplate.name == name,
-                ProvisioningTemplate.builtin == True,  # noqa: E712
-            )
-        ).first()
-        if tpl and tpl.content in old_contents:
-            fixed = next(t for t in BUILTIN_TEMPLATES if t["name"] == name)
-            tpl.content = fixed["content"]
+    for tpl in session.exec(select(ProvisioningTemplate)).all():
+        if tpl.content in upgrades:
+            tpl.content = upgrades[tpl.content]
             session.add(tpl)
             changed = True
     if changed:
@@ -559,6 +626,56 @@ def seed_builtin_templates(session: Session) -> bool:
     if seeded:
         session.commit()
     return seeded
+
+
+# Device dialog key type -> (Fanvil Fkey Type, Value suffix). Fkey Type 1 is
+# a "memory key" whose Value is "<number>@<line>/<subtype>" (f = speed dial,
+# bc = BLF with new call on press, i = intercom, c = call park), Type 2 a line
+# key ("SIP<line>"), Type 0 empty. Codes "1", "2", "16" keep the meaning they
+# had in the pre-0.7.152 dialog, so saved devices carry over.
+_FANVIL_KEY_TYPES = {"1": "f", "2": "bc", "intercom": "i", "16": "c"}
+_FANVIL_LANGUAGES = {"German": "de", "English": "en", "French": "fr", "Spanish": "es", "Russian": "ru"}
+
+
+def _fanvil_keys(extra: dict) -> list[dict[str, str | int]]:
+    keys: list[dict[str, str | int]] = []
+    for n in range(1, FANVIL_V65_DSS_KEYS + 1):
+        kind = str(extra.get(f"fanvil_dss{n}_type", "0"))
+        value = re.sub(r"\s+", "", str(extra.get(f"fanvil_dss{n}_value", "")))
+        title = re.sub(r"[\r\n]+", " ", str(extra.get(f"fanvil_dss{n}_label", ""))).strip()
+        line = str(extra.get(f"fanvil_dss{n}_line", "1")).strip()
+        line = line if line.isdigit() and 1 <= int(line) <= 12 else "1"
+        if kind == "line":
+            keys.append({"index": n, "type": 2, "value": f"SIP{line}", "title": title})
+        elif kind in _FANVIL_KEY_TYPES and value:
+            keys.append({"index": n, "type": 1, "value": f"{value}@{line}/{_FANVIL_KEY_TYPES[kind]}", "title": title})
+        else:
+            keys.append({"index": n, "type": 0, "value": "@/", "title": ""})
+    return keys
+
+
+def _fanvil_vars(extra: dict) -> dict:
+    language = str(extra.get("fanvil_language", "German"))
+    return {
+        "fanvil_language_code": _FANVIL_LANGUAGES.get(language, language if len(language) == 2 else "de"),
+        "fanvil_keys": _fanvil_keys(extra),
+    }
+
+
+def _fanvil_cfg_normalize(body: str) -> str:
+    """A Fanvil text config is only applied when the header line is exactly 64
+    bytes including CRLF and the file ends with <<END OF FILE>> (Fanvil Auto
+    Provision spec; matches the phone's own export byte for byte). Enforced
+    here so admin-edited templates with LF line ends work too."""
+    if not body.startswith("<<VOIP CONFIG FILE>>"):
+        return body
+    lines = body.replace("\r\n", "\n").split("\n")
+    lines[0] = lines[0].rstrip().ljust(62)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    if lines[-1].strip() != _FANVIL_CFG_END:
+        lines.append(_FANVIL_CFG_END)
+    return "\r\n".join(lines) + "\r\n"
 
 
 _jinja_env = Environment(autoescape=False)
@@ -794,9 +911,12 @@ def serve_provisioning(path: str, session: Session = Depends(get_session)):
         "gigaset_sip_port_hex": hex(int(sip_port)),
     }
     try:
-        subs.update(json.loads(device.extra_vars or "{}"))
+        extra = json.loads(device.extra_vars or "{}")
     except (ValueError, TypeError):
-        pass
-    body = _render(tpl.content, subs)
+        extra = {}
+    extra = extra if isinstance(extra, dict) else {}
+    subs.update(_fanvil_vars(extra))
+    subs.update(extra)
+    body = _fanvil_cfg_normalize(_render(tpl.content, subs))
     media = "application/xml" if path.lower().endswith(".xml") else "text/plain"
     return Response(content=body, media_type=media)

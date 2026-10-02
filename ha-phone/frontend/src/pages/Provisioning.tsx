@@ -39,22 +39,18 @@ function normalizeMac(value: string) {
   return value.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
 }
 
-const FANVIL_LANGUAGES = ["German", "English", "French", "Spanish", "Italian", "Portuguese", "Russian", "Turkish"];
-const FANVIL_TONES = ["Germany", "UK", "USA", "France", "Spain", "Italy", "Switzerland", "Austria", "Netherlands", "Belgium"];
+const FANVIL_LANGUAGES = ["German", "English", "French", "Spanish", "Russian"];
 // Fanvil V65: 9 programmable keys (same count as backend FANVIL_V65_DSS_KEYS).
 const FANVIL_V65_DSS_KEYS = Array.from({ length: 9 }, (_, i) => i + 1);
 
+// Codes are mapped to Fanvil Fkey types in the backend (_FANVIL_KEY_TYPES).
 const FANVIL_DSS_TYPES = [
   { value: "0", label: "Leer" },
-  { value: "1", label: "Speed Dial" },
+  { value: "1", label: "Kurzwahl" },
   { value: "2", label: "BLF" },
-  { value: "3", label: "URL" },
-  { value: "4", label: "Group Pickup" },
-  { value: "6", label: "Voicemail" },
-  { value: "9", label: "DTMF" },
-  { value: "13", label: "Transfer" },
-  { value: "14", label: "Hold" },
-  { value: "16", label: "Park" },
+  { value: "line", label: "Leitung" },
+  { value: "intercom", label: "Intercom" },
+  { value: "16", label: "Parken" },
 ];
 
 /**
@@ -229,48 +225,16 @@ function DeviceDialog({
                         {FANVIL_LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Klingeltöne (Land)</label>
-                      <select
-                        value={extraVars.fanvil_tone ?? "Germany"}
-                        onChange={e => setVar("fanvil_tone", e.target.value)}
-                        className="h-8 w-full rounded-md border border-input bg-[#0d1020] px-2 text-sm text-slate-200 [color-scheme:dark]"
-                      >
-                        {FANVIL_TONES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Zeitzone</label>
-                      <Input
-                        value={extraVars.fanvil_timezone ?? "Berlin(+1:00)"}
-                        onChange={e => setVar("fanvil_timezone", e.target.value)}
-                        placeholder="Berlin(+1:00)"
-                        className="h-8 text-sm"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">Early Media</label>
-                      <select
-                        value={extraVars.fanvil_early_media ?? "1"}
-                        onChange={e => setVar("fanvil_early_media", e.target.value)}
-                        className="h-8 w-full rounded-md border border-input bg-[#0d1020] px-2 text-sm text-slate-200 [color-scheme:dark]"
-                      >
-                        <option value="1">An (1)</option>
-                        <option value="0">Aus (0)</option>
-                      </select>
-                    </div>
+                    <p className="self-end text-xs text-muted-foreground">Zeitzone: Mitteleuropa (UTC+1 mit Sommerzeit)</p>
                   </div>
 
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Funktionstasten (DSS Keys)</p>
-                    <div className="grid grid-cols-[1.25rem_5.5rem_1fr_1fr_1fr_2rem] gap-1 px-0.5 text-xs text-muted-foreground">
-                      <span>#</span><span>Typ</span><span>Wert/Nst.</span><span>Label</span><span>Pickup</span><span className="text-center">Ln</span>
+                    <div className="grid grid-cols-[1.25rem_5.5rem_1fr_1fr_2rem] gap-1 px-0.5 text-xs text-muted-foreground">
+                      <span>#</span><span>Typ</span><span>Nummer</span><span>Beschriftung</span><span className="text-center">Ln</span>
                     </div>
                     {FANVIL_V65_DSS_KEYS.map(n => (
-                      <div key={n} className="grid grid-cols-[1.25rem_5.5rem_1fr_1fr_1fr_2rem] gap-1 items-center">
+                      <div key={n} className="grid grid-cols-[1.25rem_5.5rem_1fr_1fr_2rem] gap-1 items-center">
                         <span className="text-xs text-muted-foreground text-center">{n}</span>
                         <select
                           value={extraVars[`fanvil_dss${n}_type`] ?? "0"}
@@ -281,7 +245,6 @@ function DeviceDialog({
                         </select>
                         <Input value={extraVars[`fanvil_dss${n}_value`] ?? ""} onChange={e => setVar(`fanvil_dss${n}_value`, e.target.value)} className="h-7 text-xs" placeholder="102" />
                         <Input value={extraVars[`fanvil_dss${n}_label`] ?? ""} onChange={e => setVar(`fanvil_dss${n}_label`, e.target.value)} className="h-7 text-xs" placeholder="Büro" />
-                        <Input value={extraVars[`fanvil_dss${n}_pickup`] ?? ""} onChange={e => setVar(`fanvil_dss${n}_pickup`, e.target.value)} className="h-7 text-xs" placeholder="**102" />
                         <Input value={extraVars[`fanvil_dss${n}_line`] ?? "1"} onChange={e => setVar(`fanvil_dss${n}_line`, e.target.value)} className="h-7 text-xs text-center" placeholder="1" />
                       </div>
                     ))}
