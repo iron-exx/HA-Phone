@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Camera } from "lucide-react";
+import { Camera, ChevronDown, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleSwitch } from "@/components/ToggleSwitch";
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { apiErrorMessage } from "@/lib/apiError";
 
 interface Cam {
@@ -91,24 +93,50 @@ export function SharedCamerasCard() {
             {all.length === 0 && !haError && (
               <p className="text-sm text-muted-foreground">Home Assistant hat keine Kameras (camera.*).</p>
             )}
-            <ul className="divide-y">
-              {all.map((cam) => {
-                const s = sharedOf(cam.entity_id);
-                return (
-                  <li key={cam.entity_id} className="flex flex-wrap items-center gap-3 py-2">
-                    <ToggleSwitch checked={!!s} ariaLabel={`${cam.name} freigeben`} onToggle={() => toggle(cam)} />
+            <div className="flex flex-wrap items-center gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={all.length === 0}>
+                    {shared.length === 0 ? "Kameras auswählen" : `${shared.length} von ${all.length} freigegeben`}
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-80 w-80 overflow-y-auto">
+                  {all.map((cam) => (
+                    <DropdownMenuCheckboxItem
+                      key={cam.entity_id}
+                      checked={!!sharedOf(cam.entity_id)}
+                      onCheckedChange={() => toggle(cam)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <span className="flex flex-col">
+                        <span>{cam.name}</span>
+                        <span className="text-xs text-muted-foreground">{cam.entity_id}</span>
+                      </span>
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <span className="text-xs text-muted-foreground">Ab Werk ist keine Kamera freigegeben.</span>
+            </div>
+            {shared.length > 0 && (
+              <ul className="divide-y">
+                {shared.map((s) => (
+                  <li key={s.entity_id} className="flex flex-wrap items-center gap-3 py-2">
                     <span className="min-w-40 flex-1 text-sm">
-                      {cam.name}
-                      <span className="block text-xs text-muted-foreground">{cam.entity_id}</span>
+                      {all.find((c) => c.entity_id === s.entity_id)?.name ?? s.entity_id}
+                      <span className="block text-xs text-muted-foreground">{s.entity_id}</span>
                     </span>
-                    {s && (
-                      <Input className="w-56" value={s.name} maxLength={64} placeholder="Name in der App"
-                        aria-label={`Name für ${cam.entity_id}`} onChange={(e) => rename(cam.entity_id, e.target.value)} />
-                    )}
+                    <Input className="w-56" value={s.name} maxLength={64} placeholder="Name in der App"
+                      aria-label={`Name für ${s.entity_id}`} onChange={(e) => rename(s.entity_id, e.target.value)} />
+                    <Button variant="ghost" size="sm" aria-label={`${s.name || s.entity_id} nicht mehr freigeben`}
+                      onClick={() => toggle({ entity_id: s.entity_id, name: s.name })}>
+                      <X className="h-4 w-4" />
+                    </Button>
                   </li>
-                );
-              })}
-            </ul>
+                ))}
+              </ul>
+            )}
             <Button size="sm" onClick={save} disabled={saving}>Speichern</Button>
           </>
         )}

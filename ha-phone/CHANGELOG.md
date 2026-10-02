@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.151
+
+**Oberfläche - Kameras für die App übersichtlicher**
+- Unter „Türklingel → Kameras für die App“ wählst du die Kameras jetzt in einem Ausklapp-Menü mit Häkchen aus. Auf der Seite stehen nur noch die freigegebenen Kameras mit ihrem Namen für die App (mit ✕ wieder entfernen). Bei vielen Kameras in Home Assistant bleibt die Seite damit kurz.
+
 ## 0.7.150
 
 **Fanvil V65 - alle 9 Funktionstasten**
