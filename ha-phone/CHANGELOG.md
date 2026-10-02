@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.149
+
+**Diagnose - genaueres Protokoll beim Klingeln**
+- Für jedes Gerät, das die Tür anruft, steht im Protokoll jetzt, nach wie vielen Sekunden es angerufen wurde, ob und wann es „klingelt“ zurückgemeldet hat und wann es abgenommen oder abgebrochen wurde. So lässt sich unterscheiden, ob ein Handy den Anruf gar nicht bekommen hat oder ob ein anderes Gerät schneller abgenommen hat.
+
 ## 0.7.148
 
 **Neu - App-Protokoll an die Anlage**

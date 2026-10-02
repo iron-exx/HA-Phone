@@ -21,7 +21,8 @@ log = logging.getLogger(__name__)
 
 DOOR_CACHE_S = 30
 PRUNE_EVERY_S = 3600
-_EVENTS = ("Newchannel", "DialBegin", "DialEnd", "Hangup")
+# DialState: a dialled device reports ringing (180) / early media (183).
+_EVENTS = ("Newchannel", "DialBegin", "DialState", "DialEnd", "Hangup")
 # Door station cameras via HA can take 7-25 s per picture (ffmpeg on RTSP).
 RING_SNAPSHOT_TIMEOUT_S = 25.0
 
@@ -36,6 +37,7 @@ class DoorbellListener:
         self._doors: set[str] = set()
         self._doors_at = 0.0
         self._event_of: dict[str, int] = {}  # door channel Uniqueid -> DoorbellEvent.id
+        self._started: dict[str, float] = {}  # door channel Uniqueid -> monotonic ring start
         self._last_prune = 0.0
         self.tracker = doorbell.DoorbellTracker(self._is_door)
         self._tasks: set[asyncio.Task] = set()
@@ -61,12 +63,18 @@ class DoorbellListener:
         """Which device a door call rang and how that leg ended (admin log, for
         "the door did not ring my phone")."""
         name = ev.get("Event", "")
-        if name not in ("DialBegin", "DialEnd") or not self.tracker.is_active(ev.get("Uniqueid", "")):
+        uid = ev.get("Uniqueid", "")
+        if name not in ("DialBegin", "DialState", "DialEnd") or not self.tracker.is_active(uid):
             return
+        start = self._started.get(uid)
+        at = f"at +{time.monotonic() - start:.1f} s" if start is not None else ""
+        dest = ev.get("DestChannel", "?")
         if name == "DialBegin":
-            log.info("doorbell leg: dialing %s (%s)", ev.get("DestChannel", "?"), ev.get("DialString", ""))
+            log.info("doorbell leg: dialing %s (%s) %s", dest, ev.get("DialString", ""), at)
+        elif name == "DialState":
+            log.info("doorbell leg: %s reports %s %s", dest, ev.get("DialStatus", "?"), at)
         else:
-            log.info("doorbell leg: %s -> %s", ev.get("DestChannel", "?"), ev.get("DialStatus", "?"))
+            log.info("doorbell leg: %s -> %s %s", dest, ev.get("DialStatus", "?"), at)
 
     def handle(self, ev: dict) -> None:
         """One AMI event (dict-like). Never raises into panoramisk."""
@@ -83,6 +91,7 @@ class DoorbellListener:
             if isinstance(action, doorbell.Ring):
                 event = store.record_ring(int(action.door))
                 self._event_of[action.uniqueid] = event.id
+                self._started[action.uniqueid] = time.monotonic()
                 log.info("doorbell: %s rings (event %s)", action.door, event.id)
                 door = s.exec(select(Extension).where(Extension.number == int(action.door))).first()
                 source = door.doorbell_camera if door else ""
@@ -96,6 +105,7 @@ class DoorbellListener:
             elif isinstance(action, doorbell.Ended):
                 preview_cameras.ring_ended(action.uniqueid)
                 event_id = self._event_of.pop(action.uniqueid, None)
+                self._started.pop(action.uniqueid, None)
                 if event_id:
                     store.mark_ended(event_id)
                 if time.monotonic() - self._last_prune > PRUNE_EVERY_S:

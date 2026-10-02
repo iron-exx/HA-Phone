@@ -221,3 +221,28 @@ async def test_ring_photo_waits_long_and_retries_once(monkeypatch):
     from backend import doorbell_listener
     assert await DoorbellListener._fetch_slow_ok("camera.tuer") == (JPEG, "image/jpeg")
     assert calls == [doorbell_listener.RING_SNAPSHOT_TIMEOUT_S] * 2
+
+
+def test_leg_log_has_timing_and_ringing_state(client, door, caplog, monkeypatch):
+    """Per device: when it was dialled, whether it reported ringing (180/183), when it ended."""
+    import logging
+    from backend import doorbell_listener
+    now = {"t": 100.0}
+    monkeypatch.setattr(doorbell_listener.time, "monotonic", lambda: now["t"])
+    num = str(door["number"])
+    lst = DoorbellListener()
+    lst._doors, lst._doors_at = {num}, 1e12  # no DB lookup with the fake clock
+
+    def at(t, ev):
+        now["t"] = t
+        lst.handle(ev)
+    with caplog.at_level(logging.INFO, logger="backend.doorbell_listener"):
+        at(100.0, ring(uid="5.5", door=num))
+        at(100.0, {"Event": "DialBegin", "Uniqueid": "5.5", "DestChannel": "PJSIP/12-1", "DialString": "12/sip:12@x"})
+        at(100.4, {"Event": "DialState", "Uniqueid": "5.5", "DestChannel": "PJSIP/12-1", "DialStatus": "RINGING"})
+        at(101.9, {"Event": "DialEnd", "Uniqueid": "5.5", "DestChannel": "PJSIP/11-2", "DialStatus": "ANSWER"})
+        at(103.0, {"Event": "Hangup", "Uniqueid": "5.5"})
+    text = caplog.text
+    assert "dialing PJSIP/12-1 (12/sip:12@x) at +0.0 s" in text
+    assert "PJSIP/12-1 reports RINGING at +0.4 s" in text
+    assert "PJSIP/11-2 -> ANSWER at +1.9 s" in text
