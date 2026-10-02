@@ -1,5 +1,7 @@
 import { FormGrid, FormSpan } from "@/components/FormGrid";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { SortableHead } from "@/components/SortableHead";
+import { useSort } from "@/lib/useSort";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -39,6 +41,9 @@ function normalizeMac(value: string) {
 
 const FANVIL_LANGUAGES = ["German", "English", "French", "Spanish", "Italian", "Portuguese", "Russian", "Turkish"];
 const FANVIL_TONES = ["Germany", "UK", "USA", "France", "Spain", "Italy", "Switzerland", "Austria", "Netherlands", "Belgium"];
+// Fanvil V65: 9 programmable keys (same count as backend FANVIL_V65_DSS_KEYS).
+const FANVIL_V65_DSS_KEYS = Array.from({ length: 9 }, (_, i) => i + 1);
+
 const FANVIL_DSS_TYPES = [
   { value: "0", label: "Leer" },
   { value: "1", label: "Speed Dial" },
@@ -264,7 +269,7 @@ function DeviceDialog({
                     <div className="grid grid-cols-[1.25rem_5.5rem_1fr_1fr_1fr_2rem] gap-1 px-0.5 text-xs text-muted-foreground">
                       <span>#</span><span>Typ</span><span>Wert/Nst.</span><span>Label</span><span>Pickup</span><span className="text-center">Ln</span>
                     </div>
-                    {[1, 2, 3, 4, 5, 6].map(n => (
+                    {FANVIL_V65_DSS_KEYS.map(n => (
                       <div key={n} className="grid grid-cols-[1.25rem_5.5rem_1fr_1fr_1fr_2rem] gap-1 items-center">
                         <span className="text-xs text-muted-foreground text-center">{n}</span>
                         <select
@@ -300,6 +305,13 @@ function DeviceDialog({
 
 export default function Provisioning() {
   const [devices, setDevices] = useState<Device[]>([]);
+  const deviceColumns = useMemo(() => ({
+    name: (d: Device) => d.name,
+    model: (d: Device) => `${d.manufacturer} ${d.model}`,
+    mac: (d: Device) => d.mac,
+    extension: (d: Device) => (d.extension_numbers.length ? Math.min(...d.extension_numbers) : null),
+  }), []);
+  const deviceSort = useSort(devices, deviceColumns, "name");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [extensions, setExtensions] = useState<Extension[]>([]);
   // null = not loaded yet ("unbekannt"), distinct from a confirmed Offline -
@@ -433,16 +445,16 @@ export default function Provisioning() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="pb-2 pr-3">Name</th>
-                  <th className="pb-2 pr-3">Hersteller / Modell</th>
-                  <th className="pb-2 pr-3">MAC</th>
-                  <th className="pb-2 pr-3">Status</th>
+                  <SortableHead plain column="name" label="Name" sortKey={deviceSort.sortKey} sortDir={deviceSort.sortDir} onSort={deviceSort.toggle} className="pb-2 pr-3 font-normal" />
+                  <SortableHead plain column="model" label="Hersteller / Modell" sortKey={deviceSort.sortKey} sortDir={deviceSort.sortDir} onSort={deviceSort.toggle} className="pb-2 pr-3 font-normal" />
+                  <SortableHead plain column="mac" label="MAC" sortKey={deviceSort.sortKey} sortDir={deviceSort.sortDir} onSort={deviceSort.toggle} className="pb-2 pr-3 font-normal" />
+                  <SortableHead plain column="extension" label="Status" sortKey={deviceSort.sortKey} sortDir={deviceSort.sortDir} onSort={deviceSort.toggle} className="pb-2 pr-3 font-normal" />
                   <th className="pb-2 pr-3">Provisioning-URL</th>
                   <th className="pb-2 text-right">Aktion</th>
                 </tr>
               </thead>
               <tbody>
-                {devices.map((d) => (
+                {deviceSort.sorted.map((d) => (
                   <tr key={d.id} className="border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
                     <td className="py-3 pr-3">{d.name || "—"}</td>
                     <td className="py-3 pr-3">{d.manufacturer} {d.model}</td>

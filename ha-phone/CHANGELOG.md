@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.150
+
+**Fanvil V65 - alle 9 Funktionstasten**
+- Die Fanvil-V65-Vorlage und der Gerätedialog im Provisioning haben jetzt alle 9 Funktionstasten (bisher 6). Vorhandene Vorlagen, auch selbst angepasste, bekommen die Tasten 7 bis 9 beim Start automatisch ergänzt; eigene Änderungen bleiben erhalten.
+
+**Oberfläche - sortierbare Tabellen**
+- Nebenstellen und Geräte lassen sich per Klick auf die Spaltenüberschrift sortieren (nochmal klicken dreht die Reihenfolge um).
+- Nebenstellen erscheinen überall nach Nummer sortiert, auch in den Auswahllisten (z. B. „Nebenstellen“ im Gerätedialog).
+
 ## 0.7.149
 
 **Diagnose - genaueres Protokoll beim Klingeln**

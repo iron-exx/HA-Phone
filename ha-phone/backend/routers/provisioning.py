@@ -105,6 +105,21 @@ def _gigaset_slots(accounts: list[dict], max_slots: int = 6) -> list[dict[str, s
 
 
 # ── Built-in starter templates (fully editable in the UI) ────────────────────
+
+# Fanvil V65: 9 programmable DSS keys (the device dialog shows the same number).
+FANVIL_V65_DSS_KEYS = 9
+_FANVIL_DSS_FIELDS = (("Type", "type", "0"), ("Value", "value", ""), ("Line", "line", "1"),
+                      ("PickupValue", "pickup", ""), ("Label", "label", ""))
+
+
+def fanvil_dss_lines(keys) -> str:
+    """'Memory DSS KeyN ...' lines filled from the per-device fanvil_dssN_* variables."""
+    return "".join(
+        f"Memory DSS Key{n} {field} :{{{{fanvil_dss{n}_{var} | default('{default}')}}}}\n"
+        for n in keys for field, var, default in _FANVIL_DSS_FIELDS
+    )
+
+
 BUILTIN_TEMPLATES = [
     {
         "name": "Yealink T5x/T4x",
@@ -200,36 +215,7 @@ BUILTIN_TEMPLATES = [
             "##         6=Voice Mail, 9=DTMF, 13=Transfer, 14=Hold, 16=Park\n"
             "## Zeile: 1 = SIP-Konto 1\n"
             "## BLF-Beispiel: Type=2, Value=102, PickupValue=**102, Label=Buero\n"
-            "Memory DSS Key1 Type :{{fanvil_dss1_type | default('0')}}\n"
-            "Memory DSS Key1 Value :{{fanvil_dss1_value | default('')}}\n"
-            "Memory DSS Key1 Line :{{fanvil_dss1_line | default('1')}}\n"
-            "Memory DSS Key1 PickupValue :{{fanvil_dss1_pickup | default('')}}\n"
-            "Memory DSS Key1 Label :{{fanvil_dss1_label | default('')}}\n"
-            "Memory DSS Key2 Type :{{fanvil_dss2_type | default('0')}}\n"
-            "Memory DSS Key2 Value :{{fanvil_dss2_value | default('')}}\n"
-            "Memory DSS Key2 Line :{{fanvil_dss2_line | default('1')}}\n"
-            "Memory DSS Key2 PickupValue :{{fanvil_dss2_pickup | default('')}}\n"
-            "Memory DSS Key2 Label :{{fanvil_dss2_label | default('')}}\n"
-            "Memory DSS Key3 Type :{{fanvil_dss3_type | default('0')}}\n"
-            "Memory DSS Key3 Value :{{fanvil_dss3_value | default('')}}\n"
-            "Memory DSS Key3 Line :{{fanvil_dss3_line | default('1')}}\n"
-            "Memory DSS Key3 PickupValue :{{fanvil_dss3_pickup | default('')}}\n"
-            "Memory DSS Key3 Label :{{fanvil_dss3_label | default('')}}\n"
-            "Memory DSS Key4 Type :{{fanvil_dss4_type | default('0')}}\n"
-            "Memory DSS Key4 Value :{{fanvil_dss4_value | default('')}}\n"
-            "Memory DSS Key4 Line :{{fanvil_dss4_line | default('1')}}\n"
-            "Memory DSS Key4 PickupValue :{{fanvil_dss4_pickup | default('')}}\n"
-            "Memory DSS Key4 Label :{{fanvil_dss4_label | default('')}}\n"
-            "Memory DSS Key5 Type :{{fanvil_dss5_type | default('0')}}\n"
-            "Memory DSS Key5 Value :{{fanvil_dss5_value | default('')}}\n"
-            "Memory DSS Key5 Line :{{fanvil_dss5_line | default('1')}}\n"
-            "Memory DSS Key5 PickupValue :{{fanvil_dss5_pickup | default('')}}\n"
-            "Memory DSS Key5 Label :{{fanvil_dss5_label | default('')}}\n"
-            "Memory DSS Key6 Type :{{fanvil_dss6_type | default('0')}}\n"
-            "Memory DSS Key6 Value :{{fanvil_dss6_value | default('')}}\n"
-            "Memory DSS Key6 Line :{{fanvil_dss6_line | default('1')}}\n"
-            "Memory DSS Key6 PickupValue :{{fanvil_dss6_pickup | default('')}}\n"
-            "Memory DSS Key6 Label :{{fanvil_dss6_label | default('')}}\n"
+            + fanvil_dss_lines(range(1, FANVIL_V65_DSS_KEYS + 1))
         ),
     },
     {
@@ -538,6 +524,23 @@ def repair_broken_builtin_templates(session: Session) -> bool:
         if tpl and tpl.content in old_contents:
             fixed = next(t for t in BUILTIN_TEMPLATES if t["name"] == name)
             tpl.content = fixed["content"]
+            session.add(tpl)
+            changed = True
+    if changed:
+        session.commit()
+    return changed
+
+
+def extend_fanvil_dss_keys(session: Session) -> bool:
+    """Templates (builtin or the admin's own copy) that end their DSS block with the
+    standard key-6 line get the missing standard lines up to FANVIL_V65_DSS_KEYS right
+    after it. Everything else in the template, including the admin's edits, stays."""
+    tail = fanvil_dss_lines(range(6, 7)).splitlines(keepends=True)[-1]
+    extra = fanvil_dss_lines(range(7, FANVIL_V65_DSS_KEYS + 1))
+    changed = False
+    for tpl in session.exec(select(ProvisioningTemplate)).all():
+        if tail in tpl.content and "Memory DSS Key7 " not in tpl.content:
+            tpl.content = tpl.content.replace(tail, tail + extra, 1)
             session.add(tpl)
             changed = True
     if changed:

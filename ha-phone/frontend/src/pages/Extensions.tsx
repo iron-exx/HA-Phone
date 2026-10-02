@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import QRCode from "qrcode";
+import { SortableHead } from "@/components/SortableHead";
+import { useSort } from "@/lib/useSort";
 import { MoreHorizontal, Pencil, Trash2, Plus, Phone, QrCode, Copy } from "lucide-react";
 
 import {
@@ -1252,6 +1254,13 @@ export default function Extensions() {
   const [extensions, setExtensions] = useState<Extension[]>([]);
   const [ringGroups, setRingGroups] = useState<RingGroup[]>([]);
   const [statusMap, setStatusMap] = useState<Record<string, "Online" | "Offline">>({});
+  const extColumns = useMemo(() => ({
+    number: (e: Extension) => e.number,
+    name: (e: Extension) => e.display_name,
+    status: (e: Extension) => statusMap[String(e.number)] ?? "",
+    active: (e: Extension) => e.enabled,
+  }), [statusMap]);
+  const extSort = useSort(extensions, extColumns, "number");
   const [devices, setDevices] = useState<ProvisionedDeviceSummary[]>([]);
   const [liveInfo, setLiveInfo] = useState<Record<string, ExtensionLiveInfo>>({});
   const [loading, setLoading] = useState(true);
@@ -1404,31 +1413,23 @@ export default function Extensions() {
           <Table>
             <TableHeader>
               <TableRow style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                  Nummer
-                </TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                  Name
-                </TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                  Status
-                </TableHead>
+                <SortableHead column="number" label="Nummer" sortKey={extSort.sortKey} sortDir={extSort.sortDir} onSort={extSort.toggle} className="text-xs font-medium uppercase tracking-widest text-muted-foreground" />
+                <SortableHead column="name" label="Name" sortKey={extSort.sortKey} sortDir={extSort.sortDir} onSort={extSort.toggle} className="text-xs font-medium uppercase tracking-widest text-muted-foreground" />
+                <SortableHead column="status" label="Status" sortKey={extSort.sortKey} sortDir={extSort.sortDir} onSort={extSort.toggle} className="text-xs font-medium uppercase tracking-widest text-muted-foreground" />
                 <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Ring Groups
                 </TableHead>
                 <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Geräte
                 </TableHead>
-                <TableHead className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                  Aktiv
-                </TableHead>
+                <SortableHead column="active" label="Aktiv" sortKey={extSort.sortKey} sortDir={extSort.sortDir} onSort={extSort.toggle} className="text-xs font-medium uppercase tracking-widest text-muted-foreground" />
                 <TableHead className="text-right text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Aktionen
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {extensions.map((ext) => (
+              {extSort.sorted.map((ext) => (
                 <TableRow
                   key={ext.id}
                   style={{ borderColor: "rgba(255,255,255,0.04)" }}

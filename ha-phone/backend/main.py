@@ -53,11 +53,14 @@ async def lifespan(app: FastAPI):
     try:
         from sqlmodel import Session
         from backend.routers.outbound_rules import seed_default_outbound_rules
-        from backend.routers.provisioning import seed_builtin_templates, repair_broken_builtin_templates
+        from backend.routers.provisioning import (
+            extend_fanvil_dss_keys, repair_broken_builtin_templates, seed_builtin_templates,
+        )
         with Session(engine) as s:
             seed_default_outbound_rules(s)
             seed_builtin_templates(s)
             repair_broken_builtin_templates(s)
+            extend_fanvil_dss_keys(s)
     except Exception:
         pass
     # LDAP phonebook directory for desk/DECT phones (Gigaset "Netzverzeichnis").

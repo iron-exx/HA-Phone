@@ -322,7 +322,8 @@ def generate_password() -> dict:
 
 @router.get("/extensions", response_model=List[ExtensionOut])
 def list_extensions(session: Session = Depends(get_session)):
-    return [_extension_out(extension) for extension in session.exec(select(Extension)).all()]
+    # Ordered by number: every list and picker in the UI shows them in this order.
+    return [_extension_out(extension) for extension in session.exec(select(Extension).order_by(Extension.number)).all()]
 
 
 @router.post("/extensions", response_model=ExtensionCreateOut)
