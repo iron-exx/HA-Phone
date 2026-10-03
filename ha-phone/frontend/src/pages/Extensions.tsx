@@ -7,7 +7,7 @@ import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import QRCode from "qrcode";
 import { SortableHead } from "@/components/SortableHead";
 import { useSort } from "@/lib/useSort";
-import { MoreHorizontal, Pencil, Trash2, Plus, Phone, QrCode, Copy } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Plus, Phone, QrCode, Copy, AlertTriangle } from "lucide-react";
 
 import {
   type Extension,
@@ -1438,7 +1438,15 @@ export default function Extensions() {
                   <TableCell className="font-mono font-medium text-violet-300">
                     {ext.number}
                   </TableCell>
-                  <TableCell className="font-medium text-foreground">{ext.display_name}</TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    {ext.display_name}
+                    {(ext.mobile_devices ?? 0) > 0 && !ext.video_capable && (
+                      <span className="ml-2 inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-normal text-amber-300"
+                        title="Auf dieser Nebenstelle ist ein Handy gekoppelt, sie ist aber nicht video-fähig: Das Handy bekommt kein Türvideo. Unter „Bearbeiten“ Video-fähig einschalten (dann nur ein Gerät pro Nebenstelle).">
+                        <AlertTriangle className="h-3 w-3" /> Handy ohne Video
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <StatusDot status={statusMap[String(ext.number)]} />
                   </TableCell>

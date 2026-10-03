@@ -255,6 +255,8 @@ class ExtensionOut(SQLModel):
     doorbell_camera: str = ""
     ha_person: str = ""
     mobile_fallback: str = ""
+    # Active paired apps. Admin warns when > 0 but not video_capable (no door video).
+    mobile_devices: int = 0
 
 
 class ExtensionCreateOut(ExtensionOut):

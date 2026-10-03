@@ -28,6 +28,7 @@ from backend.models import (
     PushTokenRefreshIn,
     MobileDeviceOut,
     PhonebookEntry,
+    ProvisionedDevice,
 )
 from backend.auth import get_current_user as get_current_admin_user
 from backend.crypto import EncryptedString
@@ -35,6 +36,11 @@ from backend.routers.extensions import door_actions_of
 from backend.routers import tailscale as tailscale_router
 from backend import tls_pin
 from fastapi.concurrency import run_in_threadpool
+import logging
+from backend import ami
+from backend.regeneration import step_succeeded
+
+logger = logging.getLogger(__name__)
 
 # Admin-gated CRUD/control router (start provisioning, revoke, list devices).
 router = APIRouter(prefix="/mobile", tags=["mobile-provisioning"])
@@ -243,6 +249,40 @@ def start_provisioning(
 
 # --- POST /api/mobile/provision/complete ---
 # Mobile app completes provisioning after QR scan (PUBLIC — only has the JWT)
+async def enable_video_for_app_only_extension(session: Session, ext: Extension, device: MobileDevice) -> bool:
+    """Door video in the app needs a video_capable extension, which also means ONE
+    device per extension (max_contacts=1). So it is switched on at pairing only when
+    the app is alone on the extension: no other active app, no provisioned desk
+    phone, nothing registered (a manually set-up desk phone shows up there).
+    If AMI does not answer, nothing changes."""
+    if ext.video_capable or ext.is_door:
+        return False
+    others = session.exec(
+        select(MobileDevice).where(
+            MobileDevice.extension_id == ext.id,
+            MobileDevice.id != device.id,
+            MobileDevice.status == "active",
+        )
+    ).all()
+    if others:
+        return False
+    for desk in session.exec(select(ProvisionedDevice)).all():
+        if str(ext.number) in [n.strip() for n in (desk.extension_numbers or "").split(",")]:
+            return False
+    if await ami.get_contact_count(str(ext.number)) != 0:
+        return False
+    from backend.routers.extensions import _regenerate_extension_bundle
+    ext.video_capable = True
+    session.add(ext)
+    session.commit()
+    summary = _regenerate_extension_bundle(session, f"mobile.pairing-video:{ext.number}")
+    if step_succeeded(summary, "extensions"):
+        await ami.ami_reload_pjsip()
+    if step_succeeded(summary, "routing"):
+        await ami.ami_reload_dialplan()
+    return True
+
+
 @public_router.post("/provision/complete", response_model=ProvisioningCompleteOut)
 async def complete_provisioning(
     data: ProvisioningCompleteIn,
@@ -320,6 +360,12 @@ async def complete_provisioning(
             session.add(old)
         if stale:
             session.commit()
+
+    try:
+        if await enable_video_for_app_only_extension(session, ext, device):
+            logger.info("pairing: extension %s set video_capable (app is its only device)", ext.number)
+    except Exception:
+        logger.exception("pairing: video check for extension %s failed", ext.number)
 
     # One-time tailnet key (only when Tailscale is set up; failures keep pairing LAN-only).
     ts_block = await run_in_threadpool(tailscale_router.phone_tailscale_block, session, ext, device)

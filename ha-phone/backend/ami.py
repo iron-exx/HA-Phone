@@ -289,6 +289,14 @@ async def get_extension_diagnostics() -> list[dict]:
         return []
 
 
+async def get_contact_count(number: str) -> int | None:
+    """Registered contacts of one extension; None when AMI gives no answer."""
+    for endpoint in await get_extension_diagnostics():
+        if endpoint.get("number") == str(number):
+            return int(endpoint.get("contacts", 0))
+    return None
+
+
 async def get_active_call_count() -> int:
     try:
         async with asyncio.timeout(_AMI_TIMEOUT):

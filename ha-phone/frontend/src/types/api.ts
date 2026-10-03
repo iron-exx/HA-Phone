@@ -21,6 +21,7 @@ export interface Extension {
   doorbell_camera?: string;
   ha_person?: string;
   mobile_fallback?: string;
+  mobile_devices?: number; // active paired apps (list endpoint only)
   // sip_password is never returned by the API
 }
 

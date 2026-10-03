@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.154
+
+**Türvideo für Handys - automatisch und mit Warnung**
+- Wird die App mit einer Nebenstelle gekoppelt, auf der sonst nichts hängt (kein anderes Handy, kein Tischtelefon aus dem Provisioning, nichts angemeldet), schaltet die Anlage „Video-fähig“ automatisch ein. Bisher bekam ein neu gekoppeltes Handy kein Türvideo, bis man das von Hand einschaltete.
+- Hängt dort schon ein anderes Gerät, bleibt die Nebenstelle wie sie ist. Video-fähig erlaubt nur ein Gerät pro Nebenstelle, sonst würden sich Tischtelefon und Handy gegenseitig abmelden.
+- In der Nebenstellen-Liste steht jetzt „Handy ohne Video“, wenn ein Handy gekoppelt ist, die Nebenstelle aber nicht video-fähig ist.
+
 ## 0.7.153
 
 **Fehlerbehebung - Fanvil nahm die Türklingel sofort ab, andere Geräte klingelten nicht**
