@@ -129,10 +129,7 @@ def fanvil_dss_lines(keys) -> str:
 # the label selects page 1.
 _FANVIL_CFG_HEADER = "<<VOIP CONFIG FILE>>Version:2.0000000000"
 _FANVIL_CFG_END = "<<END OF FILE>>"
-_FANVIL_SIP_LINES = (
-    "<SIP CONFIG MODULE>\n"
-    "--SIP Line List--  :\n"
-    "{% for a in accounts %}"
+_FANVIL_SIP_LINE = (
     "SIP{{ loop.index }} Phone Number       :{{ a.sip_username }}\n"
     "SIP{{ loop.index }} Display Name       :{{ a.display_name }}\n"
     "SIP{{ loop.index }} Sip Name           :{{ a.label }}\n"
@@ -146,8 +143,63 @@ _FANVIL_SIP_LINES = (
     "SIP{{ loop.index }} Proxy Port         :{{ sip_port }}\n"
     "SIP{{ loop.index }} Backup Addr        :\n"
     "SIP{{ loop.index }} DTMF Mode          :1\n"
+)
+# 0.7.152: no door preview settings, no remote re-provisioning.
+_FANVIL_SIP_LINES_0_7_152 = (
+    "<SIP CONFIG MODULE>\n"
+    "--SIP Line List--  :\n"
+    "{% for a in accounts %}" + _FANVIL_SIP_LINE + "{% endfor %}"
+)
+# Notify Reboot: a SIP NOTIFY "check-sync" (button "Neu einlesen") restarts the
+# phone, which then fetches this file again ("Update After Reboot").
+# Enable Preview / Preview Mode: door station video before answering. Mode 0 is
+# 18x (real early media). Mode 1 ("2XX") silently ANSWERS the call to get the
+# video - the PBX then cancels every other device the door rings.
+_FANVIL_SIP_LINES = (
+    "<SIP CONFIG MODULE>\n"
+    "Notify Reboot      :1\n"
+    "--SIP Line List--  :\n"
+    "{% for a in accounts %}" + _FANVIL_SIP_LINE
+    + "SIP{{ loop.index }} Enable Deal 180    :1\n"
+    "SIP{{ loop.index }} Enable Preview     :{{ fanvil_preview }}\n"
+    "SIP{{ loop.index }} Preview Mode       :0\n"
     "{% endfor %}"
 )
+
+
+def _fanvil_simple_content(sip_lines: str) -> str:
+    return _FANVIL_CFG_HEADER + "\n\n" + sip_lines + "\n" + _FANVIL_CFG_END + "\n"
+
+
+def _fanvil_v65_content(sip_lines: str) -> str:
+    return (
+        _FANVIL_CFG_HEADER + "\n"
+        "\n"
+        + sip_lines
+        + "\n"
+        "<PHONE FEATURE MODULE>\n"
+        "--Display Input--  :\n"
+        "Default Language   :{{ fanvil_language_code }}\n"
+        "--DateTime Config--:\n"
+        "Enable SNTP        :1\n"
+        "SNTP Server        :0.pool.ntp.org\n"
+        "Second SNTP Server :1.pool.ntp.org\n"
+        "Time Zone          :4\n"
+        "Time Zone Name     :UTC+1\n"
+        "DST Type           :1\n"
+        "DST Location       :11\n"
+        "DST Rule Mode      :0\n"
+        "\n"
+        "<DSSKEY CONFIG MODULE>\n"
+        "--Sidekey Config1--:\n"
+        "{% for k in fanvil_keys %}"
+        "Fkey{{ k.index }} Type               :{{ k.type }}\n"
+        "Fkey{{ k.index }} Value              :{{ k.value }}\n"
+        "Fkey{{ k.index }} Title              :{{ k.title }}\n"
+        "{% endfor %}"
+        "\n" + _FANVIL_CFG_END + "\n"
+    )
+
 
 BUILTIN_TEMPLATES = [
     {
@@ -191,44 +243,13 @@ BUILTIN_TEMPLATES = [
         "name": "Fanvil",
         "vendor": "Fanvil",
         "file_pattern": "{mac}.cfg",
-        "content": (
-            _FANVIL_CFG_HEADER + "\n"
-            "\n"
-            + _FANVIL_SIP_LINES
-            + "\n" + _FANVIL_CFG_END + "\n"
-        ),
+        "content": _fanvil_simple_content(_FANVIL_SIP_LINES),
     },
     {
         "name": "Fanvil V65 (vollständig)",
         "vendor": "Fanvil",
         "file_pattern": "{mac}.cfg",
-        "content": (
-            _FANVIL_CFG_HEADER + "\n"
-            "\n"
-            + _FANVIL_SIP_LINES
-            + "\n"
-            "<PHONE FEATURE MODULE>\n"
-            "--Display Input--  :\n"
-            "Default Language   :{{ fanvil_language_code }}\n"
-            "--DateTime Config--:\n"
-            "Enable SNTP        :1\n"
-            "SNTP Server        :0.pool.ntp.org\n"
-            "Second SNTP Server :1.pool.ntp.org\n"
-            "Time Zone          :4\n"
-            "Time Zone Name     :UTC+1\n"
-            "DST Type           :1\n"
-            "DST Location       :11\n"
-            "DST Rule Mode      :0\n"
-            "\n"
-            "<DSSKEY CONFIG MODULE>\n"
-            "--Sidekey Config1--:\n"
-            "{% for k in fanvil_keys %}"
-            "Fkey{{ k.index }} Type               :{{ k.type }}\n"
-            "Fkey{{ k.index }} Value              :{{ k.value }}\n"
-            "Fkey{{ k.index }} Title              :{{ k.title }}\n"
-            "{% endfor %}"
-            "\n" + _FANVIL_CFG_END + "\n"
-        ),
+        "content": _fanvil_v65_content(_FANVIL_SIP_LINES),
     },
     {
         "name": "Gigaset N510/N610/N670/N870 IP PRO (DECT)",
@@ -573,8 +594,12 @@ _OUTDATED_BUILTIN_CONTENTS: dict[str, list[str]] = {
         _N510_PROVIDERFRAME_BROKEN_CONTENT,
         _N510_PROVIDERFRAME_PRE_LDAP_CONTENT,
     ],
-    _FANVIL_V65_FULL_NAME: [_FANVIL_V65_LEGACY_CONTENT, *_FANVIL_V65_MEMORY_DSS_CONTENTS],
-    "Fanvil": [_FANVIL_SIMPLE_LEGACY_CONTENT],
+    _FANVIL_V65_FULL_NAME: [
+        _FANVIL_V65_LEGACY_CONTENT,
+        *_FANVIL_V65_MEMORY_DSS_CONTENTS,
+        _fanvil_v65_content(_FANVIL_SIP_LINES_0_7_152),
+    ],
+    "Fanvil": [_FANVIL_SIMPLE_LEGACY_CONTENT, _fanvil_simple_content(_FANVIL_SIP_LINES_0_7_152)],
 }
 
 
@@ -659,6 +684,7 @@ def _fanvil_vars(extra: dict) -> dict:
     return {
         "fanvil_language_code": _FANVIL_LANGUAGES.get(language, language if len(language) == 2 else "de"),
         "fanvil_keys": _fanvil_keys(extra),
+        "fanvil_preview": "0" if str(extra.get("fanvil_early_media", "1")) == "0" else "1",
     }
 
 
@@ -857,6 +883,24 @@ async def delete_device(device_id: int, session: Session = Depends(get_session))
     session.delete(existing)
     session.commit()
     return {"ok": True, "hung_up_calls": hung_up_calls}
+
+
+@router.post("/provisioning/devices/{device_id}/resync")
+async def resync_device(device_id: int, session: Session = Depends(get_session)):
+    """"Neu einlesen": the phone restarts and fetches its file again, no trip to
+    the phone needed (it only fetches after a restart)."""
+    device = session.get(ProvisionedDevice, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    numbers = _parse_extension_numbers(device.extension_numbers, allow_empty=True)
+    if not numbers:
+        raise HTTPException(status_code=422, detail="Gerät hat keine Nebenstelle.")
+    try:
+        for number in numbers:
+            await ami.send_check_sync(str(number))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Telefon nicht erreichbar: {exc}") from exc
+    return {"ok": True, "extensions": numbers}
 
 
 # ── PUBLIC provisioning endpoint (no auth — devices fetch by MAC) ─────────────

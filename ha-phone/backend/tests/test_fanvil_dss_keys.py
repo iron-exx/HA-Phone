@@ -124,3 +124,55 @@ def test_extensions_are_listed_by_number(client):
     assert numbers == sorted(numbers)
     for i in created:
         client.delete(f"/api/extensions/{i}")
+
+
+def test_v65_door_preview_uses_early_media_not_background_answer():
+    out = _device_cfg({})
+    assert "SIP1 Enable Preview     :1\r\n" in out
+    assert "SIP1 Preview Mode       :0\r\n" in out  # 1 = "2XX" answers and cancels the other devices
+    assert "SIP1 Enable Deal 180    :1\r\n" in out
+    assert "Notify Reboot      :1\r\n" in out
+    assert "SIP1 Enable Preview     :0\r\n" in _device_cfg({"fanvil_early_media": "0"})
+
+
+def test_0_7_152_fanvil_templates_are_upgraded(client):
+    old = prov._fanvil_v65_content(prov._FANVIL_SIP_LINES_0_7_152)
+    with Session(get_engine()) as s:
+        tpl = ProvisioningTemplate(name="Fanvil V65 (angepasst)", vendor="Fanvil", file_pattern="{mac}.cfg",
+                                   content=old, builtin=True)
+        s.add(tpl)
+        s.commit()
+        prov.repair_broken_builtin_templates(s)
+        s.refresh(tpl)
+        assert tpl.content == _v65()
+        s.delete(tpl)
+        s.commit()
+
+
+def test_resync_sends_check_sync_to_every_extension_of_the_device(client, monkeypatch):
+    sent = []
+
+    async def fake_send(number):
+        sent.append(number)
+
+    monkeypatch.setattr(prov.ami, "send_check_sync", fake_send)
+    ext = client.post("/api/extensions", json={"number": 63, "display_name": "Tisch", "sip_password": "securepass1234567"})
+    assert ext.status_code == 200, ext.text
+    tpl_id = client.post("/api/provisioning/templates", json={"name": "Resync-Test", "vendor": "Fanvil",
+                                                              "file_pattern": "{mac}.cfg", "content": "x"}).json()["id"]
+    dev = client.post("/api/provisioning/devices", json={"mac": "0c:38:3e:00:00:63", "extension_numbers": "63",
+                                                         "template_id": tpl_id})
+    assert dev.status_code == 200, dev.text
+    dev = dev.json()
+    r = client.post(f"/api/provisioning/devices/{dev['id']}/resync")
+    assert r.status_code == 200 and sent == ["63"]
+    assert client.post("/api/provisioning/devices/99999/resync").status_code == 404
+    client.delete(f"/api/provisioning/devices/{dev['id']}")
+    client.delete(f"/api/extensions/{ext.json()['id']}")
+    client.delete(f"/api/provisioning/templates/{tpl_id}")
+
+
+def test_check_sync_notify_action():
+    from backend import ami
+    assert ami.check_sync_notify("14") == {"Action": "PJSIPNotify", "Endpoint": "14",
+                                           "Variable": "Event=check-sync;reboot=true"}

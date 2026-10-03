@@ -407,6 +407,22 @@ async def stop_recording(number: str, peer: str) -> bool:
     return response.get("Response") == "Success"
 
 
+def check_sync_notify(number: str) -> dict:
+    """AMI PJSIPNotify "check-sync" to the extension's registered contacts. Desk
+    phones restart on it (Fanvil with "Notify Reboot :1", Yealink, Snom) and fetch
+    their provisioning file again."""
+    return {"Action": "PJSIPNotify", "Endpoint": str(number), "Variable": "Event=check-sync;reboot=true"}
+
+
+async def send_check_sync(number: str) -> None:
+    manager = await _get_manager()
+    async with asyncio.timeout(_AMI_TIMEOUT):
+        response = await manager.send_action(check_sync_notify(number))
+    for reply in response if isinstance(response, list) else [response]:
+        if reply.get("Response") != "Success":
+            raise RuntimeError(reply.get("Message", "PJSIPNotify failed"))
+
+
 TEST_CALL_CALLERID = '"HA-Phone Test" <>'
 
 

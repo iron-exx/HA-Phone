@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.153
+
+**Fehlerbehebung - Fanvil nahm die Türklingel sofort ab, andere Geräte klingelten nicht**
+- Das Fanvil V65 (Nst. 14) stand bei der Türvideo-Vorschau auf „2XX“. In diesem Modus nimmt das Telefon den Anruf im Hintergrund an, um das Bild zu zeigen, während der Bildschirm weiter „klingelt“. Für die Anlage war die Tür damit nach 0,1 Sekunden angenommen, und sie beendete das Klingeln auf allen anderen Geräten, z. B. auf Larissas Handy.
+- Die Fanvil-Vorlagen stellen die Vorschau jetzt auf echtes Early Media (183) ein: `Enable Preview 1`, `Preview Mode 0`, `Enable Deal 180 1`. Im Gerätedialog gibt es dafür den Schalter „Türvideo vor dem Abnehmen“.
+
+**Neu - „Neu einlesen“ für Tischtelefone**
+- In „Auto-Provisioning → Geräte“ schickt der neue Knopf (Pfeilkreis) dem Telefon ein SIP-NOTIFY „check-sync“. Das Telefon startet neu und lädt seine Einstellungen von der Anlage. Am Fanvil funktioniert das, sobald es einmal diese Version geladen hat (`Notify Reboot 1`). Bis dahin einmal von Hand neu starten.
+
 ## 0.7.152
 
 **Fehlerbehebung - Fanvil-Telefone wurden nicht eingerichtet**

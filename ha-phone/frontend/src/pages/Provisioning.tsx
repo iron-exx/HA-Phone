@@ -5,7 +5,7 @@ import { useSort } from "@/lib/useSort";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { copyToClipboard } from "@/lib/clipboard";
-import { Copy, Trash2, Plus, Save, Pencil } from "lucide-react";
+import { Copy, Trash2, Plus, Save, Pencil, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -225,8 +225,19 @@ function DeviceDialog({
                         {FANVIL_LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
                       </select>
                     </div>
-                    <p className="self-end text-xs text-muted-foreground">Zeitzone: Mitteleuropa (UTC+1 mit Sommerzeit)</p>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Türvideo vor dem Abnehmen</label>
+                      <select
+                        value={extraVars.fanvil_early_media ?? "1"}
+                        onChange={e => setVar("fanvil_early_media", e.target.value)}
+                        className="h-8 w-full rounded-md border border-input bg-[#0d1020] px-2 text-sm text-slate-200 [color-scheme:dark]"
+                      >
+                        <option value="1">An (Early Media)</option>
+                        <option value="0">Aus</option>
+                      </select>
+                    </div>
                   </div>
+                  <p className="text-xs text-muted-foreground">Zeitzone: Mitteleuropa (UTC+1 mit Sommerzeit)</p>
 
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Funktionstasten (DSS Keys)</p>
@@ -375,6 +386,14 @@ export default function Provisioning() {
     } catch { toast.error("Fehler beim Löschen."); }
   }
 
+  async function resync(d: Device) {
+    try {
+      const resp = await fetch(`/api/provisioning/devices/${d.id}/resync`, { method: "POST" });
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Neu einlesen fehlgeschlagen."));
+      toast.success(`${d.name || d.mac}: Telefon startet neu und lädt seine Einstellungen.`);
+    } catch (err) { toast.error(toErrorMessage(err, "Neu einlesen fehlgeschlagen.")); }
+  }
+
   function copy(text: string) {
     copyToClipboard(text, "Kopiert.");
   }
@@ -451,6 +470,10 @@ export default function Provisioning() {
                       </button>
                     </td>
                     <td className="py-3 text-right">
+                      <Button variant="ghost" size="icon" className="h-8 w-8"
+                        onClick={() => resync(d)} aria-label="Neu einlesen" title="Neu einlesen (Telefon startet neu)">
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8"
                         onClick={() => setDeviceDialog({ device: d })} aria-label="Gerät bearbeiten">
                         <Pencil className="h-4 w-4" />
