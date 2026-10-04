@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.156
+
+**Fehlerbehebung - Gesprächsaufzeichnung funktionierte nicht**
+- Das Asterisk-Modul für die Aufzeichnung (MixMonitor) wurde beim Start nicht geladen. Ihm fehlte das Hilfsmodul `func_periodic_hook` samt dessen Abhängigkeiten (`app_chanspy`, `func_groupcount`, `func_uri`). Der Knopf „Aufnehmen“ in der App tat dadurch nichts. Die Module sind jetzt im Build und werden vor der Aufzeichnung geladen.
+
 ## 0.7.155
 
 **Neu - Türvideo vor dem Abnehmen auf jedem Gerät (Türklingel-Verteiler)**

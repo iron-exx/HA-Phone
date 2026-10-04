@@ -32,3 +32,16 @@ def test_mixmonitor_module_is_built_and_loaded():
     assert "--enable app_mixmonitor" in DOCKERFILE.read_text()
     modules = (DOCKERFILE.parent / "rootfs/etc/asterisk/modules.conf").read_text()
     assert "load = app_mixmonitor.so" in modules
+
+
+def test_mixmonitor_dependencies_are_built_and_loaded_first():
+    """app_mixmonitor needs func_periodic_hook (beep option), which needs app_chanspy,
+    func_cut, func_groupcount and func_uri (.requires in the Asterisk 22 sources).
+    Without them Asterisk logged "Error loading module 'app_mixmonitor.so', missing
+    dependency: func_periodic_hook" and call recording silently did nothing."""
+    dockerfile = DOCKERFILE.read_text()
+    modules = (DOCKERFILE.parent / "rootfs/etc/asterisk/modules.conf").read_text()
+    for name in ("app_chanspy", "func_cut", "func_groupcount", "func_uri", "func_periodic_hook"):
+        assert f"--enable {name} " in dockerfile, name
+        assert f"load = {name}.so" in modules, name
+        assert modules.index(f"load = {name}.so") < modules.index("load = app_mixmonitor.so"), name

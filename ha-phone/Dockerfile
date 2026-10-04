@@ -125,6 +125,10 @@ RUN make menuselect.makeopts && \
       --enable app_voicemail \
       --enable app_directed_pickup \
       --enable app_mixmonitor \
+      --enable app_chanspy \
+      --enable func_groupcount \
+      --enable func_uri \
+      --enable func_periodic_hook \
       --enable app_confbridge \
       --enable app_originate \
       --enable app_stack \
