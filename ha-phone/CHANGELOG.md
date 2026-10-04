@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.157
+
+**Diagnose - Klingel-Protokoll mit der echten Zeit von Asterisk**
+- Die Angaben „at +x s“ im Protokoll („doorbell leg: …“) maßen bisher, wann die Anlage das Ereignis verarbeitet hatte, nicht wann es passiert ist. Auf der ausgelasteten Box hing das bis zu ~3 Sekunden hinterher und sah aus wie ein langsamer Klingelverteiler. Asterisk stempelt jetzt jedes Ereignis selbst (`timestampevents`). Hängt die Verarbeitung mehr als 1 Sekunde hinterher, steht das zusätzlich im Protokoll („listener … s behind“).
+
 ## 0.7.156
 
 **Fehlerbehebung - Gesprächsaufzeichnung funktionierte nicht**

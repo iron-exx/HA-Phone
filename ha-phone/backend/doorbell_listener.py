@@ -39,6 +39,9 @@ class DoorbellListener:
         self._doors_at = 0.0
         self._event_of: dict[str, int] = {}  # door channel Uniqueid -> DoorbellEvent.id
         self._started: dict[str, float] = {}  # door channel Uniqueid -> monotonic ring start
+        # door channel Uniqueid -> Asterisk time of the ring (AMI timestampevents)
+        self._started_ast: dict[str, float] = {}
+        self._event_ts: float | None = None
         self._last_prune = 0.0
         self.tracker = doorbell.DoorbellTracker(self._is_door)
         self._tasks: set[asyncio.Task] = set()
@@ -68,8 +71,7 @@ class DoorbellListener:
         door_uid = self.tracker.door_of(uid)
         if name not in ("DialBegin", "DialState", "DialEnd") or door_uid is None:
             return
-        start = self._started.get(door_uid)
-        at = f"at +{time.monotonic() - start:.1f} s" if start is not None else ""
+        at = self._offset(door_uid, ev)
         dest = ev.get("DestChannel", "?")
         if name == "DialBegin":
             log.info("doorbell leg: dialing %s (%s) %s", dest, ev.get("DialString", ""), at)
@@ -78,8 +80,27 @@ class DoorbellListener:
         else:
             log.info("doorbell leg: %s -> %s %s", dest, ev.get("DialStatus", "?"), at)
 
+    @staticmethod
+    def _ast_time(ev: dict) -> float | None:
+        try:
+            return float(ev.get("Timestamp", ""))
+        except (TypeError, ValueError):
+            return None
+
+    def _offset(self, door_uid: str, ev: dict) -> str:
+        """'at +x s' since the ring, in Asterisk time when events carry a Timestamp;
+        plus how far this listener is behind the call when that is more than 1 s."""
+        ts, start_ast = self._ast_time(ev), self._started_ast.get(door_uid)
+        if ts is not None and start_ast is not None:
+            lag = time.time() - ts
+            behind = f" (listener {lag:.1f} s behind)" if lag > 1.0 else ""
+            return f"at +{ts - start_ast:.1f} s{behind}"
+        start = self._started.get(door_uid)
+        return f"at +{time.monotonic() - start:.1f} s" if start is not None else ""
+
     def handle(self, ev: dict) -> None:
         """One AMI event (dict-like). Never raises into panoramisk."""
+        self._event_ts = self._ast_time(ev)
         try:
             self._log_leg(ev)
             for action in self.tracker.on_event(ev):
@@ -94,6 +115,8 @@ class DoorbellListener:
                 event = store.record_ring(int(action.door))
                 self._event_of[action.uniqueid] = event.id
                 self._started[action.uniqueid] = time.monotonic()
+                if self._event_ts is not None:
+                    self._started_ast[action.uniqueid] = self._event_ts
                 log.info("doorbell: %s rings (event %s)", action.door, event.id)
                 door = s.exec(select(Extension).where(Extension.number == int(action.door))).first()
                 source = door.doorbell_camera if door else ""
@@ -108,6 +131,7 @@ class DoorbellListener:
                 preview_cameras.ring_ended(action.uniqueid)
                 event_id = self._event_of.pop(action.uniqueid, None)
                 self._started.pop(action.uniqueid, None)
+                self._started_ast.pop(action.uniqueid, None)
                 if event_id:
                     store.mark_ended(event_id)
                 if time.monotonic() - self._last_prune > PRUNE_EVERY_S:

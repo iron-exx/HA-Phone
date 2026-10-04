@@ -249,3 +249,22 @@ def test_listener_logs_fanout_legs(client, caplog):
         listener.handle({"Event": "DialBegin", "Uniqueid": "1.5", "DestChannel": "PJSIP/12-0004",
                          "DialString": "PJSIP/12"})
     assert "dialing PJSIP/12-0004" in caplog.text
+
+
+def test_leg_log_uses_asterisk_time_and_shows_listener_lag(client, caplog, monkeypatch):
+    """With timestampevents the offsets are Asterisk's own clock, not when Python got
+    around to the event (on a busy box the listener lagged ~3 s behind the real call)."""
+    from backend import doorbell_listener as dl
+    assert "timestampevents = yes" in (ADDON / "rootfs/etc/asterisk/manager.conf").read_text()
+    listener = dl.DoorbellListener(fetch=None)
+    listener.tracker = doorbell.DoorbellTracker(lambda n: n == "17")
+    monkeypatch.setattr(dl.time, "time", lambda: 1000.0 + 3.5)
+    listener.handle({"Event": "Newchannel", "Uniqueid": "9.1", "Linkedid": "9.1", "CallerIDNum": "17",
+                     "Channel": "PJSIP/17-0009", "Exten": "20", "Timestamp": "1000.000000"})
+    listener.handle({"Event": "UserEvent", "UserEvent": "HaPhoneDoorLeg", "Uniqueid": "9.5",
+                     "DoorUniqueid": "9.1", "Timestamp": "1000.050000"})
+    with caplog.at_level("INFO", logger="backend.doorbell_listener"):
+        listener.handle({"Event": "DialBegin", "Uniqueid": "9.5", "DestChannel": "PJSIP/12-0009",
+                         "DialString": "PJSIP/12", "Timestamp": "1000.120000"})
+    assert "at +0.1 s" in caplog.text
+    assert "listener 3.4 s behind" in caplog.text
