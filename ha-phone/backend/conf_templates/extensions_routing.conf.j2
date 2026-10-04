@@ -143,8 +143,22 @@ exten => {{ ivr_menu.number }},1,NoOp(Internal IVR {{ ivr_menu.name }})
 {% for ring_group in ring_groups %}
 {% if ring_group.number and ring_group_dials.get(ring_group.id, '') %}
 exten => {{ ring_group.number }},1,NoOp(Internal ring group {{ ring_group.name }})
+{#
+  A door station (its own endpoint, CHANNEL(endpoint) - the caller id could be faked)
+  ringing two or more devices takes the door fanout at the end of this file: app_dial
+  forwards early media (the door's video preview) only to a SINGLE callee, so in a
+  group Dial nobody sees the door before answering.
+#}
+{% set fanout = door_fanout_targets.get(ring_group.id) %}
+{% if fanout and door_numbers %}
+ same => n,GotoIf($[${REGEX("^({{ door_numbers|join('|') }})$" ${CHANNEL(endpoint)})}]?door)
+{% endif %}
  same => n,Dial({{ ring_group_dials.get(ring_group.id, '') }},{{ ring_group.ring_timeout }})
  same => n,Hangup()
+{% if fanout and door_numbers %}
+ same => n(door),Gosub(haphone-door-fanout,s,1({{ fanout|join('&') }},{{ ring_group.ring_timeout }}))
+ same => n,Hangup()
+{% endif %}
 {% endif %}
 {% endfor %}
 
@@ -201,8 +215,17 @@ exten => {{ ivr_menu.number }},1,NoOp(Internal-only IVR {{ ivr_menu.name }})
 {% for ring_group in ring_groups %}
 {% if ring_group.number and ring_group_dials.get(ring_group.id, '') %}
 exten => {{ ring_group.number }},1,NoOp(Internal-only call to ring group {{ ring_group.name }})
+{# Door station ringing two or more devices: door fanout, see from-internal above. #}
+{% set fanout = door_fanout_targets.get(ring_group.id) %}
+{% if fanout and door_numbers %}
+ same => n,GotoIf($[${REGEX("^({{ door_numbers|join('|') }})$" ${CHANNEL(endpoint)})}]?door)
+{% endif %}
  same => n,Dial({{ door_ring_group_dials.get(ring_group.id, '') }},{{ ring_group.ring_timeout }})
  same => n,Hangup()
+{% if fanout and door_numbers %}
+ same => n(door),Gosub(haphone-door-fanout,s,1({{ fanout|join('&') }},{{ ring_group.ring_timeout }}))
+ same => n,Hangup()
+{% endif %}
 {% endif %}
 {% endfor %}
 {% for ext in extensions %}
@@ -215,16 +238,23 @@ exten => {{ ext.number }},1,NoOp(Internal-only call to {{ ext.number }} (numeric
 {% endif %}
 {% endfor %}
 {#
-  Explicit entries win over _XX: multi-device ringing for every known non-video
-  extension. _XX (plain PJSIP/${EXTEN}) stays for video extensions - the door
-  station video preview path (single contact, 183 early media) is unchanged.
+  Explicit entries win over _XX: every device of the extension rings. A door station
+  calling one extension takes the fanout as well: each device gets its own leg and
+  with it the door's video before answering (also app + desk phone on one extension).
 #}
 {% for ext in extensions %}
-{% if ext.enabled and not ext.numeric_callerid and not ext.video_capable %}
+{% if ext.enabled and not ext.numeric_callerid %}
 exten => {{ ext.number }},1,NoOp(Internal-only call to {{ ext.number }})
+{% if door_numbers and not ext.is_door %}
+ same => n,GotoIf($[${REGEX("^({{ door_numbers|join('|') }})$" ${CHANNEL(endpoint)})}]?door)
+{% endif %}
  same => n,Dial({{ dial(ext.number) }},30)
  same => n,Voicemail({{ ext.number }}@default,u)
  same => n,Hangup()
+{% if door_numbers and not ext.is_door %}
+ same => n(door),Gosub(haphone-door-fanout,s,1({{ ext.number }},30))
+ same => n,Hangup()
+{% endif %}
 {% endif %}
 {% endfor %}
 exten => _XX,1,NoOp(Internal-only call to ${EXTEN})
@@ -485,3 +515,159 @@ exten => _X.,1,NoOp(Doorbell ring: ${EXTEN})
  same => n,Congestion()
 {% endif %}
  same => n,Hangup()
+
+{#
+  Door fanout (Türklingel-Verteiler). Verified with a local Asterisk 22.11 prototype
+  (door simulator + several video/audio devices): every device sees the door's video
+  ~0.15 s after the INVITE, the first one to answer talks to the door (DTMF door code
+  passes), the others get CANCEL "Call completed elsewhere", nobody answering gives the
+  devices a normal missed call and the door a 480.
+
+  - The door channel answers nothing: Progress() (183, the door starts its video), then
+    one Local leg per device via Originate, then it joins a ConfBridge UNANSWERED
+    (answer_channel=no) as the marked video source (video_mode=first_marked).
+  - A leg's ;2 half answers itself (local only) so its ;1 half is in the conference right
+    away, then does Dial(<ONE device>): app_dial forwards the conference media to that
+    single callee as early media. C(...h264): a Local channel without a video stream in
+    its topology drops video frames.
+  - Until the device answers, FRAME_DROP on the device channel keeps its microphone and
+    keys (DTMF) away from the door.
+  - The first device to answer (Dial U(), LOCK + SHARED(DOOR_WINNER) on the door channel)
+    kicks everybody else out of the conference: the door rejoins answered, the other legs
+    hang up with cause 26. Never ConfKick(all) here: the conference would be empty for a
+    moment and get torn down under the winner (seen in the prototype).
+  - Hangup handlers: the door leaving or the winner leaving ends the call for everybody;
+    the last leg failing without a winner ends the ringing at the door (480).
+  - The legs carry the door's caller id (the app recognises a door by its number) and
+    report to the doorbell history via UserEvent (they have their own Linkedid).
+  Not ';' in any line below: it starts a comment in Asterisk config files. Loops use
+  GotoIf (app_while is not built).
+#}
+; ARG1 = device numbers separated by &, ARG2 = ring time in seconds.
+[haphone-door-fanout]
+exten => s,1,NoOp(Door fanout to ${ARG1} for ${ARG2}s)
+ same => n,Set(LOCAL(room)=haphone-door-${UNIQUEID})
+ same => n,Set(CHANNEL(hangup_handler_push)=haphone-door-cleanup,s,1(${room}))
+ same => n,Set(SHARED(DOOR_UID)=${UNIQUEID})
+ same => n,Set(SHARED(DOOR_CIDNUM)=${CALLERID(num)})
+ same => n,Set(SHARED(DOOR_CIDNAME)=${CALLERID(name)})
+ ; one leg per DEVICE: every registered contact of a target rings on its own leg
+ ; (contact index 1..n), a target with nothing registered gets one leg (index 0)
+ same => n,Set(LOCAL(legs)=0)
+ same => n,Set(LOCAL(i)=1)
+ same => n(count),Set(LOCAL(target)=${CUT(ARG1,&,${i})})
+ same => n,GotoIf($["${target}" = ""]?counted)
+ same => n,Set(LOCAL(cs)=${PJSIP_DIAL_CONTACTS(${target})})
+ same => n,Set(LOCAL(n)=${IF($["${cs}" = ""]?1:${FIELDQTY(cs,&)})})
+ same => n,Set(legs=$[${legs} + ${n}])
+ same => n,Set(i=$[${i} + 1])
+ same => n,Goto(count)
+ same => n(counted),Set(SHARED(DOOR_LEGS)=${legs})
+ same => n,Progress()
+ same => n,Set(i=1)
+ same => n(leg),Set(LOCAL(target)=${CUT(ARG1,&,${i})})
+ same => n,GotoIf($["${target}" = ""]?ring)
+ same => n,Set(LOCAL(cs)=${PJSIP_DIAL_CONTACTS(${target})})
+ same => n,Set(LOCAL(n)=${IF($["${cs}" = ""]?0:${FIELDQTY(cs,&)})})
+ same => n,Set(LOCAL(j)=${IF($[${n} = 0]?0:1)})
+ same => n(contact),Originate(Local/${target}@haphone-door-leg/n,exten,haphone-door-join,s,1,${ARG2},aC(alaw,ulaw,g722,h264)v(HAPHONE_DOOR_ROOM=${room}^HAPHONE_DOOR_CHAN=${CHANNEL}^HAPHONE_DOOR_UID=${UNIQUEID}^HAPHONE_DOOR_TIMEOUT=${ARG2}^HAPHONE_DOOR_CONTACT=${j}))
+ same => n,Set(j=$[${j} + 1])
+ same => n,GotoIf($[${j} <= ${n}]?contact)
+ same => n,Set(i=$[${i} + 1])
+ same => n,Goto(leg)
+ same => n(ring),Set(CONFBRIDGE(user,template)=haphone_door_ringing)
+ same => n,Set(CONFBRIDGE(user,timeout)=${ARG2})
+ same => n,ConfBridge(${room},haphone_door_bridge)
+ same => n,NoOp(Door left the ringing conference: ${CONFBRIDGE_RESULT}, winner ${SHARED(DOOR_WINNER)})
+ same => n,GotoIf($["${SHARED(DOOR_WINNER)}" = ""]?noanswer)
+ same => n,Answer()
+ same => n,Set(CONFBRIDGE(user,clear)=)
+ same => n,ConfBridge(${room},haphone_door_bridge,haphone_door_talking)
+ same => n,Return()
+ same => n(noanswer),Hangup(19)
+
+; Hangup handler of the door channel and of the winning leg: end the call for everybody.
+[haphone-door-cleanup]
+exten => s,1,ExecIf($[0${CONFBRIDGE_INFO(parties,${ARG1})} > 0]?ConfKick(${ARG1},all))
+ same => n,Return()
+
+; ;2 half of a leg: rings exactly ONE device, the HAPHONE_DOOR_CONTACT-th registered
+; contact of the extension (0, or a contact that is gone meanwhile: the extension itself).
+[haphone-door-leg]
+{% for number in door_leg_numbers %}
+exten => {{ number }},1,Set(HAPHONE_DOOR_TARGET=PJSIP/{{ number }})
+ same => n,GotoIf($[0${HAPHONE_DOOR_CONTACT} = 0]?go)
+ same => n,Set(HAPHONE_DOOR_CS=${PJSIP_DIAL_CONTACTS({{ number }})})
+ same => n,Set(HAPHONE_DOOR_ONE=${CUT(HAPHONE_DOOR_CS,&,${HAPHONE_DOOR_CONTACT})})
+ ; GotoIf, not IF()/ExecIf(): contact URIs contain ':' which those split at
+ same => n,GotoIf($["${HAPHONE_DOOR_ONE}" = ""]?go)
+ same => n,Set(HAPHONE_DOOR_TARGET=${HAPHONE_DOOR_ONE})
+ same => n(go),Goto(haphone-door-ring,s,1)
+{% endfor %}
+
+[haphone-door-ring]
+exten => s,1,NoOp(Door leg ${CHANNEL}: ${HAPHONE_DOOR_TARGET} in ${HAPHONE_DOOR_ROOM})
+ same => n,Answer()
+ same => n,Set(CALLERID(num)=${SHARED(DOOR_CIDNUM,${HAPHONE_DOOR_CHAN})})
+ same => n,Set(CALLERID(name)=${SHARED(DOOR_CIDNAME,${HAPHONE_DOOR_CHAN})})
+ same => n,UserEvent(HaPhoneDoorLeg,DoorUniqueid: ${HAPHONE_DOOR_UID})
+ ; dial once the door sits in the conference (video source, and a failing leg can end it)
+ same => n,Set(tries=0)
+ same => n(wait),GotoIf($[0${CONFBRIDGE_INFO(marked,${HAPHONE_DOOR_ROOM})} > 0 | ${tries} >= 40]?dial)
+ same => n,Set(tries=$[${tries} + 1])
+ same => n,Wait(0.05)
+ same => n,Goto(wait)
+ same => n(dial),Dial(${HAPHONE_DOOR_TARGET},${HAPHONE_DOOR_TIMEOUT},b(haphone-door-predial^s^1)U(haphone-door-win^${HAPHONE_DOOR_ROOM}^${HAPHONE_DOOR_CHAN}^${CHANNEL:0:-1}1))
+ same => n,NoOp(Door leg ended: ${DIALSTATUS})
+ same => n,GotoIf($["${DIALSTATUS}" = "ANSWER" | !${CHANNEL_EXISTS(${HAPHONE_DOOR_CHAN})}]?out)
+ ; the last leg that fails without a winner ends the ringing at the door
+ same => n,Set(got=${LOCK(${HAPHONE_DOOR_ROOM})})
+ same => n,Set(left=$[${SHARED(DOOR_LEGS,${HAPHONE_DOOR_CHAN})} - 1])
+ same => n,Set(SHARED(DOOR_LEGS,${HAPHONE_DOOR_CHAN})=${left})
+ same => n,Set(winner=${SHARED(DOOR_WINNER,${HAPHONE_DOOR_CHAN})})
+ same => n,Set(rel=${UNLOCK(${HAPHONE_DOOR_ROOM})})
+ same => n,ExecIf($[${left} <= 0 & "${winner}" = ""]?ConfKick(${HAPHONE_DOOR_ROOM},${HAPHONE_DOOR_CHAN}))
+ same => n(out),Hangup()
+
+; Pre-dial on the device channel: until it answers, nothing it sends reaches the door.
+[haphone-door-predial]
+exten => s,1,Set(FRAME_DROP(RX)=VOICE,DTMF_BEGIN,DTMF_END)
+ same => n,Return()
+
+; ;1 half: in the conference, forwards the door's media to the device.
+[haphone-door-join]
+exten => s,1,NoOp(Door leg ${CHANNEL} joins ${HAPHONE_DOOR_ROOM})
+ same => n,Set(CHANNEL(hangup_handler_push)=haphone-door-leg-gone,s,1(${HAPHONE_DOOR_ROOM}))
+ same => n,ConfBridge(${HAPHONE_DOOR_ROOM},haphone_door_bridge,haphone_door_leg)
+ same => n,ExecIf($["${SHARED(DOOR_LOST)}" = "1"]?Hangup(26))
+ same => n,Hangup()
+
+[haphone-door-leg-gone]
+exten => s,1,GotoIf($["${SHARED(DOOR_WON)}" != "1"]?done)
+ same => n,Gosub(haphone-door-cleanup,s,1(${ARG1}))
+ same => n(done),Return()
+
+; Dial U() on the answering device. ARG1 room, ARG2 door channel, ARG3 own ;1 half.
+[haphone-door-win]
+exten => s,1,NoOp(${CHANNEL} answered the door in ${ARG1})
+ same => n,Set(LOCAL(got)=${LOCK(${ARG1})})
+ same => n,Set(LOCAL(winner)=${SHARED(DOOR_WINNER,${ARG2})})
+ same => n,ExecIf($["${winner}" = ""]?Set(SHARED(DOOR_WINNER,${ARG2})=${ARG3}))
+ same => n,Set(LOCAL(rel)=${UNLOCK(${ARG1})})
+ same => n,GotoIf($["${winner}" != ""]?lost)
+ same => n,Set(FRAME_DROP(RX)=NONE)
+ same => n,Set(SHARED(DOOR_WON,${ARG3})=1)
+ same => n,UserEvent(HaPhoneDoorAnswered,DoorUniqueid: ${SHARED(DOOR_UID,${ARG2})},By: ${CHANNEL(endpoint)})
+ ; everybody but our own leg out: the door rejoins answered, the other legs hang up (26)
+ same => n,Set(LOCAL(list)=${CONFBRIDGE_CHANNELS(parties,${ARG1})})
+ same => n,Set(LOCAL(i)=1)
+ same => n(kick),Set(LOCAL(c)=${CUT(list,\,,${i})})
+ same => n,GotoIf($["${c}" = ""]?kicked)
+ same => n,ExecIf($["${c}" != "${ARG3}" & "${c}" != "${ARG2}"]?Set(SHARED(DOOR_LOST,${c})=1))
+ same => n,ExecIf($["${c}" != "${ARG3}"]?ConfKick(${ARG1},${c}))
+ same => n,Set(i=$[${i} + 1])
+ same => n,Goto(kick)
+ same => n(kicked),Return()
+ same => n(lost),NoOp(Too late, ${winner} answered first)
+ same => n,Set(GOSUB_RESULT=ABORT)
+ same => n,Return()

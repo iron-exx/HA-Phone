@@ -6,7 +6,11 @@ The PBX sees rings through AMI events (doorbell_listener.py feeds them in):
   DialEnd with DialStatus=ANSWER for that call           -> answered by DestCallerIDNum
   Hangup of the door's channel                           -> ring over
 A ring group produces one Newchannel for the door and one DialEnd per called device,
-so there is exactly one event per ring.
+so there is exactly one event per ring. A door ringing several devices goes through the
+door fanout (extensions_routing.conf.j2 haphone-door-*): every device has its own Local
+leg with its own Uniqueid/Linkedid, so the legs report via UserEvent:
+  UserEvent HaPhoneDoorLeg (Uniqueid = leg, DoorUniqueid)  -> leg belongs to that ring
+  UserEvent HaPhoneDoorAnswered (DoorUniqueid, By)          -> answered by that extension
 
 The picture comes from the door's `doorbell_camera`: a Home Assistant camera entity
 (camera.xyz, via the Supervisor API) or the door station's own snapshot URL.
@@ -75,9 +79,23 @@ class DoorbellTracker:
     def __init__(self, is_door_number: Callable[[str], bool]):
         self._is_door = is_door_number
         self._active: dict[str, bool] = {}  # door channel Uniqueid -> answered yet
+        self._legs: dict[str, str] = {}  # fanout leg Uniqueid -> door channel Uniqueid
 
     def is_active(self, uniqueid: str) -> bool:
         return uniqueid in self._active
+
+    def door_of(self, uniqueid: str) -> Optional[str]:
+        """The ringing door channel a channel belongs to: the door itself or one of its
+        fanout legs. None for anything else."""
+        if uniqueid in self._active:
+            return uniqueid
+        return self._legs.get(uniqueid)
+
+    def _answer(self, uid: str, by: str) -> list:
+        if uid in self._active and not self._active[uid]:
+            self._active[uid] = True
+            return [Answered(uid, by)]
+        return []
 
     def on_event(self, ev: dict) -> list:
         name = ev.get("Event", "")
@@ -93,16 +111,26 @@ class DoorbellTracker:
                 return [Ring(uid, door)]
             return []
         if name == "DialEnd":
-            uid = ev.get("Uniqueid", "")
-            if uid in self._active and not self._active[uid] and ev.get("DialStatus") == "ANSWER":
-                self._active[uid] = True
-                return [Answered(uid, ev.get("DestCallerIDNum", "") or ev.get("DestExten", ""))]
+            if ev.get("DialStatus") != "ANSWER":
+                return []
+            return self._answer(ev.get("Uniqueid", ""), ev.get("DestCallerIDNum", "") or ev.get("DestExten", ""))
+        if name == "UserEvent":
+            door_uid = ev.get("DoorUniqueid", "")
+            if door_uid not in self._active:
+                return []
+            kind = ev.get("UserEvent", "")
+            if kind == "HaPhoneDoorLeg" and ev.get("Uniqueid"):
+                self._legs[ev["Uniqueid"]] = door_uid
+            elif kind == "HaPhoneDoorAnswered":
+                return self._answer(door_uid, ev.get("By", ""))
             return []
         if name == "Hangup":
             uid = ev.get("Uniqueid", "")
             if uid in self._active:
                 del self._active[uid]
+                self._legs = {leg: door for leg, door in self._legs.items() if door != uid}
                 return [Ended(uid)]
+            self._legs.pop(uid, None)
         return []
 
 

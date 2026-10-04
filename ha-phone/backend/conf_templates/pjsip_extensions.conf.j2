@@ -79,21 +79,12 @@ type              = aor
 ; reachable for days without calls, and the PBX notices a phone that is really gone.
 qualify_frequency = 60
 qualify_timeout   = 5
-{% if ext.video_capable %}
-; Video extensions (door-station preview): exactly ONE contact. The pre-answer video
-; preview relies on callee-side 183 early media to a single target — with several
-; contacts forked, the door station's H.264 early media can only reach one of them
-; (same reason ring groups with >1 target lose the preview). A re-register replaces
-; the old contact instead of being rejected.
-max_contacts      = 1
-remove_existing   = yes
-{% else %}
-; Multi-device: desk phone + app + softphone on the same extension. The dialplan
-; rings all of them via PJSIP_DIAL_CONTACTS(); the oldest contact is replaced when
-; a 4th device registers, and unreachable contacts are dropped by qualify.
+; Multi-device: desk phone + app + softphone on the same extension, video or not. The
+; dialplan rings all of them via PJSIP_DIAL_CONTACTS(); door calls give every device its
+; own leg (door fanout), so each one gets the door's early-media video. The oldest
+; contact is replaced when a 4th device registers, unreachable contacts are dropped.
 max_contacts      = 3
 remove_existing   = yes
 remove_unavailable = yes
-{% endif %}
 
 {% endfor %}

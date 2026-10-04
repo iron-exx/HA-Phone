@@ -191,8 +191,8 @@ def test_extension_endpoint_has_mwi_mailbox(client, tmp_data_dir, ext_factory):
 def test_dial_target_rings_all_contacts_with_fallback():
     target = dial_target(12)
     assert target == "${IF($[${LEN(${PJSIP_DIAL_CONTACTS(12)})} = 0]?PJSIP/12:${PJSIP_DIAL_CONTACTS(12)})}"
-    # video extensions keep the verified single-contact path
-    assert dial_target(12, {"12"}) == "PJSIP/12"
+    # video extensions too: door calls get one fanout leg per device instead
+    assert dial_target(12, {"12"}) == target
 
 
 def test_aor_contacts_non_video_vs_video(client, tmp_data_dir, ext_factory):
@@ -204,11 +204,12 @@ def test_aor_contacts_non_video_vs_video(client, tmp_data_dir, ext_factory):
     assert "remove_existing   = yes" in aor28 and "remove_unavailable = yes" in aor28
     aor29 = content[content.index("[29]\ntype              = aor"):]
     aor29 = aor29.split("; ---")[0]
-    assert "max_contacts      = 1" in aor29 and "remove_existing   = yes" in aor29
-    assert "remove_unavailable" not in aor29
+    # video no longer means one device (door preview goes through the fanout)
+    assert "max_contacts      = 3" in aor29 and "remove_existing   = yes" in aor29
+    assert "remove_unavailable = yes" in aor29
 
 
-def test_dialplan_uses_dial_contacts_except_for_video(client, tmp_data_dir, ext_factory):
+def test_dialplan_uses_dial_contacts_also_for_video(client, tmp_data_dir, ext_factory):
     ext_factory(33)
     ext_factory(34, video_capable=True)
     resp = client.post("/api/ring-groups", json={
@@ -219,12 +220,12 @@ def test_dialplan_uses_dial_contacts_except_for_video(client, tmp_data_dir, ext_
         landing33 = routing.split("[ext-33]")[1].split("\n[")[0]
         landing34 = routing.split("[ext-34]")[1].split("\n[")[0]
         assert f"Dial({dial_target(33)},30)" in landing33
-        assert "Dial(PJSIP/34,30)" in landing34 and "PJSIP_DIAL_CONTACTS" not in landing34
-        assert f"{dial_target(33)}&PJSIP/34" in routing
+        assert f"Dial({dial_target(34)},30)" in landing34
+        assert f"{dial_target(33)}&{dial_target(34)}" in routing
         restricted = routing.split("[from-internal-restricted]")[1].split("\n[")[0]
-        assert f"exten => 33,1,NoOp(Internal-only call to 33)\n same => n,Dial({dial_target(33)},30)" in restricted
-        assert "exten => 34,1," not in restricted  # video callee keeps the _XX PJSIP/${EXTEN} path
-        assert " same => n,Dial(PJSIP/${EXTEN},30)" in restricted
+        for number in (33, 34):
+            entry = restricted.split(f"exten => {number},1,NoOp(Internal-only call to {number})")[1].split("\nexten =>")[0]
+            assert f" same => n,Dial({dial_target(number)},30)" in entry
     finally:
         client.delete(f"/api/ring-groups/{resp.json()['id']}")
 

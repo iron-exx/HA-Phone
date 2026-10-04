@@ -73,6 +73,10 @@ RUN ./configure \
     --disable-native-build \
     --prefix=/usr
 
+# Door fanout (Türklingel-Verteiler, extensions_routing.conf.j2 haphone-door-*): ConfBridge
+# with a timer and an announcer channel, Originate, Gosub (app_stack needs res_agi), LOCK,
+# SHARED, FRAME_DROP, CUT, ExecIf, UserEvent; res_pjsip_rfc3326 adds the
+# "Call completed elsewhere" Reason to the CANCEL of the devices that did not answer.
 # --disable-all also disables the sound packages. Without prompts VoiceMailMain /
 # Voicemail() hang up instantly (no "vm-*" files), so the core prompts and
 # hold music are enabled explicitly (WAV: format_wav is the loaded format).
@@ -121,6 +125,20 @@ RUN make menuselect.makeopts && \
       --enable app_voicemail \
       --enable app_directed_pickup \
       --enable app_mixmonitor \
+      --enable app_confbridge \
+      --enable app_originate \
+      --enable app_stack \
+      --enable res_agi \
+      --enable res_speech \
+      --enable app_exec \
+      --enable app_userevent \
+      --enable func_lock \
+      --enable func_global \
+      --enable func_frame_drop \
+      --enable func_cut \
+      --enable res_timing_timerfd \
+      --enable chan_bridge_media \
+      --enable res_pjsip_rfc3326 \
       --enable res_adsi \
       --enable res_smdi \
       --enable bridge_simple \

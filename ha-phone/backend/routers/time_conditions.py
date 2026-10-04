@@ -30,7 +30,7 @@ def _data_dir() -> Path:
 def dial_target(number, video_numbers: set[str] | frozenset[str] = frozenset()) -> str:
     """Dial() target for ONE extension.
 
-    Non-video extensions may have several registered devices (desk phone + app +
+    An extension may have several registered devices (desk phone + app +
     softphone, AOR max_contacts=3). A plain `PJSIP/<n>` only rings ONE of the
     contacts, so every contact is dialled via ${PJSIP_DIAL_CONTACTS(<n>)} - with
     a fallback to `PJSIP/<n>` when it is empty (nothing registered: Dial then
@@ -38,30 +38,26 @@ def dial_target(number, video_numbers: set[str] | frozenset[str] = frozenset()) 
     The contacts function lands in IF()'s false branch on purpose: IF splits at
     the FIRST ':' after '?', and contact URIs (sip:...) contain colons.
 
-    Video extensions keep `PJSIP/<n>`: they have exactly one contact
-    (max_contacts=1) and the door-station video preview (183 early media to a
-    single callee) is verified on exactly this dial path - do not change it.
+    Video extensions are no exception any more: door calls (the only place that
+    needs early media to a single callee) go through the door fanout, which gives
+    every device its own leg. `video_numbers` is kept for the callers.
     """
     n = str(number).strip()
-    if n in video_numbers:
-        return f"PJSIP/{n}"
     return (
         f"${{IF($[${{LEN(${{PJSIP_DIAL_CONTACTS({n})}})}} = 0]"
         f"?PJSIP/{n}:${{PJSIP_DIAL_CONTACTS({n})}})}}"
     )
 
 
-def _build_dial_string(
+def _ring_group_numbers(
     ring_group: RingGroup,
     ext_groups_by_id: dict[int, ExtensionGroup] | None = None,
-    video_numbers: set[str] | frozenset[str] = frozenset(),
     exclude: set[str] | frozenset[str] = frozenset(),
-) -> str:
-    """Resolve a ring group's members into a Dial()-ready PJSIP/... & ... string.
-    Members come from two additive sources: direct extension_numbers, and any
-    nested ExtensionGroup referenced via extension_group_ids (each expanded to
-    its own extension_numbers). Deduplicated so an extension in both a direct
-    list and a referenced group only rings once."""
+) -> list[str]:
+    """A ring group's member numbers, in order. Members come from two additive sources:
+    direct extension_numbers, and any nested ExtensionGroup referenced via
+    extension_group_ids (each expanded to its own extension_numbers). Deduplicated so an
+    extension in both a direct list and a referenced group only rings once."""
     numbers = [n.strip() for n in ring_group.extension_numbers.split(",") if n.strip()]
     if ext_groups_by_id:
         for raw_gid in ring_group.extension_group_ids.split(","):
@@ -71,8 +67,18 @@ def _build_dial_string(
             group = ext_groups_by_id.get(int(raw_gid))
             if group:
                 numbers.extend(n.strip() for n in group.extension_numbers.split(",") if n.strip())
-    deduped = [n for n in dict.fromkeys(numbers) if n not in exclude]
-    return "&".join(dial_target(n, video_numbers) for n in deduped)
+    return [n for n in dict.fromkeys(numbers) if n not in exclude]
+
+
+def _build_dial_string(
+    ring_group: RingGroup,
+    ext_groups_by_id: dict[int, ExtensionGroup] | None = None,
+    video_numbers: set[str] | frozenset[str] = frozenset(),
+    exclude: set[str] | frozenset[str] = frozenset(),
+) -> str:
+    """Resolve a ring group's members into a Dial()-ready PJSIP/... & ... string."""
+    numbers = _ring_group_numbers(ring_group, ext_groups_by_id, exclude)
+    return "&".join(dial_target(n, video_numbers) for n in numbers)
 
 
 def _build_doorbell_dial_string(
@@ -139,6 +145,21 @@ def _regenerate_routing_conf(session: Session) -> None:
                 or ring_group_dials[rg.id])
         for rg in ring_groups_list
     }
+    # Door fanout (Türklingel-Verteiler): a door station gets one leg per registered
+    # device (haphone-door-* contexts), so each one sees the door's video before
+    # answering. Same presence rule as above.
+    door_numbers = sorted(str(e.number) for e in extensions if e.enabled and e.is_door)
+    door_fanout_targets = {}
+    for rg in ring_groups_list:
+        targets = (_ring_group_numbers(rg, ext_groups_by_id, ha_presence.door_excluded)
+                   or _ring_group_numbers(rg, ext_groups_by_id))
+        targets = [n for n in targets if n not in door_numbers]
+        # Always the fanout, even for ONE extension: it may have several devices
+        # (app + desk phone), and the fanout gives each its own leg with early media.
+        if targets:
+            door_fanout_targets[rg.id] = targets
+    door_leg_numbers = [str(e.number) for e in extensions
+                        if e.enabled and str(e.number) not in door_numbers]
     routes = session.exec(select(Route)).all()
     outbound_rules = session.exec(
         select(OutboundRule).order_by(OutboundRule.priority)
@@ -256,6 +277,9 @@ def _regenerate_routing_conf(session: Session) -> None:
             "ring_groups": ring_groups_list,
             "ring_group_dials": ring_group_dials,
             "door_ring_group_dials": door_ring_group_dials,
+            "door_numbers": door_numbers,
+            "door_fanout_targets": door_fanout_targets,
+            "door_leg_numbers": door_leg_numbers,
             "routes": routes,
             "route_dids": route_dids,
             "outbound_rules": outbound_rules,

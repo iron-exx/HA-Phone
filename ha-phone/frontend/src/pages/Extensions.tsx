@@ -1442,7 +1442,7 @@ export default function Extensions() {
                     {ext.display_name}
                     {(ext.mobile_devices ?? 0) > 0 && !ext.video_capable && (
                       <span className="ml-2 inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-normal text-amber-300"
-                        title="Auf dieser Nebenstelle ist ein Handy gekoppelt, sie ist aber nicht video-fähig: Das Handy bekommt kein Türvideo. Unter „Bearbeiten“ Video-fähig einschalten (dann nur ein Gerät pro Nebenstelle).">
+                        title="Auf dieser Nebenstelle ist ein Handy gekoppelt, sie ist aber nicht video-fähig: Das Handy bekommt kein Türvideo. Unter „Bearbeiten“ Video-fähig einschalten.">
                         <AlertTriangle className="h-3 w-3" /> Handy ohne Video
                       </span>
                     )}

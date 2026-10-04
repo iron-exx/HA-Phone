@@ -28,7 +28,6 @@ from backend.models import (
     PushTokenRefreshIn,
     MobileDeviceOut,
     PhonebookEntry,
-    ProvisionedDevice,
 )
 from backend.auth import get_current_user as get_current_admin_user
 from backend.crypto import EncryptedString
@@ -249,27 +248,11 @@ def start_provisioning(
 
 # --- POST /api/mobile/provision/complete ---
 # Mobile app completes provisioning after QR scan (PUBLIC — only has the JWT)
-async def enable_video_for_app_only_extension(session: Session, ext: Extension, device: MobileDevice) -> bool:
-    """Door video in the app needs a video_capable extension, which also means ONE
-    device per extension (max_contacts=1). So it is switched on at pairing only when
-    the app is alone on the extension: no other active app, no provisioned desk
-    phone, nothing registered (a manually set-up desk phone shows up there).
-    If AMI does not answer, nothing changes."""
+async def enable_video_for_app(session: Session, ext: Extension) -> bool:
+    """Every extension with a paired app is video capable: the app shows the door's
+    video before answering (early media, one fanout leg per device) and during the
+    call. Since the door fanout this no longer limits the extension to one device."""
     if ext.video_capable or ext.is_door:
-        return False
-    others = session.exec(
-        select(MobileDevice).where(
-            MobileDevice.extension_id == ext.id,
-            MobileDevice.id != device.id,
-            MobileDevice.status == "active",
-        )
-    ).all()
-    if others:
-        return False
-    for desk in session.exec(select(ProvisionedDevice)).all():
-        if str(ext.number) in [n.strip() for n in (desk.extension_numbers or "").split(",")]:
-            return False
-    if await ami.get_contact_count(str(ext.number)) != 0:
         return False
     from backend.routers.extensions import _regenerate_extension_bundle
     ext.video_capable = True
@@ -362,8 +345,8 @@ async def complete_provisioning(
             session.commit()
 
     try:
-        if await enable_video_for_app_only_extension(session, ext, device):
-            logger.info("pairing: extension %s set video_capable (app is its only device)", ext.number)
+        if await enable_video_for_app(session, ext):
+            logger.info("pairing: extension %s set video_capable (paired app)", ext.number)
     except Exception:
         logger.exception("pairing: video check for extension %s failed", ext.number)
 

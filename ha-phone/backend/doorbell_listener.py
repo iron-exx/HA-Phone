@@ -22,7 +22,8 @@ log = logging.getLogger(__name__)
 DOOR_CACHE_S = 30
 PRUNE_EVERY_S = 3600
 # DialState: a dialled device reports ringing (180) / early media (183).
-_EVENTS = ("Newchannel", "DialBegin", "DialState", "DialEnd", "Hangup")
+# UserEvent: the door fanout's legs and its answer (doorbell.py).
+_EVENTS = ("Newchannel", "DialBegin", "DialState", "DialEnd", "Hangup", "UserEvent")
 # Door station cameras via HA can take 7-25 s per picture (ffmpeg on RTSP).
 RING_SNAPSHOT_TIMEOUT_S = 25.0
 
@@ -64,9 +65,10 @@ class DoorbellListener:
         "the door did not ring my phone")."""
         name = ev.get("Event", "")
         uid = ev.get("Uniqueid", "")
-        if name not in ("DialBegin", "DialState", "DialEnd") or not self.tracker.is_active(uid):
+        door_uid = self.tracker.door_of(uid)
+        if name not in ("DialBegin", "DialState", "DialEnd") or door_uid is None:
             return
-        start = self._started.get(uid)
+        start = self._started.get(door_uid)
         at = f"at +{time.monotonic() - start:.1f} s" if start is not None else ""
         dest = ev.get("DestChannel", "?")
         if name == "DialBegin":

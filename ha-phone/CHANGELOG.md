@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.155
+
+**Neu - Türvideo vor dem Abnehmen auf jedem Gerät (Türklingel-Verteiler)**
+- Klingelt die Tür mehrere Geräte an (z. B. Gruppe „klingel“), sah bisher **keines** das Video vor dem Abnehmen. Asterisk reicht Early Media nur an ein einzelnes Ziel weiter. Was in der App erschien, war das Standbild aus Home Assistant, und das braucht 7 bis 25 Sekunden.
+- Jetzt ruft die Anlage jedes Gerät auf einer eigenen Leitung an. Die Tür bleibt unbeantwortet in einer Konferenz und schickt ihr Video an alle gleichzeitig. Im Test kam das Bild nach etwa 0,1 Sekunden auf jedem Video-Gerät an, ab dem Abnehmen läuft es weiter.
+- Das gilt in jeder Konstellation: mehrere Nebenstellen, eine Nebenstelle mit App und Tischtelefon, die Tür wählt eine Nebenstelle direkt, die Anwesenheitsregel lässt nur ein Gerät übrig.
+- Wer zuerst abnimmt, spricht mit der Tür (Tür-Code per Tasten geht). Alle anderen hören sofort auf zu klingeln („Call completed elsewhere“, kein verpasster Anruf). Nimmt niemand ab, endet das Klingeln an der Tür nach der Klingelzeit. Der Klingel-Verlauf zeigt weiter, wer abgenommen hat.
+
+**Geändert - „Video-fähig“ erlaubt wieder mehrere Geräte pro Nebenstelle**
+- Die Grenze „ein Gerät pro video-fähiger Nebenstelle“ gab es nur wegen der Türvorschau. Mit dem Verteiler entfällt sie: App, Tischtelefon und Softphone klingeln gemeinsam, auch mit Video.
+- Wird eine App gekoppelt, ist ihre Nebenstelle jetzt **immer** video-fähig (bisher nur, wenn sonst nichts darauf hing).
+
 ## 0.7.154
 
 **Türvideo für Handys - automatisch und mit Warnung**
