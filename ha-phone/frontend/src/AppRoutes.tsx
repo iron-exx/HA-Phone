@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Extensions from "./pages/extensions/Extensions";
-import Provisioning from "./pages/Provisioning";
+import Devices from "./pages/devices/Devices";
 import Phonebook from "./pages/Phonebook";
 import Inbound from "./pages/calls/Inbound";
 import Outbound from "./pages/calls/Outbound";
@@ -24,7 +24,7 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/extensions" element={<Extensions />} />
-      <Route path="/devices" element={<Provisioning />} />
+      <Route path="/devices" element={<Devices />} />
       <Route path="/phonebook" element={<Phonebook />} />
       <Route path="/calls/inbound" element={<Inbound />} />
       <Route path="/calls/outbound" element={<Outbound />} />

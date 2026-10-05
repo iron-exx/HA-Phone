@@ -23,6 +23,7 @@ import {
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { copyToClipboard } from "@/lib/clipboard";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { PageHeader } from "@/components/PageHeader";
 
 const EMPTY_FORM = { name: "", number: "", notes: "" };
 
@@ -222,36 +223,31 @@ export default function Phonebook() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Telefonbuch</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Gemeinsame Kontaktliste, unabhängig von Nebenstellen. CSV-Import ordnet Zeilen anhand
-            der Nummer bestehenden Einträgen zu (aktualisiert statt zu duplizieren).
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) importCsv(file);
-            }}
-          />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            <Upload className="mr-2 h-4 w-4" />
-            {importing ? "Importiert…" : "CSV importieren"}
-          </Button>
-          <Button variant="outline" onClick={exportCsv}>
-            <Download className="mr-2 h-4 w-4" />
-            CSV exportieren
-          </Button>
-          <LdapInfoDialog />
-        </div>
-      </div>
+      <PageHeader
+        actions={
+          <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importCsv(file);
+              }}
+            />
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              <Upload className="mr-2 h-4 w-4" />
+              {importing ? "Importiert…" : "CSV importieren"}
+            </Button>
+            <Button variant="outline" onClick={exportCsv}>
+              <Download className="mr-2 h-4 w-4" />
+              CSV exportieren
+            </Button>
+            <LdapInfoDialog />
+          </div>
+        }
+      />
 
       <Input
         value={search}
