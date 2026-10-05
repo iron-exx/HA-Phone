@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import Dashboard from "./pages/Dashboard";
+import Overview from "./pages/overview/Overview";
 import Extensions from "./pages/extensions/Extensions";
 import Devices from "./pages/devices/Devices";
 import Phonebook from "./pages/Phonebook";
@@ -23,7 +23,7 @@ import { LEGACY_REDIRECTS } from "./nav";
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
+      <Route path="/" element={<Overview />} />
       <Route path="/extensions" element={<Extensions />} />
       <Route path="/devices" element={<Devices />} />
       <Route path="/phonebook" element={<Phonebook />} />
