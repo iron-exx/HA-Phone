@@ -4,6 +4,8 @@ import Extensions from "./pages/Extensions";
 import Provisioning from "./pages/Provisioning";
 import Phonebook from "./pages/Phonebook";
 import Routing from "./pages/Routing";
+import Inbound from "./pages/calls/Inbound";
+import Schedules from "./pages/calls/Schedules";
 import IVR from "./pages/IVR";
 import Voicemail from "./pages/Voicemail";
 import Doorbell from "./pages/Doorbell";
@@ -22,11 +24,11 @@ export default function AppRoutes() {
       <Route path="/extensions" element={<Extensions />} />
       <Route path="/devices" element={<Provisioning />} />
       <Route path="/phonebook" element={<Phonebook />} />
-      <Route path="/calls/inbound" element={<Routing />} />
+      <Route path="/calls/inbound" element={<Inbound />} />
       <Route path="/calls/outbound" element={<Routing />} />
       <Route path="/calls/groups" element={<Routing />} />
       <Route path="/calls/ivr" element={<IVR />} />
-      <Route path="/calls/schedules" element={<Routing />} />
+      <Route path="/calls/schedules" element={<Schedules />} />
       <Route path="/calls/voicemail" element={<Voicemail />} />
       <Route path="/doorbell" element={<Doorbell />} />
       <Route path="/doorbell/cameras" element={<Doorbell />} />
