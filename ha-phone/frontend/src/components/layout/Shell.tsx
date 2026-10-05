@@ -1,49 +1,55 @@
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Menu } from "lucide-react";
 import Sidebar from "./Sidebar";
+import { BrandMark } from "./BrandMark";
 
-interface ShellProps {
-  children: ReactNode;
-}
+export default function Shell({ children }: { children: ReactNode }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
 
-export default function Shell({ children }: ShellProps) {
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "hsl(222, 84%, 4%)" }}>
-
-      {/* Ambient background orbs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div
-          className="absolute -top-40 -left-40 h-80 w-80 rounded-full blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(76,29,149,0.35) 0%, transparent 70%)" }}
-        />
-        <div
-          className="absolute bottom-0 right-0 h-96 w-96 rounded-full blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(6,78,59,0.2) 0%, transparent 70%)" }}
-        />
-        <div
-          className="absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
-          style={{ background: "radial-gradient(circle, rgba(30,58,138,0.12) 0%, transparent 70%)" }}
-        />
-      </div>
-
-      {/* Sidebar */}
-      <aside
-        className="relative z-20 flex w-60 shrink-0 flex-col"
-        style={{
-          background: "rgba(10, 12, 30, 0.9)",
-          borderRight: "1px solid rgba(139, 92, 246, 0.12)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-        }}
-      >
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+      <aside className="hidden w-60 shrink-0 border-r border-hair bg-surface nav:block">
         <Sidebar />
       </aside>
 
-      {/* Main content */}
-      <main className="relative z-10 flex-1 overflow-auto">
-        <div className="mx-auto max-w-5xl px-8 py-8">
-          {children}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center gap-3 border-b border-hair bg-surface px-4 py-2.5 nav:hidden">
+          <button
+            type="button"
+            aria-label="Menü öffnen"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav"
+            onClick={() => setMenuOpen(true)}
+            className="grid size-10 place-items-center rounded-ctl border border-stroke bg-card text-foreground"
+          >
+            <Menu className="size-5" aria-hidden="true" />
+          </button>
+          <BrandMark className="size-8" />
+          <span className="font-display text-base font-extrabold">HA-Phone</span>
+        </header>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 nav:py-6">{children}</div>
+        </main>
+      </div>
+
+      {menuOpen && (
+        <div id="mobile-nav" role="dialog" aria-modal="true" aria-label="Navigation" className="fixed inset-0 z-40 nav:hidden">
+          <button type="button" aria-label="Menü schließen" onClick={closeMenu} className="absolute inset-0 bg-black/40" />
+          <aside className="absolute inset-y-0 left-0 w-60 max-w-[85vw] bg-surface shadow-2xl">
+            <Sidebar onNavigate={closeMenu} />
+          </aside>
         </div>
-      </main>
+      )}
     </div>
   );
 }

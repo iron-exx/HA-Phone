@@ -3,19 +3,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { useTheme } from "@/lib/themeContext";
 import Shell from "./components/layout/Shell";
-import Dashboard from "./pages/Dashboard";
-import Extensions from "./pages/Extensions";
-import Trunk from "./pages/Trunk";
-import Routing from "./pages/Routing";
-import Voicemail from "./pages/Voicemail";
-import PublicIP from "./pages/PublicIP";
-import Diagnostics from "./pages/Diagnostics";
-import Provisioning from "./pages/Provisioning";
-import IVR from "./pages/IVR";
-import Backup from "./pages/Backup";
-import Phonebook from "./pages/Phonebook";
-import Tailscale from "./pages/Tailscale";
-import Doorbell from "./pages/Doorbell";
+import AppRoutes from "./AppRoutes";
 import Logo from "./components/Logo";
 import Login from "./pages/Login";
 import ChangePassword from "./pages/ChangePassword";
@@ -109,21 +97,7 @@ export default function App() {
           element={
             <AuthGuard>
               <Shell>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/extensions" element={<Extensions />} />
-                  <Route path="/ivr" element={<IVR />} />
-                  <Route path="/trunk" element={<Trunk />} />
-                  <Route path="/routing" element={<Routing />} />
-                  <Route path="/voicemail" element={<Voicemail />} />
-                  <Route path="/settings/public-ip" element={<PublicIP />} />
-                  <Route path="/diagnostics" element={<Diagnostics />} />
-                  <Route path="/provisioning" element={<Provisioning />} />
-                  <Route path="/backup" element={<Backup />} />
-                  <Route path="/phonebook" element={<Phonebook />} />
-                  <Route path="/tailscale" element={<Tailscale />} />
-                  <Route path="/doorbell" element={<Doorbell />} />
-                </Routes>
+                <AppRoutes />
               </Shell>
             </AuthGuard>
           }
