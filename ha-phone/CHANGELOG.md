@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.158
+
+**Neu - Aufgeräumte Oberfläche im Look der App („Nachtwache“)**
+- Die Seitenleiste ist nach Aufgaben sortiert: Übersicht, Telefone & Personen, Anrufe, Türklingel, Anschluss, System. Die bisherige Seite „Routing“ ist aufgeteilt in Eingehend, Ausgehend, Gruppen, Zeiten & Feiertage. Alte Lesezeichen leiten automatisch auf die neue Seite.
+- Hell und dunkel folgen jetzt dem Gerät bzw. Home Assistant; unter System → Konto lässt sich das für diesen Browser festlegen.
+- Türklingel an einem Ort: Türstation einschalten, Tür-Öffnen-Code, Webhook, Klingelbild und Aktionen stehen jetzt unter Türklingel → Türstationen & Verlauf statt im Nebenstellen-Dialog.
+- Der Nebenstellen-Dialog hat Reiter (Allgemein · Handy-App · Erreichbarkeit); die Weiterleitung nach Anwesenheit steht direkt bei der Nebenstelle. Ist ein Feld in einem anderen Reiter falsch, springt der Dialog dorthin.
+- Neue Übersicht mit Telefonanbieter, angemeldeten Nebenstellen, laufenden Gesprächen, Klingeln heute, den letzten Klingeln und offenen Punkten.
+- Der Anschluss (Telefonanbieter, Fernzugriff, Netzwerk, E-Mail) und die Tischtelefone (Reiter Geräte und Vorlagen) haben eigene, übersichtliche Seiten.
+- Admin-Passwort lässt sich jederzeit unter System → Konto ändern. App-Protokolle stehen unter System → Diagnose zum Herunterladen.
+- Durchgehend deutsche Texte, Schriften lokal eingebunden (funktioniert ohne Internet).
+
+**Sicherheit - Passwortwechsel verlangt das aktuelle Passwort**
+- Ein freiwilliger Passwortwechsel funktioniert nur noch mit dem aktuellen Passwort (sonst „Aktuelles Passwort ist falsch.“). Der erzwungene Wechsel beim ersten Start bzw. mit dem Standardpasswort geht weiterhin ohne.
+
+**Fehlerbehebung - Oberfläche**
+- Farben kommen durchgehend aus festen Farbwerten des Designs, keine festen Farben mehr in den Seiten. Der Farbwert „end“ kollidierte mit der Textausrichtung und heißt jetzt „ended“. Deaktivierte Knöpfe leuchten nicht mehr.
+- Übersicht: Kopfzeile mit Schimmer wiederhergestellt, der Update-Hinweis lädt die Seite nicht mehr grundlos neu.
+
 ## 0.7.157
 
 **Diagnose - Klingel-Protokoll mit der echten Zeit von Asterisk**

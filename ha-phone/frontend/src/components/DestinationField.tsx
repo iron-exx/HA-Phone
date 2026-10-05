@@ -72,7 +72,7 @@ export function DestinationField({
   ivrMenus: IVRMenu[];
   keyBy: "id" | "number";
   typeLabels?: Partial<Record<DestinationType, string>>;
-  /** Field label shown above the type select. Pass "" to omit (e.g. compact
+  /** Field label shown above the type select. Pass "" to omit (z. B. compact
    * inline rows like an IVR option list where a per-row label reads noisy). */
   label?: string;
   /** Validation message shown under the target select (this component isn't

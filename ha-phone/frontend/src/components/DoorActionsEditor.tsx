@@ -23,7 +23,7 @@ export function doorActionsError(actions: DoorAction[]): string | null {
 
 /**
  * Home Assistant buttons the HA-Phone App shows in calls with this door station
- * (e.g. "Licht" → light.turn_on light.hausflur). The app only ever sees the label.
+ * (z. B. "Licht" → light.turn_on light.hausflur). The app only ever sees the label.
  */
 export function DoorActionsEditor({
   value,

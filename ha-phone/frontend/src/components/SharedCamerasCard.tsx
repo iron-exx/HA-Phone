@@ -19,7 +19,7 @@ interface Cam {
 const MAX_SHARED = 12;
 
 /** Which Home Assistant cameras paired phones may show as extra previews. Nothing is
- *  shared by default, so private cameras (e.g. a baby monitor) never reach a phone. */
+ *  shared by default, so private cameras (z. B. a baby monitor) never reach a phone. */
 export function SharedCamerasCard() {
   const [haCams, setHaCams] = useState<Cam[] | null>(null);
   const [haError, setHaError] = useState("");
