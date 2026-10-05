@@ -290,7 +290,7 @@ export function VoicemailCard({
               {messages.map((msg) => (
                 <div
                   key={msg.filename}
-                  className="rounded-md border border-border bg-muted p-3 space-y-2"
+                  className="rounded-ctl border border-border bg-muted p-3 space-y-2"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">

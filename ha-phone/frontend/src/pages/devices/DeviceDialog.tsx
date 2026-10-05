@@ -75,7 +75,7 @@ export function DeviceDialog({
 
   async function save() {
     if (normalizeMac(mac).length !== 12) {
-      toast.error("MAC muss 12 Hex-Zeichen haben (z.B. AA:BB:CC:DD:EE:FF).");
+      toast.error("MAC muss 12 Hex-Zeichen haben (z. B. AA:BB:CC:DD:EE:FF).");
       return;
     }
     if (extNumbers.length === 0) {
@@ -122,17 +122,17 @@ export function DeviceDialog({
           <FormGrid>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Name</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Türklingel" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Türklingel" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Hersteller</label>
-                <Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="z.B. Gigaset" />
+                <Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="z. B. Gigaset" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Modell</label>
-                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="z.B. N510 IP PRO" />
+                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="z. B. N510 IP PRO" />
               </div>
             </div>
 
@@ -150,9 +150,9 @@ export function DeviceDialog({
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Nebenstellen</label>
               <p className="text-xs text-muted-foreground">
-                Welche Nebenstelle(n) dieses Gerät bedient. Mehrere möglich (z.B. DECT-Basis mit mehreren Mobilteilen).
+                Welche Nebenstelle(n) dieses Gerät bedient. Mehrere möglich (z. B. DECT-Basis mit mehreren Mobilteilen).
               </p>
-              <div className="max-h-52 space-y-1 overflow-y-auto rounded-md border border-input bg-raised p-3">
+              <div className="max-h-52 space-y-1 overflow-y-auto rounded-ctl border border-input bg-raised p-3">
                 {extensions.length === 0 && (
                   <span className="text-sm text-muted-foreground">Keine Nebenstellen vorhanden.</span>
                 )}
@@ -179,7 +179,7 @@ export function DeviceDialog({
               <select
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : "")}
-                className="h-10 w-full rounded-md border border-input bg-raised px-3 text-sm text-foreground"
+                className="h-10 w-full rounded-ctl border border-input bg-raised px-3 text-sm text-foreground"
               >
                 <option value="">Vorlage auswählen…</option>
                 {templates.map((t) => (
@@ -190,7 +190,7 @@ export function DeviceDialog({
 
             <FormSpan>
               {isFanvilV65 && (
-                <div className="space-y-3 rounded-md border border-input bg-raised p-3">
+                <div className="space-y-3 rounded-ctl border border-input bg-raised p-3">
                   <p className="text-sm font-medium text-foreground">Fanvil V65 – Geräteeinstellungen</p>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -199,7 +199,7 @@ export function DeviceDialog({
                       <select
                         value={extraVars.fanvil_language ?? "German"}
                         onChange={e => setVar("fanvil_language", e.target.value)}
-                        className="h-8 w-full rounded-md border border-input bg-card px-2 text-sm text-foreground"
+                        className="h-8 w-full rounded-ctl border border-input bg-card px-2 text-sm text-foreground"
                       >
                         {FANVIL_LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
                       </select>
@@ -209,7 +209,7 @@ export function DeviceDialog({
                       <select
                         value={extraVars.fanvil_early_media ?? "1"}
                         onChange={e => setVar("fanvil_early_media", e.target.value)}
-                        className="h-8 w-full rounded-md border border-input bg-card px-2 text-sm text-foreground"
+                        className="h-8 w-full rounded-ctl border border-input bg-card px-2 text-sm text-foreground"
                       >
                         <option value="1">An (Early Media)</option>
                         <option value="0">Aus</option>

@@ -27,8 +27,8 @@ export function ThemeCard() {
             aria-pressed={preference === value}
             onClick={() => setPreference(value)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-bold transition-colors",
-              preference === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              "inline-flex items-center gap-1.5 rounded-full border border-transparent px-3 py-1.5 text-[12.5px] font-bold transition-colors",
+              preference === value ? "border-hair bg-card text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Icon className="size-4" aria-hidden="true" />

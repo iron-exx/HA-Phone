@@ -10,6 +10,15 @@ describe("editPatchBody", () => {
       expect(body).not.toHaveProperty(key);
     }
   });
+  it("sendet genau die erwarteten Schlüssel (mit Passwort ein Schlüssel mehr)", () => {
+    const values = editDefaults(EXT);
+    const base = [
+      "display_name", "enabled", "ha_person", "internal_only", "mobile_fallback",
+      "numeric_callerid", "presence_status", "recording_allowed", "video_capable",
+    ];
+    expect(Object.keys(editPatchBody(values)).sort()).toEqual(base);
+    expect(Object.keys(editPatchBody({ ...values, sip_password: "geheim123" })).sort()).toEqual([...base, "sip_password"].sort());
+  });
   it("kürzt Eingaben und sendet das Passwort nur, wenn eins eingegeben wurde", () => {
     const values = editDefaults(EXT);
     expect(editPatchBody(values).mobile_fallback).toBe("0171 5551234");

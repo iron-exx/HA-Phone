@@ -92,7 +92,7 @@ export default function Ivr() {
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {options.map((opt, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-soft text-xs font-mono">
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-ctl bg-violet-soft text-xs font-mono">
                           <span className="font-bold">{opt.key}</span>
                           <span className="text-muted-foreground">→</span>
                           <span>{formatDestination({ type: opt.action, target: opt.target }, extensions, ringGroups, ivrs, "number")}</span>

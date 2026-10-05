@@ -282,7 +282,7 @@ export default function Devices() {
                 </div>
                 <textarea value={editTpl.content} onChange={(e) => setEditTpl({ ...editTpl, content: e.target.value })}
                   rows={14} spellCheck={false}
-                  className="w-full rounded-md border border-input bg-transparent p-3 font-mono text-xs"
+                  className="w-full rounded-ctl border border-input bg-transparent p-3 font-mono text-xs"
                   placeholder="Config mit Platzhaltern…" />
                 <p className="text-xs text-muted-foreground">
                   Platzhalter: <span className="font-mono">{"{{mac}} {{extension}} {{display_name}} {{sip_username}} {{sip_password}} {{sip_server}} {{sip_port}} {{label}}"}</span>
