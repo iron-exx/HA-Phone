@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle, XCircle, ExternalLink, Copy, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, ExternalLink, Copy, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -10,76 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { apiErrorMessage } from "@/lib/apiError";
 import { copyToClipboard } from "@/lib/clipboard";
+import { PageHeader } from "@/components/PageHeader";
+import { CheckList, relativeTime, type CheckResult, type TailnetPhone, type TailscaleConfig } from "./tailscaleChecks";
 
-interface TailscaleConfig {
-  configured: boolean;
-  enabled: boolean;
-  client_id: string;
-  secret_set: boolean;
-  tag: string;
-  tailnet: string;
-  pbx_magicdns: string;
-  pbx: { ipv4: string | null; ipv6: string | null; found: boolean };
-  console_url: string;
-  acl_snippet: string;
-}
-
-interface CheckStep {
-  key: string;
-  ok: boolean;
-  warning: boolean;
-  message: string;
-}
-
-interface CheckResult {
-  ok: boolean;
-  steps: CheckStep[];
-}
-
-interface TailnetPhone {
-  id: string;
-  hostname: string;
-  name: string;
-  addresses: string[];
-  last_seen: string | null;
-  os: string;
-  extension_number: number | null;
-  device_name: string;
-  removable: boolean;
-}
-
-function StepIcon({ step }: { step: CheckStep }) {
-  if (!step.ok) return <XCircle className="h-4 w-4 shrink-0 text-red-600" />;
-  if (step.warning) return <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />;
-  return <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />;
-}
-
-function CheckList({ result }: { result: CheckResult | null }) {
-  if (!result) return null;
-  return (
-    <ul className="space-y-2" aria-live="polite">
-      {result.steps.map((s) => (
-        <li key={s.key} className="flex items-start gap-2 text-sm">
-          <StepIcon step={s} />
-          <span>{s.message}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function relativeTime(iso: string | null): string {
-  if (!iso) return "–";
-  const diff = Date.now() - new Date(iso).getTime();
-  const min = Math.round(diff / 60000);
-  if (min < 2) return "gerade eben";
-  if (min < 60) return `vor ${min} min`;
-  const h = Math.round(min / 60);
-  if (h < 48) return `vor ${h} h`;
-  return `vor ${Math.round(h / 24)} Tagen`;
-}
-
-export default function Tailscale() {
+export default function Remote() {
   const [cfg, setCfg] = useState<TailscaleConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -233,7 +167,7 @@ export default function Tailscale() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <h1 className="text-xl font-semibold mb-8">Tailscale</h1>
+        <PageHeader />
         <Skeleton className="h-40 max-w-2xl" />
       </div>
     );
@@ -273,7 +207,7 @@ export default function Tailscale() {
     <ol className="list-decimal pl-5 space-y-4 text-sm">
       <li>
         <b>Tags anlegen.</b> Öffne in der Tailscale-Konsole <b>Access controls</b>, füge diesen Abschnitt oben
-        in die Policy ein (direkt nach der ersten geschweiften Klammer; gibt es „tagOwners“ oder „grants“ schon, dort nur die Einträge ergänzen) und klicke <b>Save</b>:
+        in die Policy ein (direkt nach der ersten geschweiften Klammer; gibt es „tagOwners“ oder „grants“ schon, dort nur die Einträge ergänzen) und klicke auf <b>„Save“</b>:
         <pre className="mt-2 rounded bg-muted p-3 text-xs overflow-x-auto">{cfg.acl_snippet}</pre>
         <div className="mt-2 flex flex-wrap gap-2">
           <Button variant="outline" size="sm"
@@ -313,8 +247,8 @@ export default function Tailscale() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-xl font-semibold mb-2">Tailscale</h1>
-      <p className="text-sm text-muted-foreground mb-8">
+      <PageHeader />
+      <p className="mb-6 text-sm text-muted-foreground">
         Unterwegs erreichbar: Die HA-Phone-App verbindet sich über dein Tailscale-Netz mit der Anlage, auch im
         Mobilfunk. Kein Portfreigeben, kein Router-Umbau.
       </p>

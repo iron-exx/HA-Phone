@@ -11,9 +11,10 @@ import Schedules from "./pages/calls/Schedules";
 import Voicemail from "./pages/calls/Voicemail";
 import Doorbell from "./pages/doorbell/Doorbell";
 import Cameras from "./pages/doorbell/Cameras";
-import Trunk from "./pages/Trunk";
-import Tailscale from "./pages/Tailscale";
-import PublicIP from "./pages/PublicIP";
+import Provider from "./pages/connection/Provider";
+import Remote from "./pages/connection/Remote";
+import Network from "./pages/connection/Network";
+import Email from "./pages/system/Email";
 import Backup from "./pages/Backup";
 import Diagnostics from "./pages/Diagnostics";
 import Account from "./pages/system/Account";
@@ -34,10 +35,10 @@ export default function AppRoutes() {
       <Route path="/calls/voicemail" element={<Voicemail />} />
       <Route path="/doorbell" element={<Doorbell />} />
       <Route path="/doorbell/cameras" element={<Cameras />} />
-      <Route path="/connection/provider" element={<Trunk />} />
-      <Route path="/connection/remote" element={<Tailscale />} />
-      <Route path="/connection/network" element={<PublicIP />} />
-      <Route path="/system/email" element={<PublicIP />} />
+      <Route path="/connection/provider" element={<Provider />} />
+      <Route path="/connection/remote" element={<Remote />} />
+      <Route path="/connection/network" element={<Network />} />
+      <Route path="/system/email" element={<Email />} />
       <Route path="/system/backup" element={<Backup />} />
       <Route path="/system/diagnostics" element={<Diagnostics />} />
       <Route path="/system/account" element={<Account />} />
