@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodFormResolver } from "@/lib/zodFormResolver";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Trash2, Upload } from "lucide-react";
@@ -28,7 +28,7 @@ export function AddIvrDialog({
   ivrs: IVRMenu[];
 }) {
   const form = useForm<IVRFormValues>({
-    resolver: zodResolver(ivrSchema),
+    resolver: zodFormResolver(ivrSchema),
     defaultValues: {
       number: undefined as unknown as number,
       name: "",

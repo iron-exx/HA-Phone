@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodFormResolver } from "@/lib/zodFormResolver";
 import { z } from "zod";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
@@ -63,7 +63,7 @@ export function AddRouteDialog({
   ivrMenus: IVRMenu[];
 }) {
   const form = useForm<RouteFormValues>({
-    resolver: zodResolver(routeSchema),
+    resolver: zodFormResolver(routeSchema),
     defaultValues: {
       did: "",
       destination_type: "extension",
@@ -162,7 +162,7 @@ export function EditRouteDialog({
   ivrMenus: IVRMenu[];
 }) {
   const form = useForm<RouteFormValues>({
-    resolver: zodResolver(routeSchema),
+    resolver: zodFormResolver(routeSchema),
     defaultValues: {
       did: route.did,
       destination_type: route.destination_type,

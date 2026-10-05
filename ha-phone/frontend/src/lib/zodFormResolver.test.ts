@@ -24,4 +24,18 @@ describe("zodFormResolver", () => {
     expect(result.errors).toHaveProperty("a.b.message", "Zu kurz");
     expect(result.errors).not.toHaveProperty("name");
   });
+
+  it("nimmt je Pfad nur die erste Meldung (flaches Feld mit zwei Verstößen)", async () => {
+    const flat = z.object({ code: z.string().min(3, "Zu kurz").regex(/^x/, "Muss mit x beginnen") });
+    const opts = { fields: {}, shouldUseNativeValidation: false } as unknown as ResolverOptions<z.infer<typeof flat>>;
+    const result = await zodFormResolver(flat)({ code: "y" }, undefined, opts);
+    expect(result.errors).toHaveProperty("code.message", "Zu kurz");
+    expect(result.errors).toHaveProperty("code.type", "too_small");
+  });
+
+  it("meldet mehrere ungültige Felder gleichzeitig", async () => {
+    const result = await zodFormResolver(schema)({ name: "", a: { b: "y" } }, undefined, OPTIONS);
+    expect(result.errors).toHaveProperty("name.message", "Pflichtfeld");
+    expect(result.errors).toHaveProperty("a.b.message", "Zu kurz");
+  });
 });

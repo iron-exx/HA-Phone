@@ -10,7 +10,7 @@ import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { editDefaults, editPatchBody, editSchema, type EditFormValues } from "./schema";
 import { getExtensionRingGroupIds, syncRingGroupMemberships } from "./ringGroupMembership";
-import { EXTENSION_TABS, firstTabWithError, isExtensionTab, type ExtensionTab } from "./editTabs";
+import { EXTENSION_TABS, FIELD_TAB, firstTabWithError, isExtensionTab, type ExtensionTab } from "./editTabs";
 import { EditGeneralTab } from "./EditGeneralTab";
 import { EditAppTab } from "./EditAppTab";
 import { EditReachTab } from "./EditReachTab";
@@ -58,6 +58,11 @@ export function EditExtensionDialog({
   function onInvalid(errors: FieldErrors<EditFormValues>) {
     const target = firstTabWithError(errors);
     if (target) setTab(target);
+    const first = Object.keys(errors)
+      .map((field) => field as keyof EditFormValues)
+      .find((field) => FIELD_TAB[field] === target);
+    // Der Reiter-Inhalt wird erst nach dem Wechsel gerendert – danach fokussieren.
+    if (first) setTimeout(() => form.setFocus(first), 0);
   }
 
   return (

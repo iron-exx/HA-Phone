@@ -31,6 +31,7 @@ describe("EditExtensionDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Speichern" }));
     await waitFor(() => expect(screen.getByRole("tab", { name: "Erreichbarkeit" })).toHaveAttribute("aria-selected", "true"));
     expect(screen.getByText("Telefonnummer, z. B. 0171 5551234")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Rückfall auf Handynummer")).toHaveFocus());
     expect(callsTo(fetchMock, "PATCH", "/api/extensions/1")).toHaveLength(0);
   });
 

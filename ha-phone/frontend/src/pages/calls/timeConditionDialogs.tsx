@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodFormResolver } from "@/lib/zodFormResolver";
 import { z } from "zod";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
@@ -104,7 +104,7 @@ export function AddTimeConditionDialog({
   ivrMenus: IVRMenu[];
 }) {
   const form = useForm<TimeConditionFormValues>({
-    resolver: zodResolver(timeConditionSchema),
+    resolver: zodFormResolver(timeConditionSchema),
     defaultValues: {
       name: "",
       did: "",
@@ -244,7 +244,7 @@ export function EditTimeConditionDialog({
   ivrMenus: IVRMenu[];
 }) {
   const form = useForm<TimeConditionFormValues>({
-    resolver: zodResolver(timeConditionSchema),
+    resolver: zodFormResolver(timeConditionSchema),
     defaultValues: {
       name: condition.name,
       did: condition.did,
