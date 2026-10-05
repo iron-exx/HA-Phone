@@ -171,8 +171,7 @@ export default function Devices() {
             {loading ? (
               <p className="text-sm text-muted-foreground">Lädt…</p>
             ) : devices.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-stroke py-8 text-center text-sm text-muted-foreground"
-                >
+              <p className="rounded-lg border border-dashed border-stroke py-8 text-center text-sm text-muted-foreground">
                 Noch keine Geräte. Klicke auf „Gerät hinzufügen", um zu starten.
               </p>
             ) : (
@@ -257,8 +256,7 @@ export default function Devices() {
             </div>
             <div className="space-y-2">
               {templates.map((t) => (
-                <div key={t.id} className="flex items-center justify-between rounded-lg border border-hair px-4 py-2.5"
-                  >
+                <div key={t.id} className="flex items-center justify-between rounded-lg border border-hair px-4 py-2.5">
                   <div>
                     <span className="text-sm font-medium">{t.name}</span>
                     {t.builtin && <span className="ml-2 rounded bg-violet-soft px-1.5 py-0.5 text-[10px] uppercase text-violet">Vorlage</span>}
@@ -277,7 +275,7 @@ export default function Devices() {
             </div>
 
             {editTpl && (
-              <div className="mt-5 space-y-3 rounded-lg border border-violet/30 p-4" >
+              <div className="mt-5 space-y-3 rounded-lg border border-violet/30 p-4">
                 <div className="flex gap-2">
                   <Input value={editTpl.name} onChange={(e) => setEditTpl({ ...editTpl, name: e.target.value })} placeholder="Name der Vorlage" />
                   <Input value={editTpl.file_pattern} onChange={(e) => setEditTpl({ ...editTpl, file_pattern: e.target.value })} placeholder="{mac}.cfg" className="font-mono" />

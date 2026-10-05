@@ -18,6 +18,7 @@ const FORBIDDEN: RegExp[] = [
   /Min \d+ characters/,
   /\be\.g\./,
   /Check that the PBX/,
+  /(>|")\s*(Bitte ein |Neues )?Templates?( auswählen…?)?\s*(<|"|\.)|Neues Template|Template-Name|Template (gespeichert|gelöscht)|des Templates/,
 ];
 
 describe("Deutsche Oberfläche", () => {

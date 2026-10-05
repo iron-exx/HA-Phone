@@ -83,7 +83,7 @@ export function DeviceDialog({
       return;
     }
     if (templateId === "") {
-      toast.error("Bitte ein Template auswählen.");
+      toast.error("Bitte eine Vorlage auswählen.");
       return;
     }
     setSaving(true);
@@ -159,7 +159,7 @@ export function DeviceDialog({
                 {extensions.map((x) => (
                   <label
                     key={x.id}
-                    className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-sm text-foreground hover:bg-white/5"
+                    className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-sm text-foreground hover:bg-raised"
                   >
                     <input
                       type="checkbox"
@@ -175,13 +175,13 @@ export function DeviceDialog({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Template</label>
+              <label className="text-sm font-medium">Vorlage</label>
               <select
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value ? Number(e.target.value) : "")}
                 className="h-10 w-full rounded-md border border-input bg-raised px-3 text-sm text-foreground"
               >
-                <option value="">Template auswählen…</option>
+                <option value="">Vorlage auswählen…</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
