@@ -37,6 +37,8 @@ class LoginRequest(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     new_password: str
+    # Required for a voluntary change; not needed while a change is forced.
+    current_password: str | None = None
 
 
 @router.post("/auth/login")
@@ -103,13 +105,20 @@ def change_password(
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    user = session.get(AdminUser, user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    # Voluntary change: prove knowledge of the current password (same constant-time
+    # bcrypt check as login). A forced change (first boot / default password) keeps
+    # working without it, otherwise the user locked in that state could never leave it.
+    if not user.must_change_password and not (
+        body.current_password and verify_password(body.current_password, user.hashed_password)
+    ):
+        raise HTTPException(status_code=403, detail="Aktuelles Passwort ist falsch.")
     if len(body.new_password) < 12:
         raise HTTPException(status_code=422, detail="Password must be at least 12 characters")
     if is_default_password(body.new_password):
         raise HTTPException(status_code=422, detail="Standardpasswort nicht erlaubt")
-    user = session.get(AdminUser, user_id)
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
     user.hashed_password = hash_password(body.new_password)
     user.must_change_password = False
     session.add(user)

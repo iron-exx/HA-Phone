@@ -15,8 +15,8 @@ import Provider from "./pages/connection/Provider";
 import Remote from "./pages/connection/Remote";
 import Network from "./pages/connection/Network";
 import Email from "./pages/system/Email";
-import Backup from "./pages/Backup";
-import Diagnostics from "./pages/Diagnostics";
+import Backup from "./pages/system/Backup";
+import Diagnostics from "./pages/system/Diagnostics";
 import Account from "./pages/system/Account";
 import { LEGACY_REDIRECTS } from "./nav";
 

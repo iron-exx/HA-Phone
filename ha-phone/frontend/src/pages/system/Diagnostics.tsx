@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Activity, Download, PhoneCall, ServerCog, Square, Trash2, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
+import { formatBytes, formatTimestamp } from "@/lib/format";
 import type { DiagnosticsOverview } from "@/types/api";
+import { AppLogsCard } from "./AppLogsCard";
 
 interface TraceStatus {
   running: boolean;
@@ -10,19 +13,6 @@ interface TraceStatus {
   size_bytes: number;
   started_at: number | null;
   file_mtime: number | null;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-function formatTimestamp(epochSeconds: number): string {
-  return new Date(epochSeconds * 1000).toLocaleString("de-DE", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-  });
 }
 
 function formatDuration(seconds: number): string {
@@ -150,11 +140,7 @@ export default function Diagnostics() {
   return (
     <div className="space-y-8">
 
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Diagnose</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Netzwerk-Trace aufzeichnen und analysieren</p>
-      </div>
+      <PageHeader />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="glass rounded-xl p-5">
@@ -467,6 +453,8 @@ export default function Diagnostics() {
           </div>
         </div>
       </div>
+
+      <AppLogsCard />
     </div>
   );
 }

@@ -213,3 +213,50 @@ def test_change_password_rejects_default(unauthed_client, seeded_db_must_change)
     unauthed_client.post("/api/auth/login", json={"password": "firstboot"})
     r = unauthed_client.post("/api/auth/change-password", json={"new_password": "admin"})
     assert r.status_code == 422
+
+
+# ── Freiwilliger Passwortwechsel verlangt das aktuelle Passwort ─────────────
+
+def _user_password_ok(plain: str) -> bool:
+    from backend.auth import verify_password
+    with Session(get_engine()) as session:
+        user = session.exec(select(AdminUser)).first()
+        return verify_password(plain, user.hashed_password)
+
+
+def test_voluntary_change_requires_current_password(unauthed_client, seeded_db):
+    unauthed_client.post("/api/auth/login", json={"password": "testpass123"})
+    r = unauthed_client.post("/api/auth/change-password", json={"new_password": "newstrongpass42"})
+    assert r.status_code == 403, r.text
+    assert r.json()["detail"] == "Aktuelles Passwort ist falsch."
+    assert _user_password_ok("testpass123")
+
+
+def test_voluntary_change_rejects_wrong_current_password(unauthed_client, seeded_db):
+    unauthed_client.post("/api/auth/login", json={"password": "testpass123"})
+    r = unauthed_client.post(
+        "/api/auth/change-password",
+        json={"current_password": "not-the-password", "new_password": "newstrongpass42"},
+    )
+    assert r.status_code == 403, r.text
+    assert r.json()["detail"] == "Aktuelles Passwort ist falsch."
+    assert _user_password_ok("testpass123")
+
+
+def test_voluntary_change_with_correct_current_password(unauthed_client, seeded_db):
+    unauthed_client.post("/api/auth/login", json={"password": "testpass123"})
+    r = unauthed_client.post(
+        "/api/auth/change-password",
+        json={"current_password": "testpass123", "new_password": "newstrongpass42"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["ok"] is True
+    assert _user_password_ok("newstrongpass42")
+    assert not _user_password_ok("testpass123")
+
+
+def test_forced_change_needs_no_current_password(unauthed_client, seeded_db_must_change):
+    unauthed_client.post("/api/auth/login", json={"password": "firstboot"})
+    r = unauthed_client.post("/api/auth/change-password", json={"new_password": "newstrongpass42"})
+    assert r.status_code == 200, r.text
+    assert _user_password_ok("newstrongpass42")

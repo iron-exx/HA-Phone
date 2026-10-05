@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -90,8 +91,8 @@ export default function Backup() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold mb-2">Backup &amp; Wiederherstellung</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
+      <PageHeader />
+      <p className="mb-6 text-sm text-muted-foreground">
         Exportiert die komplette PBX-Konfiguration (Nebenstellen, Trunk, Rufgruppen, IVR, Routing,
         Provisioning) als passwortgeschützte ZIP-Datei. Der Admin-Login ist nicht enthalten und
         bleibt beim Wiederherstellen unverändert.
