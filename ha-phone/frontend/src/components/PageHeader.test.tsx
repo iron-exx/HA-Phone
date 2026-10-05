@@ -15,4 +15,10 @@ describe("PageHeader", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Eigener Titel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Los" })).toBeInTheDocument();
   });
+  it("hängt eine zusätzliche Klasse an, ohne die Standardklassen zu verlieren", () => {
+    renderAt(<PageHeader className="bg-glow" />, { route: "/extensions" });
+    const header = screen.getByRole("banner");
+    expect(header).toHaveClass("bg-glow");
+    expect(header).toHaveClass("mb-5");
+  });
 });

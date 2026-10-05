@@ -36,6 +36,7 @@ export default function Overview() {
   return (
     <div>
       <PageHeader
+        className="rounded-card border border-hair bg-glow p-[18px]"
         title={greeting(now)}
         description={summaryLine(onlineCount, enabled.length, attention.length)}
         actions={<Button asChild><Link to="/extensions"><Smartphone />Handy koppeln</Link></Button>}

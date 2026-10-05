@@ -28,7 +28,7 @@ export function AttentionCard({ items, updateState, onStartUpdate }: { items: At
               <span className="min-w-0 flex-1">{item.to ? <Link to={item.to} className="hover:underline">{item.text}</Link> : item.text}</span>
               {item.id === "update" && (
                 <Button size="sm" onClick={onStartUpdate} disabled={updateState !== "idle"}>
-                  {updateState === "done" ? "Update läuft – die Seite lädt gleich neu" : updateState === "running" ? "Startet…" : "Jetzt aktualisieren"}
+                  {updateState === "done" ? "Update läuft – das kann einen Moment dauern." : updateState === "running" ? "Startet…" : "Jetzt aktualisieren"}
                 </Button>
               )}
             </li>

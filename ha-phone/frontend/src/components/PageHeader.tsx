@@ -1,15 +1,16 @@
 import type { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { findNavEntry } from "@/nav";
+import { cn } from "@/lib/utils";
 
-export function PageHeader({ title, description, actions }: { title?: string; description?: string; actions?: ReactNode }) {
+export function PageHeader({ title, description, actions, className }: { title?: string; description?: string; actions?: ReactNode; className?: string }) {
   const { pathname } = useLocation();
   const entry = findNavEntry(pathname);
   const crumb = entry?.group.label ?? "Übersicht";
   const heading = title ?? entry?.item.label ?? "";
   const text = description ?? entry?.item.description;
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <header className={cn("mb-5 flex flex-wrap items-end justify-between gap-3", className)}>
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-[0.06em] text-faint">{crumb}</p>
         <h1 className="mt-0.5 font-display text-[26px] font-extrabold leading-tight text-brand-title">{heading}</h1>
