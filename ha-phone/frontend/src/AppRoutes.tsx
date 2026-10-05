@@ -3,11 +3,12 @@ import Dashboard from "./pages/Dashboard";
 import Extensions from "./pages/Extensions";
 import Provisioning from "./pages/Provisioning";
 import Phonebook from "./pages/Phonebook";
-import Routing from "./pages/Routing";
 import Inbound from "./pages/calls/Inbound";
+import Outbound from "./pages/calls/Outbound";
+import Groups from "./pages/calls/Groups";
+import Ivr from "./pages/calls/Ivr";
 import Schedules from "./pages/calls/Schedules";
-import IVR from "./pages/IVR";
-import Voicemail from "./pages/Voicemail";
+import Voicemail from "./pages/calls/Voicemail";
 import Doorbell from "./pages/Doorbell";
 import Trunk from "./pages/Trunk";
 import Tailscale from "./pages/Tailscale";
@@ -25,9 +26,9 @@ export default function AppRoutes() {
       <Route path="/devices" element={<Provisioning />} />
       <Route path="/phonebook" element={<Phonebook />} />
       <Route path="/calls/inbound" element={<Inbound />} />
-      <Route path="/calls/outbound" element={<Routing />} />
-      <Route path="/calls/groups" element={<Routing />} />
-      <Route path="/calls/ivr" element={<IVR />} />
+      <Route path="/calls/outbound" element={<Outbound />} />
+      <Route path="/calls/groups" element={<Groups />} />
+      <Route path="/calls/ivr" element={<Ivr />} />
       <Route path="/calls/schedules" element={<Schedules />} />
       <Route path="/calls/voicemail" element={<Voicemail />} />
       <Route path="/doorbell" element={<Doorbell />} />

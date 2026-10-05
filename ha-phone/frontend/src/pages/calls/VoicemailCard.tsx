@@ -3,12 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { apiErrorMessage, toErrorMessage } from "@/lib/apiError";
 import { Trash2 } from "lucide-react";
-
-import {
-  type Extension,
-  type VoicemailSettings,
-  type VoicemailMessage,
-} from "@/types/api";
+import { type Extension, type VoicemailSettings, type VoicemailMessage } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -17,17 +12,8 @@ import { ToggleSwitch } from "@/components/ToggleSwitch";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ---- Delete Message Dialog ----
 function DeleteMessageDialog({
@@ -47,19 +33,19 @@ function DeleteMessageDialog({
       { method: "DELETE" }
     );
     if (!resp.ok) {
-      toast.error(await apiErrorMessage(resp, "Failed to delete message. Check that the PBX is running and try again."));
+      toast.error(await apiErrorMessage(resp, "Löschen fehlgeschlagen. Läuft die Anlage?"));
       throw new Error("delete failed");
     }
     onDeleted(filename);
-    toast.success("Message deleted.");
+    toast.success("Nachricht gelöscht.");
   }
 
   return (
     <DeleteConfirmDialog
-      title="Delete this message?"
-      description="This voicemail message will be permanently deleted."
-      confirmLabel="Delete Message"
-      cancelLabel="Keep"
+      title="Diese Nachricht löschen?"
+      description="Die Nachricht wird endgültig gelöscht."
+      confirmLabel="Nachricht löschen"
+      cancelLabel="Behalten"
       onConfirm={handleDelete}
       onClose={onClose}
     />
@@ -67,7 +53,7 @@ function DeleteMessageDialog({
 }
 
 // ---- Per-extension voicemail settings card ----
-function VoicemailCard({
+export function VoicemailCard({
   extension,
   settings,
   onSaved,
@@ -113,7 +99,7 @@ function VoicemailCard({
       .then((data: VoicemailMessage[]) =>
         setMessages(data.sort((a, b) => b.modified_at.localeCompare(a.modified_at)))
       )
-      .catch(() => toast.error("Failed to load messages. Check that the PBX is running and try again."))
+      .catch(() => toast.error("Nachrichten konnten nicht geladen werden."))
       .finally(() => setMessagesLoading(false));
   }, [extNum]);
 
@@ -140,12 +126,12 @@ function VoicemailCard({
           body: JSON.stringify({ extension_id: extension.id, ...body }),
         });
       }
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Failed to save changes. Check that the PBX is running and try again."));
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Speichern fehlgeschlagen. Läuft die Anlage?"));
       const updated: VoicemailSettings = await resp.json();
       onSaved(updated);
-      toast.success("Saved.");
+      toast.success("Gespeichert.");
     } catch (err) {
-      toast.error(toErrorMessage(err, "Failed to save changes. Check that the PBX is running and try again."));
+      toast.error(toErrorMessage(err, "Speichern fehlgeschlagen. Läuft die Anlage?"));
     } finally {
       setSaving(false);
     }
@@ -162,11 +148,11 @@ function VoicemailCard({
         method: "POST",
         body: formData,
       });
-      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Greeting upload failed. Check that the file is a valid WAV or MP3 and try again."));
+      if (!resp.ok) throw new Error(await apiErrorMessage(resp, "Ansage-Upload fehlgeschlagen. Ist die Datei eine gültige WAV- oder MP3-Datei?"));
       setHasCustomGreeting(true);
-      toast.success("Saved.");
+      toast.success("Gespeichert.");
     } catch (err) {
-      toast.error(toErrorMessage(err, "Greeting upload failed. Check that the file is a valid WAV or MP3 and try again."));
+      toast.error(toErrorMessage(err, "Ansage-Upload fehlgeschlagen. Ist die Datei eine gültige WAV- oder MP3-Datei?"));
     } finally {
       setGreetingUploading(false);
       // Reset file input so same file can be re-selected
@@ -188,7 +174,7 @@ function VoicemailCard({
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-semibold">
-          Extension {extNum} — {extension.display_name}
+          Nebenstelle {extNum} — {extension.display_name}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -203,34 +189,34 @@ function VoicemailCard({
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor={`email-${extension.id}`}>Email (optional)</Label>
+          <Label htmlFor={`email-${extension.id}`}>E-Mail (optional)</Label>
           <Input
             id={`email-${extension.id}`}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="e.g. user@example.com"
+            placeholder="z. B. name@example.com"
           />
         </div>
         <div className="flex items-center justify-between">
           <label htmlFor={`attach-${extension.id}`} className="cursor-pointer text-sm">
-            Attach message to email
+            Nachricht an die E-Mail anhängen
           </label>
           <ToggleSwitch
             id={`attach-${extension.id}`}
             checked={attachMessage}
-            ariaLabel="Attach message to email"
+            ariaLabel="Nachricht an die E-Mail anhängen"
             onToggle={() => setAttachMessage((v) => !v)}
           />
         </div>
         <div className="flex items-center justify-between">
           <label htmlFor={`delete-${extension.id}`} className="cursor-pointer text-sm">
-            Delete after email
+            Nach dem Versand löschen
           </label>
           <ToggleSwitch
             id={`delete-${extension.id}`}
             checked={deleteAfterEmail}
-            ariaLabel="Delete after email"
+            ariaLabel="Nach dem Versand löschen"
             onToggle={() => setDeleteAfterEmail((v) => !v)}
           />
         </div>
@@ -240,7 +226,7 @@ function VoicemailCard({
           onClick={handleSave}
           disabled={saving}
         >
-          {saving ? "Saving..." : "Save Voicemail Settings"}
+          {saving ? "Speichert…" : "Voicemail-Einstellungen speichern"}
         </Button>
 
         <Separator />
@@ -248,18 +234,18 @@ function VoicemailCard({
         {/* --- Greeting section --- */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Greeting
+            Ansage
           </p>
           <div className="flex items-center gap-3">
             {hasCustomGreeting === null ? (
               <Skeleton className="h-5 w-16" />
             ) : hasCustomGreeting ? (
               <Badge variant="outline" className="text-emerald-400 border-emerald-400">
-                Custom
+                Eigene
               </Badge>
             ) : (
               <Badge variant="outline" className="text-muted-foreground">
-                Default
+                Standard
               </Badge>
             )}
             <Button
@@ -268,7 +254,7 @@ function VoicemailCard({
               disabled={greetingUploading || !settings?.id}
               onClick={() => fileInputRef.current?.click()}
             >
-              {greetingUploading ? "Uploading..." : "Upload Greeting"}
+              {greetingUploading ? "Lädt hoch…" : "Ansage hochladen"}
             </Button>
             <input
               ref={fileInputRef}
@@ -285,7 +271,7 @@ function VoicemailCard({
         {/* --- Messages section --- */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Messages
+            Nachrichten
           </p>
           {messagesLoading ? (
             <div className="space-y-2">
@@ -294,9 +280,9 @@ function VoicemailCard({
             </div>
           ) : messages.length === 0 ? (
             <div className="py-6 text-center">
-              <p className="text-sm font-semibold text-muted-foreground">No messages</p>
+              <p className="text-sm font-semibold text-muted-foreground">Keine Nachrichten</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Voicemail messages will appear here after callers leave a message.
+                Hier erscheinen Nachrichten, sobald jemand auf den Anrufbeantworter spricht.
               </p>
             </div>
           ) : (
@@ -316,13 +302,13 @@ function VoicemailCard({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          aria-label={`Delete message ${msg.filename}`}
+                          aria-label={`Nachricht ${msg.filename} löschen`}
                           onClick={() => setDeleteTarget(msg.filename)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Delete message</TooltipContent>
+                      <TooltipContent>Nachricht löschen</TooltipContent>
                     </Tooltip>
                   </div>
                   <div className="bg-muted rounded p-2">
@@ -349,67 +335,5 @@ function VoicemailCard({
         />
       )}
     </Card>
-  );
-}
-
-// ---- Main page ----
-export default function Voicemail() {
-  const [extensions, setExtensions] = useState<Extension[]>([]);
-  const [settings, setSettings] = useState<VoicemailSettings[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/extensions").then((r) => r.json()),
-      fetch("/api/voicemail-settings").then((r) => r.json()),
-    ])
-      .then(([exts, vms]: [Extension[], VoicemailSettings[]]) => {
-        setExtensions(exts);
-        setSettings(vms);
-      })
-      .catch(() => toast.error("Failed to load voicemail settings."))
-      .finally(() => setLoading(false));
-  }, []);
-
-  function handleSaved(updated: VoicemailSettings) {
-    setSettings((prev) => {
-      const exists = prev.find((s) => s.id === updated.id);
-      if (exists) return prev.map((s) => (s.id === updated.id ? updated : s));
-      return [...prev, updated];
-    });
-  }
-
-  return (
-    <div>
-      <h1 className="text-xl font-semibold mb-8">Voicemail</h1>
-
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-48 w-full" />
-          ))}
-        </div>
-      ) : extensions.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-sm text-muted-foreground">
-            No extensions found. Add extensions first to configure voicemail settings.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {extensions.map((ext) => {
-            const extSettings = settings.find((s) => s.extension_id === ext.id);
-            return (
-              <VoicemailCard
-                key={ext.id}
-                extension={ext}
-                settings={extSettings}
-                onSaved={handleSaved}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }
