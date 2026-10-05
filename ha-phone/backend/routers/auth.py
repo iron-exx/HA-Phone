@@ -31,6 +31,17 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _raise_if_locked_out(ip: str, what: str) -> None:
+    retry_after = login_limiter.retry_after(ip)
+    if retry_after > 0:
+        logger.warning("%s blocked for %s (locked out, %ds left)", what, ip, retry_after)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Zu viele Fehlversuche — bitte in {retry_after} s erneut versuchen",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
 class LoginRequest(BaseModel):
     password: str
 
@@ -48,14 +59,7 @@ def login(
     session: Session = Depends(get_session),
 ):
     ip = _client_ip(request)
-    retry_after = login_limiter.retry_after(ip)
-    if retry_after > 0:
-        logger.warning("admin login blocked for %s (locked out, %ds left)", ip, retry_after)
-        raise HTTPException(
-            status_code=429,
-            detail=f"Zu viele Fehlversuche — bitte in {retry_after} s erneut versuchen",
-            headers={"Retry-After": str(retry_after)},
-        )
+    _raise_if_locked_out(ip, "admin login")
     user = session.exec(select(AdminUser).where(AdminUser.username == "admin")).first()
     if not user or not verify_password(body.password, user.hashed_password):
         lockout = login_limiter.register_failure(ip)
@@ -111,10 +115,19 @@ def change_password(
     # Voluntary change: prove knowledge of the current password (same constant-time
     # bcrypt check as login). A forced change (first boot / default password) keeps
     # working without it, otherwise the user locked in that state could never leave it.
-    if not user.must_change_password and not (
-        body.current_password and verify_password(body.current_password, user.hashed_password)
-    ):
-        raise HTTPException(status_code=403, detail="Aktuelles Passwort ist falsch.")
+    # Wrong current passwords count against the same per-IP limiter as the login,
+    # otherwise a hijacked session could brute-force the password here.
+    ip = _client_ip(request)
+    if not user.must_change_password:
+        _raise_if_locked_out(ip, "admin password change")
+        if not (body.current_password and verify_password(body.current_password, user.hashed_password)):
+            lockout = login_limiter.register_failure(ip)
+            if lockout:
+                logger.warning("admin password change: wrong current password from %s — locked out for %ds", ip, lockout)
+            else:
+                logger.warning("admin password change: wrong current password from %s", ip)
+            raise HTTPException(status_code=403, detail="Aktuelles Passwort ist falsch.")
+        login_limiter.reset(ip)
     if len(body.new_password) < 12:
         raise HTTPException(status_code=422, detail="Password must be at least 12 characters")
     if is_default_password(body.new_password):

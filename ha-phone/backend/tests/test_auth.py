@@ -260,3 +260,42 @@ def test_forced_change_needs_no_current_password(unauthed_client, seeded_db_must
     r = unauthed_client.post("/api/auth/change-password", json={"new_password": "newstrongpass42"})
     assert r.status_code == 200, r.text
     assert _user_password_ok("newstrongpass42")
+
+
+def test_change_password_wrong_current_is_rate_limited(unauthed_client, seeded_db):
+    unauthed_client.post("/api/auth/login", json={"password": "testpass123"})
+    body = {"current_password": "not-the-password", "new_password": "newstrongpass42"}
+    for _ in range(5):
+        assert unauthed_client.post("/api/auth/change-password", json=body).status_code == 403
+    r = unauthed_client.post("/api/auth/change-password", json=body)
+    assert r.status_code == 429
+    assert int(r.headers["Retry-After"]) > 0
+    # locked out: even the correct current password is refused, password stays unchanged
+    ok = {"current_password": "testpass123", "new_password": "newstrongpass42"}
+    assert unauthed_client.post("/api/auth/change-password", json=ok).status_code == 429
+    assert _user_password_ok("testpass123")
+
+
+def test_change_password_correct_current_works_before_limit_and_resets(unauthed_client, seeded_db):
+    unauthed_client.post("/api/auth/login", json={"password": "testpass123"})
+    wrong = {"current_password": "nope", "new_password": "newstrongpass42"}
+    for _ in range(4):
+        assert unauthed_client.post("/api/auth/change-password", json=wrong).status_code == 403
+    ok = {"current_password": "testpass123", "new_password": "newstrongpass42"}
+    assert unauthed_client.post("/api/auth/change-password", json=ok).status_code == 200
+    assert _user_password_ok("newstrongpass42")
+    # success reset the counter: four more failures are still plain 403s
+    wrong2 = {"current_password": "nope", "new_password": "anotherstrong42"}
+    for _ in range(4):
+        assert unauthed_client.post("/api/auth/change-password", json=wrong2).status_code == 403
+
+
+def test_forced_change_is_not_counted_or_blocked(unauthed_client, seeded_db_must_change):
+    unauthed_client.post("/api/auth/login", json={"password": "firstboot"})
+    # a forced change never evaluates current_password, so repeated tries (e.g. policy
+    # violations) must not lock the user out of the only way to leave that state
+    for _ in range(6):
+        r = unauthed_client.post("/api/auth/change-password", json={"new_password": "short"})
+        assert r.status_code == 422
+    r = unauthed_client.post("/api/auth/change-password", json={"new_password": "newstrongpass42"})
+    assert r.status_code == 200, r.text
