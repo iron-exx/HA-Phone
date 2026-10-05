@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
-import Extensions from "./pages/Extensions";
+import Extensions from "./pages/extensions/Extensions";
 import Provisioning from "./pages/Provisioning";
 import Phonebook from "./pages/Phonebook";
 import Inbound from "./pages/calls/Inbound";

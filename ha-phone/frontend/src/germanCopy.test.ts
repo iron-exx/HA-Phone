@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // Jeder Task, der Seiten in einen neuen Ordner zieht, ergänzt hier seinen Glob.
-const SOURCES = import.meta.glob(["./pages/calls/**/*.tsx", "!./pages/calls/**/*.test.tsx", "./pages/doorbell/**/*.tsx", "!./pages/doorbell/**/*.test.tsx"], {
+const SOURCES = import.meta.glob(["./pages/calls/**/*.tsx", "!./pages/calls/**/*.test.tsx", "./pages/doorbell/**/*.tsx", "!./pages/doorbell/**/*.test.tsx", "./pages/extensions/**/*.tsx", "!./pages/extensions/**/*.test.tsx"], {
   query: "?raw",
   import: "default",
   eager: true,
