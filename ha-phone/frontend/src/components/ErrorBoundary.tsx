@@ -32,21 +32,21 @@ export default class ErrorBoundary extends Component<Props, State> {
         <div
           style={{
             minHeight: "100vh",
-            background: "#0f1117",
-            color: "#e5e7eb",
+            background: "var(--ground)",
+            color: "var(--text)",
             padding: "2rem",
             fontFamily: "ui-monospace, monospace",
             overflow: "auto",
           }}
         >
-          <h1 style={{ color: "#f87171", fontSize: "1.25rem", marginBottom: "1rem" }}>
-            UI error — {this.state.error.name}: {this.state.error.message}
+          <h1 style={{ color: "var(--end)", fontSize: "1.25rem", marginBottom: "1rem" }}>
+            Oberflächenfehler – {this.state.error.name}: {this.state.error.message}
           </h1>
-          <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.8rem", color: "#9ca3af" }}>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.8rem", color: "var(--text-muted)" }}>
             {this.state.error.stack}
           </pre>
           {this.state.info?.componentStack && (
-            <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.75rem", color: "#6b7280", marginTop: "1rem" }}>
+            <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.75rem", color: "var(--text-faint)", marginTop: "1rem" }}>
               {this.state.info.componentStack}
             </pre>
           )}
@@ -55,14 +55,14 @@ export default class ErrorBoundary extends Component<Props, State> {
             style={{
               marginTop: "1.5rem",
               padding: "0.5rem 1rem",
-              background: "#1f2937",
-              color: "#e5e7eb",
-              border: "1px solid #374151",
+              background: "var(--raised)",
+              color: "var(--text)",
+              border: "1px solid var(--stroke)",
               borderRadius: "0.375rem",
               cursor: "pointer",
             }}
           >
-            Reload
+            Neu laden
           </button>
         </div>
       );

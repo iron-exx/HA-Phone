@@ -130,8 +130,7 @@ export function OutboundRulesSection() {
     <>
       <div className="glass rounded-xl">
       <div
-        className="flex items-center gap-3 border-b px-6 py-4"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        className="flex items-center gap-3 border-b border-hair px-6 py-4"
       >
         <div>
           <span className="text-sm font-semibold text-foreground">Ausgehende Regeln</span>

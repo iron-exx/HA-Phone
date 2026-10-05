@@ -76,7 +76,7 @@ function WeekdayPicker({ value, onChange }: { value: string; onChange: (value: s
             className={`h-9 flex-1 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
               active
                 ? "border-primary bg-primary text-primary-foreground"
-                : "border-input bg-[#0b0e1a] text-slate-400 hover:text-slate-200"
+                : "border-input bg-card text-muted-foreground hover:text-foreground"
             }`}
           >
             {WEEKDAY_LABELS[day]}

@@ -3,6 +3,7 @@ import { Activity, Download, PhoneCall, ServerCog, Square, Trash2, Wifi } from "
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
+import { IconTile } from "@/components/IconTile";
 import { formatBytes, formatTimestamp } from "@/lib/format";
 import type { DiagnosticsOverview } from "@/types/api";
 import { AppLogsCard } from "./AppLogsCard";
@@ -145,9 +146,7 @@ export default function Diagnostics() {
       <div className="grid gap-4 md:grid-cols-3">
         <div className="glass rounded-xl p-5">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
-              <ServerCog className="h-4 w-4 text-violet-300" />
-            </div>
+            <IconTile icon={ServerCog} tone="violet" size="sm" />
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground">Trunk</p>
               <p className="text-lg font-semibold text-foreground">{overview?.trunk_status ?? "Lädt..."}</p>
@@ -167,9 +166,7 @@ export default function Diagnostics() {
 
         <div className="glass rounded-xl p-5">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
-              <Wifi className="h-4 w-4 text-emerald-300" />
-            </div>
+            <IconTile icon={Wifi} tone="answer" size="sm" />
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground">Nebenstellen online</p>
               <p className="text-lg font-semibold text-foreground">
@@ -181,9 +178,7 @@ export default function Diagnostics() {
 
         <div className="glass rounded-xl p-5">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
-              <PhoneCall className="h-4 w-4 text-sky-300" />
-            </div>
+            <IconTile icon={PhoneCall} tone="blue" size="sm" />
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground">Aktive Gespräche</p>
               <p className="text-lg font-semibold text-foreground">{overview?.active_calls ?? 0}</p>
@@ -194,8 +189,7 @@ export default function Diagnostics() {
 
       <div className="glass rounded-xl">
         <div
-          className="flex items-center justify-between border-b px-6 py-4"
-          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+          className="flex items-center justify-between border-b border-hair px-6 py-4"
         >
           <div>
             <p className="text-sm font-semibold text-foreground">Nebenstellen live</p>
@@ -205,7 +199,7 @@ export default function Diagnostics() {
         <div className="overflow-x-auto p-6">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
-              <tr className="border-b border-white/5 text-left text-xs uppercase tracking-widest text-muted-foreground">
+              <tr className="border-b border-hair text-left text-xs uppercase tracking-widest text-muted-foreground">
                 <th className="pb-3 font-medium">Nr.</th>
                 <th className="pb-3 font-medium">Status</th>
                 <th className="pb-3 font-medium">Gerätezustand</th>
@@ -217,10 +211,10 @@ export default function Diagnostics() {
             </thead>
             <tbody>
               {(overview?.extensions ?? []).map((extension) => (
-                <tr key={extension.number} className="border-b border-white/5 last:border-0">
-                  <td className="py-3 font-mono text-violet-300">{extension.number}</td>
+                <tr key={extension.number} className="border-b border-hair last:border-0">
+                  <td className="py-3 font-mono text-violet">{extension.number}</td>
                   <td className="py-3">
-                    <span className={extension.status === "Online" ? "text-emerald-300" : "text-slate-400"}>
+                    <span className={extension.status === "Online" ? "text-answer" : "text-muted-foreground"}>
                       {extension.status}
                     </span>
                   </td>
@@ -248,8 +242,7 @@ export default function Diagnostics() {
 
       <div className="glass rounded-xl">
         <div
-          className="flex items-center justify-between border-b px-6 py-4"
-          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+          className="flex items-center justify-between border-b border-hair px-6 py-4"
         >
           <div>
             <p className="text-sm font-semibold text-foreground">Aktive Kanäle</p>
@@ -259,7 +252,7 @@ export default function Diagnostics() {
         <div className="overflow-x-auto p-6">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
-              <tr className="border-b border-white/5 text-left text-xs uppercase tracking-widest text-muted-foreground">
+              <tr className="border-b border-hair text-left text-xs uppercase tracking-widest text-muted-foreground">
                 <th className="pb-3 font-medium">Kanal</th>
                 <th className="pb-3 font-medium">Von</th>
                 <th className="pb-3 font-medium">Nach</th>
@@ -271,7 +264,7 @@ export default function Diagnostics() {
             </thead>
             <tbody>
               {(overview?.channels ?? []).map((channel) => (
-                <tr key={channel.channel} className="border-b border-white/5 last:border-0">
+                <tr key={channel.channel} className="border-b border-hair last:border-0">
                   <td className="py-3 font-mono text-xs text-muted-foreground">{channel.channel}</td>
                   <td className="py-3 text-muted-foreground">
                     {[channel.caller_id_num, channel.caller_id_name].filter(Boolean).join(" " ) || "–"}
@@ -301,23 +294,9 @@ export default function Diagnostics() {
       <div className="glass rounded-xl">
         {/* Card header */}
         <div
-          className="flex items-center gap-3 border-b px-6 py-4"
-          style={{ borderColor: "rgba(255,255,255,0.06)" }}
+          className="flex items-center gap-3 border-b border-hair px-6 py-4"
         >
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-lg"
-            style={{
-              background: status.running
-                ? "rgba(239,68,68,0.12)"
-                : "rgba(139,92,246,0.12)",
-              border: `1px solid ${status.running ? "rgba(239,68,68,0.2)" : "rgba(139,92,246,0.2)"}`,
-            }}
-          >
-            <Activity
-              className="h-4 w-4"
-              style={{ color: status.running ? "#F87171" : "#A78BFA" }}
-            />
-          </div>
+          <IconTile icon={Activity} tone={status.running ? "end" : "violet"} size="sm" />
           <div>
             <p className="text-sm font-semibold text-foreground">SIP / RTP Netzwerk-Trace</p>
             <p className="text-xs text-muted-foreground">
@@ -335,16 +314,16 @@ export default function Diagnostics() {
                 <>
                   {/* Pulsing red dot */}
                   <span className="relative flex h-3 w-3">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-end opacity-75" />
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-end" />
                   </span>
-                  <span className="font-mono text-sm font-semibold text-red-400">AUFZEICHNUNG</span>
+                  <span className="font-mono text-sm font-semibold text-end">AUFZEICHNUNG</span>
                   <span className="font-mono text-sm text-muted-foreground">{formatDuration(elapsed)}</span>
                 </>
               ) : status.file_ready ? (
                 <>
-                  <span className="inline-flex h-3 w-3 rounded-full bg-emerald-500" />
-                  <span className="font-mono text-sm font-semibold text-emerald-400">DATEI BEREIT</span>
+                  <span className="inline-flex h-3 w-3 rounded-full bg-answer" />
+                  <span className="font-mono text-sm font-semibold text-answer">DATEI BEREIT</span>
                   <span className="font-mono text-xs text-muted-foreground">{formatBytes(status.size_bytes)}</span>
                   {status.file_mtime && (
                     <span className="font-mono text-xs text-muted-foreground">
@@ -354,8 +333,8 @@ export default function Diagnostics() {
                 </>
               ) : (
                 <>
-                  <span className="inline-flex h-3 w-3 rounded-full bg-slate-600" />
-                  <span className="font-mono text-sm font-semibold text-slate-400">BEREIT</span>
+                  <span className="inline-flex h-3 w-3 rounded-full bg-high" />
+                  <span className="font-mono text-sm font-semibold text-muted-foreground">BEREIT</span>
                 </>
               )}
             </div>
@@ -365,13 +344,8 @@ export default function Diagnostics() {
               <Button
                 onClick={handleStop}
                 disabled={loading}
-                className="cursor-pointer gap-2"
-                style={{
-                  background: "rgba(239,68,68,0.15)",
-                  border: "1px solid rgba(239,68,68,0.3)",
-                  color: "#FCA5A5",
-                  boxShadow: "none",
-                }}
+                variant="secondary"
+                className="cursor-pointer gap-2 bg-end-soft text-end hover:bg-end-soft"
               >
                 <Square className="h-3.5 w-3.5 fill-current" />
                 Stoppen
@@ -381,13 +355,8 @@ export default function Diagnostics() {
                 onClick={handleStart}
                 disabled={loading}
                 className="cursor-pointer gap-2"
-                style={{
-                  background: "linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)",
-                  boxShadow: loading ? "none" : "0 0 16px rgba(124,58,237,0.35)",
-                  border: "none",
-                }}
               >
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-red-400" />
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-end" />
                 Aufzeichnen
               </Button>
             )}
@@ -395,13 +364,10 @@ export default function Diagnostics() {
 
           {/* Download / discard row — only when file is ready */}
           {status.file_ready && !status.running && (
-            <div
-              className="flex items-center justify-between rounded-lg px-4 py-3"
-              style={{ background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.12)" }}
-            >
+            <div className="flex items-center justify-between rounded-ctl bg-answer-soft px-4 py-3">
               <div className="flex items-center gap-2">
-                <Wifi className="h-4 w-4 text-emerald-400" />
-                <p className="text-sm text-emerald-300">
+                <Wifi className="h-4 w-4 text-answer" />
+                <p className="text-sm text-answer">
                   <span className="font-semibold">{formatBytes(status.size_bytes)}</span>
                   {" "}— in Wireshark öffnen um SIP-Signalling + RTP zu analysieren
                 </p>
@@ -411,11 +377,7 @@ export default function Diagnostics() {
                   variant="outline"
                   size="sm"
                   onClick={handleDiscard}
-                  className="cursor-pointer gap-1.5 text-muted-foreground hover:text-red-400"
-                  style={{
-                    background: "rgba(255,255,255,0.03)",
-                    borderColor: "rgba(255,255,255,0.08)",
-                  }}
+                  className="cursor-pointer gap-1.5 text-muted-foreground hover:text-end"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Verwerfen
@@ -424,11 +386,6 @@ export default function Diagnostics() {
                   size="sm"
                   onClick={handleDownload}
                   className="cursor-pointer gap-1.5"
-                  style={{
-                    background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-                    border: "none",
-                    boxShadow: "0 0 12px rgba(5,150,105,0.3)",
-                  }}
                 >
                   <Download className="h-3.5 w-3.5" />
                   haphone-capture.pcap
@@ -438,11 +395,8 @@ export default function Diagnostics() {
           )}
 
           {/* Hint box */}
-          <div
-            className="rounded-lg px-4 py-3 text-xs text-muted-foreground space-y-1"
-            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
-          >
-            <p className="font-medium text-slate-400">Anleitung</p>
+          <div className="space-y-1 rounded-ctl bg-raised px-4 py-3 text-xs text-muted-foreground">
+            <p className="font-medium text-muted-foreground">Anleitung</p>
             <ol className="list-decimal list-inside space-y-0.5 leading-relaxed">
               <li>Trunk konfigurieren und <span className="font-mono">Trunk speichern</span> klicken.</li>
               <li>Hier <span className="font-mono">Aufzeichnen</span> starten.</li>

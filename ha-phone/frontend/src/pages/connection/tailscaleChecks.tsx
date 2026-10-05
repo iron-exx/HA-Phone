@@ -38,9 +38,9 @@ export interface TailnetPhone {
 }
 
 export function StepIcon({ step }: { step: CheckStep }) {
-  if (!step.ok) return <XCircle className="h-4 w-4 shrink-0 text-red-600" />;
-  if (step.warning) return <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />;
-  return <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />;
+  if (!step.ok) return <XCircle className="h-4 w-4 shrink-0 text-end" />;
+  if (step.warning) return <AlertTriangle className="h-4 w-4 shrink-0 text-door" />;
+  return <CheckCircle2 className="h-4 w-4 shrink-0 text-answer" />;
 }
 
 export function CheckList({ result }: { result: CheckResult | null }) {

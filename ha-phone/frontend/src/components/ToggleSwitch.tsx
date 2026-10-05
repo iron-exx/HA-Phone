@@ -1,10 +1,14 @@
 /**
  * Self-contained on/off switch with INLINE colours.
  *
+ * The inline style stays on purpose (older embedded WebViews), but it only
+ * uses design-token variables (var(--blue), var(--high)) - no raw colours.
+ * The white thumb is the one literal that is theme-independent.
+ *
  * Why not the Radix `Switch` (components/ui/switch): its track/thumb colours
  * come from Tailwind theme classes (bg-input/bg-primary/bg-foreground + CSS
  * variables). In the deployed build those resolved to transparent - verified
- * via computed style, background-color rgba(0,0,0,0) on both track and thumb -
+ * via computed style, a fully transparent background-color on both track and thumb -
  * so the switch was invisible: users saw only an empty outline and nothing to
  * click. Inline style colours render identically in every browser (including
  * the older embedded browsers this add-on gets opened in) with no dependency
@@ -42,7 +46,7 @@ export function ToggleSwitch({
         cursor: "pointer",
         position: "relative",
         transition: "background-color 150ms",
-        backgroundColor: checked ? "#8b5cf6" : "#3f3f46",
+        backgroundColor: checked ? "var(--blue)" : "var(--high)",
       }}
     >
       <span
@@ -53,7 +57,7 @@ export function ToggleSwitch({
           width: 20,
           height: 20,
           borderRadius: "50%",
-          backgroundColor: "#ffffff",
+          backgroundColor: "#FFFFFF",
           transition: "left 150ms",
         }}
       />

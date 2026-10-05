@@ -240,7 +240,7 @@ export function VoicemailCard({
             {hasCustomGreeting === null ? (
               <Skeleton className="h-5 w-16" />
             ) : hasCustomGreeting ? (
-              <Badge variant="outline" className="text-emerald-400 border-emerald-400">
+              <Badge variant="outline" className="text-answer border-answer">
                 Eigene
               </Badge>
             ) : (

@@ -113,8 +113,7 @@ export function HolidaysSection() {
     <>
       <div className="glass rounded-xl">
       <div
-        className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        className="flex flex-wrap items-start justify-between gap-4 border-b border-hair px-6 py-4"
       >
         <div>
           <span className="text-sm font-semibold text-foreground">Feiertage</span>
@@ -192,13 +191,13 @@ export function HolidaysSection() {
               <TableCell>
                 <div className="flex flex-wrap gap-1.5">
                   <select value={day} onChange={(e) => setDay(e.target.value)}
-                    className="h-10 w-20 rounded-md border border-input bg-[#0b0e1a] px-2 text-base text-slate-200 [color-scheme:dark]">
+                    className="h-10 w-20 rounded-md border border-input bg-card px-2 text-base text-foreground">
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
                   <select value={month} onChange={(e) => setMonth(e.target.value)}
-                    className="h-10 min-w-[9rem] flex-1 rounded-md border border-input bg-[#0b0e1a] px-2 text-base text-slate-200 [color-scheme:dark]">
+                    className="h-10 min-w-[9rem] flex-1 rounded-md border border-input bg-card px-2 text-base text-foreground">
                     {MONTH_NAMES.map((m, i) => (
                       <option key={m} value={i + 1}>{m}</option>
                     ))}

@@ -135,8 +135,8 @@ export function ExtensionGroupsSection({ onChanged }: { onChanged?: () => void }
               className={[
                 "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                 on
-                  ? "border-violet-500/60 bg-violet-500/20 text-violet-100"
-                  : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                  ? "border-violet bg-violet-soft text-violet"
+                  : "border-hair bg-raised text-muted-foreground hover:text-foreground",
               ].join(" ")}
             >
               {extension.number} {extension.display_name}
@@ -151,8 +151,7 @@ export function ExtensionGroupsSection({ onChanged }: { onChanged?: () => void }
     <>
       <div className="glass rounded-xl">
       <div
-        className="flex items-center gap-3 border-b px-6 py-4"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        className="flex items-center gap-3 border-b border-hair px-6 py-4"
       >
         <div>
           <span className="text-sm font-semibold text-foreground">Nebenstellen-Gruppen</span>

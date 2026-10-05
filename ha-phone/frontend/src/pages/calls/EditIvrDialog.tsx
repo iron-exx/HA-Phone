@@ -165,7 +165,7 @@ export function EditIvrDialog({
                 </Button>
                 {ivr.greeting_file && (
                   <div className="flex items-center gap-2">
-                    <Volume2 className="h-4 w-4 text-emerald-400" />
+                    <Volume2 className="h-4 w-4 text-answer" />
                     <span className="text-sm">{ivr.greeting_file}</span>
                     <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={deleteGreeting}>
                       <Trash2 className="h-3 w-3" />
@@ -191,7 +191,7 @@ export function EditIvrDialog({
               ) : (
                 <div className="space-y-2">
                   {options.map((opt, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 rounded-md border border-white/10 bg-white/[0.02] p-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div key={idx} className="flex flex-col gap-2 rounded-md border border-hair bg-raised p-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">Taste:</span>
                         <Input

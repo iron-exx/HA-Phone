@@ -89,7 +89,7 @@ export function SharedCamerasCard() {
           <Skeleton className="h-16" />
         ) : (
           <>
-            {haError && <p className="text-sm text-red-600">{haError}</p>}
+            {haError && <p className="text-sm text-end">{haError}</p>}
             {all.length === 0 && !haError && (
               <p className="text-sm text-muted-foreground">Home Assistant hat keine Kameras (camera.*).</p>
             )}

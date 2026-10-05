@@ -168,8 +168,7 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
     <>
       <div className="glass rounded-xl">
       <div
-        className="flex items-center gap-3 border-b px-6 py-4"
-        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+        className="flex items-center gap-3 border-b border-hair px-6 py-4"
       >
         <div>
           <span className="text-sm font-semibold text-foreground">Rufgruppen</span>
@@ -219,8 +218,8 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                               className={[
                                 "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                                 selected
-                                  ? "border-violet-500/60 bg-violet-500/20 text-violet-100"
-                                  : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                                  ? "border-violet bg-violet-soft text-violet"
+                                  : "border-hair bg-raised text-muted-foreground hover:text-foreground",
                               ].join(" ")}
                             >
                               {extension.number} {extension.display_name}
@@ -240,8 +239,8 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                                 className={[
                                   "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                                   selected
-                                    ? "border-sky-500/60 bg-sky-500/20 text-sky-100"
-                                    : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                                    ? "border-blue bg-blue-soft text-blue"
+                                    : "border-hair bg-raised text-muted-foreground hover:text-foreground",
                                 ].join(" ")}
                               >
                                 {eg.name}
@@ -272,7 +271,7 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                     <TableCell className="font-mono">
                       {g.extension_numbers}
                       {g.extension_group_ids && (
-                        <span className="ml-2 text-sky-300">
+                        <span className="ml-2 text-blue">
                           [{g.extension_group_ids
                             .split(",")
                             .map((id) => extGroups.find((eg) => eg.id === Number(id))?.name || `#${id}`)
@@ -313,8 +312,8 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                           className={[
                             "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                             selected
-                              ? "border-violet-500/60 bg-violet-500/20 text-violet-100"
-                              : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                              ? "border-violet bg-violet-soft text-violet"
+                              : "border-hair bg-raised text-muted-foreground hover:text-foreground",
                           ].join(" ")}
                         >
                           {extension.number} {extension.display_name}
@@ -335,8 +334,8 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                           className={[
                             "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                             selected
-                              ? "border-sky-500/60 bg-sky-500/20 text-sky-100"
-                              : "border-white/10 bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                              ? "border-blue bg-blue-soft text-blue"
+                              : "border-hair bg-raised text-muted-foreground hover:text-foreground",
                           ].join(" ")}
                         >
                           {eg.name}

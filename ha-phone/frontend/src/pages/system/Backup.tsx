@@ -126,7 +126,7 @@ export default function Backup() {
         </CardContent>
       </Card>
 
-      <Card className="mt-8 max-w-lg" style={{ borderColor: "rgba(239,68,68,0.3)" }}>
+      <Card className="mt-8 max-w-lg border-end/30">
         <CardHeader>
           <span className="text-base font-semibold">Backup wiederherstellen</span>
           <p className="mt-1 text-xs text-destructive">

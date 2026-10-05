@@ -260,14 +260,14 @@ export default function Remote() {
         <CardContent className="text-sm space-y-3">
           {cfg.pbx.found ? (
             <p className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <CheckCircle2 className="h-4 w-4 text-answer" />
               Läuft: <span className="font-mono">{cfg.pbx_magicdns || pbxAddr}</span>
               {cfg.pbx_magicdns && <span className="font-mono text-muted-foreground">({pbxAddr})</span>}
             </p>
           ) : (
             <>
               <p className="flex items-start gap-2">
-                <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600" />
+                <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-end" />
                 <span>Noch nicht gefunden. So geht's:</span>
               </p>
               <ol className="list-decimal pl-10 space-y-1">
@@ -310,7 +310,7 @@ export default function Remote() {
       <Card className="mb-4">
         <CardHeader>
           <span className="text-base font-semibold flex items-center gap-2">
-            {cfg.configured && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+            {cfg.configured && <CheckCircle2 className="h-5 w-5 text-answer" />}
             Vollautomatisch (optional)
           </span>
         </CardHeader>
@@ -335,7 +335,7 @@ export default function Remote() {
               </div>
               <CheckList result={check} />
               {confirmDisconnect && (
-                <div className="rounded border border-red-300 p-3 space-y-2">
+                <div className="rounded border border-end/40 p-3 space-y-2">
                   <p>Neue Handys müssen sich dann selbst bei Tailscale anmelden. Sollen die bisherigen Handys
                     außerdem aus dem Tailnet entfernt werden?</p>
                   <div className="flex flex-wrap gap-2">
@@ -375,7 +375,7 @@ export default function Remote() {
             {phones === null ? (
               <Skeleton className="h-16" />
             ) : phonesError ? (
-              <p className="text-red-600">{phonesError}</p>
+              <p className="text-end">{phonesError}</p>
             ) : phones.length === 0 ? (
               <p className="text-muted-foreground">
                 Noch keine. Koppel ein Handy per QR-Code (Provisioning), es tritt dann dem Tailnet bei.
