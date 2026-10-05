@@ -2,13 +2,22 @@ import { apiUrl } from "./lib/apiUrl";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import "@fontsource/manrope/latin-500.css";
+import "@fontsource/manrope/latin-600.css";
+import "@fontsource/manrope/latin-700.css";
+import "@fontsource/manrope/latin-800.css";
+import "@fontsource/bricolage-grotesque/latin-700.css";
+import "@fontsource/bricolage-grotesque/latin-800.css";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { ThemeProvider } from "./components/ThemeProvider";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { applyTheme, readThemePreference, resolveTheme } from "./lib/theme";
 import "./index.css";
 
-// Force dark mode — dark-only per UI-SPEC; no ThemeProvider, no localStorage
-document.documentElement.classList.add("dark");
+// Hell/dunkel vor dem ersten Rendern setzen, damit nichts aufblitzt.
+// Danach übernimmt der ThemeProvider (Systemwechsel, Wahl im Konto).
+applyTheme(resolveTheme(readThemePreference()));
 
 // HA ingress path injection — FastAPI injects window.__INGRESS_PATH__ into index.html
 const ingressPath: string = (window as any).__INGRESS_PATH__ ?? "";
@@ -28,11 +37,13 @@ if (ingressPath) {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <BrowserRouter basename={ingressPath}>
-        <TooltipProvider>
-          <App />
-        </TooltipProvider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter basename={ingressPath}>
+          <TooltipProvider>
+            <App />
+          </TooltipProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

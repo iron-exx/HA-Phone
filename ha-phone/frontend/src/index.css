@@ -1,123 +1,205 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
+/* Dunkel per Klasse (gesetzt von lib/theme.ts), nicht per Media-Query:
+   die Wahl im Konto muss das Systemthema überstimmen können. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Tokens „Nachtwache" – hell ──────────────────────────────── */
+:root {
+  --ground: #F4F6F9;
+  --surface: #FFFFFF;
+  --raised: #EAEEF3;
+  --high: #DCE3EB;
+  --stroke: #D5DCE4;
+  --hair: rgba(15, 23, 42, 0.07);
+  --text: #0F172A;
+  --text-muted: #475569;
+  --text-faint: #5B6778;
+  --blue: #0369A1;
+  --blue-ink: #FFFFFF;
+  --blue-soft: #E0F2FE;
+  --answer: #177E45;
+  --answer-soft: #E7F7EE;
+  --end: #D92D32;
+  --end-soft: #FDECEC;
+  --door: #A86500;
+  --door-soft: #FFF1D6;
+  --violet: #7C3AED;
+  --violet-soft: #EFE7FF;
+  /* Markenverlauf, Variante A. Variante B (weiße Schrift) ändert nur diese drei Werte:
+     --brand-gradient: linear-gradient(135deg, #006B9F, #3F7A1E); --brand-ink: #FFFFFF; */
+  --brand-gradient: linear-gradient(135deg, #008BCF, #5FA92E);
+  --brand-ink: #0B0F14;
+  --brand-title-gradient: linear-gradient(135deg, #0077B3, #4A8A22);
+  --brand-glow: rgba(95, 169, 46, 0.28);
+  color-scheme: light;
+}
+
+/* ── Tokens „Nachtwache" – dunkel ────────────────────────────── */
+.dark {
+  --ground: #0B0F14;
+  --surface: #131A22;
+  --raised: #1B2430;
+  --high: #243040;
+  --stroke: #2A3544;
+  --hair: rgba(255, 255, 255, 0.06);
+  --text: #EAF0F6;
+  --text-muted: #A3B0BF;
+  --text-faint: #8593A3;
+  --blue: #38BDF8;
+  --blue-ink: #04263A;
+  --blue-soft: #0E3148;
+  --answer: #2FBF71;
+  --answer-soft: #0F2A1C;
+  --end: #E5484D;
+  --end-soft: #3A1416;
+  --door: #F5A524;
+  --door-soft: #3A2A0E;
+  --violet: #A78BFA;
+  --violet-soft: #2A2045;
+  --brand-gradient: linear-gradient(135deg, #0EA5E9, #89C940);
+  --brand-ink: #0B0F14;
+  --brand-title-gradient: linear-gradient(135deg, #0EA5E9, #89C940);
+  --brand-glow: rgba(137, 201, 64, 0.22);
+  color-scheme: dark;
+}
+
+/* shadcn-Namen + eigene Namen → Tokens (sonst erzeugt Tailwind v4 kein bg-card usw.) */
+@theme inline {
+  --color-background: var(--ground);
+  --color-foreground: var(--text);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--blue);
+  --color-primary-foreground: var(--blue-ink);
+  --color-secondary: var(--raised);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--raised);
+  --color-muted-foreground: var(--text-muted);
+  --color-accent: var(--raised);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--end);
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: var(--hair);
+  --color-input: var(--stroke);
+  --color-ring: var(--blue);
+
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-high: var(--high);
+  --color-stroke: var(--stroke);
+  --color-hair: var(--hair);
+  --color-faint: var(--text-faint);
+  --color-blue: var(--blue);
+  --color-blue-soft: var(--blue-soft);
+  --color-answer: var(--answer);
+  --color-answer-soft: var(--answer-soft);
+  --color-end: var(--end);
+  --color-end-soft: var(--end-soft);
+  --color-door: var(--door);
+  --color-door-soft: var(--door-soft);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-brand-ink: var(--brand-ink);
+}
+
+@theme {
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius-card: 18px;
+  --radius-ctl: 12px;
+  --breakpoint-nav: 860px;
+}
+
+@utility bg-brand {
+  background-image: var(--brand-gradient);
+}
+@utility text-brand-title {
+  background-image: var(--brand-title-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+@utility shadow-glow {
+  box-shadow: 0 6px 18px var(--brand-glow);
+}
+@utility bg-glow {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(14, 165, 233, 0.16), transparent 55%),
+    radial-gradient(120% 140% at 100% 0%, rgba(137, 201, 64, 0.14), transparent 55%),
+    var(--surface);
+}
+
 @layer base {
-  :root {
-    /* Deep OLED */
-    --background: 222 84% 4%;
-    --foreground: 214 32% 94%;
-
-    /* Glass cards */
-    --card: 220 60% 6%;
-    --card-foreground: 214 32% 94%;
-
-    /* Purple primary */
-    --primary: 262 83% 68%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Muted */
-    --muted: 220 40% 10%;
-    --muted-foreground: 215 20% 50%;
-
-    /* Borders */
-    --border: 220 30% 13%;
-    --input: 220 40% 10%;
-    --ring: 262 83% 68%;
-
-    /* Semantic */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-
-    --radius: 0.75rem;
+  * {
+    border-color: var(--hair);
+  }
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    background-color: var(--ground);
+    color: var(--text);
+    font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 {
+    font-family: "Bricolage Grotesque", "Manrope", system-ui, sans-serif;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    background-color: var(--surface);
+    color: var(--text);
+  }
+  select option {
+    background-color: var(--surface);
+    color: var(--text);
   }
 }
 
-* {
-  border-color: hsl(var(--border));
-}
-
-html, body, #root {
-  height: 100%;
-}
-
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-size: 14px;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-weight: 400;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* ── Scrollbar ─────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.25);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.45); }
-
-/* ── Glassmorphism card ────────────────────────────────────── */
+/* ── Altlasten aus dem violetten Look, auf Tokens umgestellt ─── */
 .glass {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: var(--surface);
+  border: 1px solid var(--hair);
 }
-
-/* ── Status glow rings ─────────────────────────────────────── */
-.glow-green {
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), 0 0 20px rgba(34, 197, 94, 0.2);
-}
-.glow-yellow {
-  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.15), 0 0 20px rgba(234, 179, 8, 0.2);
-}
-.glow-red {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), 0 0 20px rgba(239, 68, 68, 0.2);
-}
-
-/* ── Gradient text ─────────────────────────────────────────── */
 .text-gradient {
-  background: linear-gradient(135deg, #A78BFA 0%, #34D399 100%);
+  background-image: var(--brand-title-gradient);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
+.glow-green { box-shadow: 0 0 0 3px var(--answer-soft); }
+.glow-yellow { box-shadow: 0 0 0 3px var(--door-soft); }
+.glow-red { box-shadow: 0 0 0 3px var(--end-soft); }
 
-/* ── Pulsing dot animation ─────────────────────────────────── */
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(0.8); }
 }
 .dot-pulse { animation: pulse-dot 2s ease-in-out infinite; }
 
-/* ── Monospace for IDs / numbers ───────────────────────────── */
-.font-mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--high); border-radius: 3px; }
 
-/* ── Input dark glass overrides ────────────────────────────── */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-select,
-textarea {
-  background-color: rgba(255, 255, 255, 0.04) !important;
+@media (prefers-reduced-motion: reduce) {
+  .dot-pulse { animation: none; }
 }
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: rgba(139, 92, 246, 0.55) !important;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.12) !important;
-  outline: none;
-}
-
-select {
-  color-scheme: dark;
-  color: rgb(226, 232, 240) !important;
-}
-
-select option {
-  background-color: #080c17;
-  color: rgb(226, 232, 240);
+/* Windows-Kontrastmodus: transparente Verlaufsschrift wäre unsichtbar. */
+@media (forced-colors: active) {
+  .text-brand-title, .text-gradient {
+    background: none;
+    color: CanvasText;
+    -webkit-text-fill-color: CanvasText;
+  }
 }

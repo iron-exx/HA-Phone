@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
+import { useTheme } from "@/lib/themeContext";
 import Shell from "./components/layout/Shell";
 import Dashboard from "./pages/Dashboard";
 import Extensions from "./pages/Extensions";
@@ -96,9 +97,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { resolved } = useTheme();
   return (
     <>
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors theme={resolved} />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/change-password" element={<ChangePassword />} />
