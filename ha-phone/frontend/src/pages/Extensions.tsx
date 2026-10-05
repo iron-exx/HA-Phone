@@ -16,7 +16,6 @@ import {
   type IVRMenu,
   type PresenceForwardingRule,
   type ProvisioningTokenOut,
-  type DoorAction,
 } from "@/types/api";
 import { DestinationField, formatDestination, type DestinationValue } from "@/components/DestinationField";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
@@ -67,9 +66,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { copyToClipboard } from "@/lib/clipboard";
-import { SnapshotTestButton } from "@/components/SnapshotTestButton";
-import { DoorActionsEditor, doorActionsError } from "@/components/DoorActionsEditor";
-import { FormGrid, FormSection, FormSpan } from "@/components/FormGrid";
+import { ToggleRow } from "@/components/ToggleRow";
+import { FormGrid, FormSection } from "@/components/FormGrid";
 
 // ---- Zod schema ----
 const extensionSchema = z.object({
@@ -80,12 +78,6 @@ const extensionSchema = z.object({
   video_capable: z.boolean().default(false),
   internal_only: z.boolean().default(false),
   numeric_callerid: z.boolean().default(false),
-  is_door: z.boolean().default(false),
-  door_open_code: z
-    .string()
-    .max(16, "Max 16 Zeichen")
-    .regex(/^[0-9*#]*$/, "Nur 0-9, * und #")
-    .default(""),
 });
 
 type ExtensionFormValues = z.infer<typeof extensionSchema>;
@@ -104,16 +96,6 @@ const editSchema = extensionSchema.extend({
     .refine((v) => v === "" || v.length >= 8, "Min 8 characters if provided"),
   presence_status: z.string().default("available"),
   recording_allowed: z.boolean().default(false),
-  door_open_webhook: z
-    .string()
-    .max(512, "Max 512 Zeichen")
-    .regex(/^(https?:\/\/\S+)?$/, "http:// oder https:// Adresse")
-    .default(""),
-  doorbell_camera: z
-    .string()
-    .max(512, "Max 512 Zeichen")
-    .regex(/^(camera\.[a-z0-9_]+|https?:\/\/\S+)?$/, "camera.name oder http(s):// Adresse")
-    .default(""),
   ha_person: z
     .string()
     .max(128, "Max 128 Zeichen")
@@ -157,50 +139,6 @@ function buildExtensionNumbers(group: RingGroup, extensionNumber: number, select
     .filter((number) => Number.isFinite(number))
     .sort((a, b) => a - b)
     .join(",");
-}
-
-/**
- * A labelled on/off row for a boolean form field.
- *
- * Uses a self-contained <button> toggle with INLINE colors instead of the
- * Radix Switch. Why: the Radix Switch's track/thumb colours come from Tailwind
- * theme classes (bg-input/bg-primary/bg-foreground + CSS variables). In the
- * deployed build those resolved to transparent (verified: computed
- * background-color rgba(0,0,0,0) on both track and thumb), so the switch was
- * effectively invisible - users saw only the row border and nothing to click.
- * Inline style colours render identically in every browser (including the
- * older embedded browsers this add-on gets opened in) with no dependency on
- * Tailwind variable resolution.
- *
- * A real <button role="switch"> is a labelable element, so the <label htmlFor>
- * still forwards a click from the text exactly once - single toggle, no
- * double-fire, no row-level onClick. Do NOT reintroduce a row-level onClick.
- */
-function ToggleRow({
-  id,
-  label,
-  description,
-  checked,
-  onToggle,
-}: {
-  id: string;
-  label: string;
-  description: string;
-  checked: boolean;
-  onToggle: (next: boolean) => void;
-}) {
-  return (
-    <div
-      className="flex items-center justify-between rounded-lg border p-3"
-      style={{ borderColor: "rgba(255,255,255,0.08)" }}
-    >
-      <label htmlFor={id} className="flex-1 cursor-pointer pr-3">
-        <div className="text-sm font-medium leading-none">{label}</div>
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-      </label>
-      <ToggleSwitch id={id} checked={checked} ariaLabel={label} onToggle={() => onToggle(!checked)} />
-    </div>
-  );
 }
 
 async function syncRingGroupMemberships(
@@ -267,7 +205,7 @@ function AddExtensionDialog({
 }) {
   const form = useForm<ExtensionFormValues>({
     resolver: zodResolver(extensionSchema),
-    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, video_capable: false, internal_only: false, numeric_callerid: false, is_door: false, door_open_code: "" },
+    defaultValues: { number: undefined as unknown as number, display_name: "", sip_password: "", enabled: true, video_capable: false, internal_only: false, numeric_callerid: false },
   });
   const [saving, setSaving] = useState(false);
   const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>([]);
@@ -395,19 +333,6 @@ function AddExtensionDialog({
                 />
                 <FormField
                   control={form.control}
-                  name="is_door"
-                  render={({ field }) => (
-                    <ToggleRow
-                      id={field.name}
-                      label="Türstation"
-                      description="Diese Nebenstelle ist eine Türklingel oder Türsprechstelle (Akuvox, 2N, DoorBird, Fanvil …). Nur Türstationen erscheinen im Klingel-Verlauf, klingeln in der App als Tür und bekommen Tür öffnen, Klingelbild und Aktionen."
-                      checked={field.value}
-                      onToggle={field.onChange}
-                    />
-                  )}
-                />
-                <FormField
-                  control={form.control}
                   name="numeric_callerid"
                   render={({ field }) => (
                     <ToggleRow
@@ -495,43 +420,27 @@ function EditExtensionDialog({
       video_capable: extension.video_capable ?? false,
       internal_only: extension.internal_only ?? false,
       numeric_callerid: extension.numeric_callerid ?? false,
-      is_door: extension.is_door ?? false,
-      door_open_code: extension.door_open_code ?? "",
       presence_status: extension.presence_status || "available",
       recording_allowed: extension.recording_allowed ?? false,
-      door_open_webhook: extension.door_open_webhook ?? "",
-      doorbell_camera: extension.doorbell_camera ?? "",
       ha_person: extension.ha_person ?? "",
       mobile_fallback: extension.mobile_fallback ?? "",
     },
   });
   const [saving, setSaving] = useState(false);
-  const [doorActions, setDoorActions] = useState<DoorAction[]>(extension.door_actions ?? []);
-  const isDoor = form.watch("is_door");
   const [selectedRingGroupIds, setSelectedRingGroupIds] = useState<number[]>(
     getExtensionRingGroupIds(extension, ringGroups)
   );
 
   async function onSubmit(values: EditFormValues) {
-    const actionsError = doorActionsError(doorActions);
-    if (actionsError) {
-      toast.error(actionsError);
-      return;
-    }
     setSaving(true);
-    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; is_door: boolean; door_open_code: string; door_actions: DoorAction[]; presence_status: string; recording_allowed: boolean; door_open_webhook: string; doorbell_camera: string; ha_person: string; mobile_fallback: string }> = {
+    const body: Partial<{ display_name: string; sip_password: string; enabled: boolean; video_capable: boolean; internal_only: boolean; numeric_callerid: boolean; presence_status: string; recording_allowed: boolean; ha_person: string; mobile_fallback: string }> = {
       display_name: values.display_name,
       enabled: values.enabled,
       video_capable: values.video_capable,
       internal_only: values.internal_only,
       numeric_callerid: values.numeric_callerid,
-      is_door: values.is_door,
-      door_open_code: values.door_open_code ?? "",
-      door_actions: doorActions,
       presence_status: values.presence_status,
       recording_allowed: values.recording_allowed,
-      door_open_webhook: (values.door_open_webhook ?? "").trim(),
-      doorbell_camera: (values.doorbell_camera ?? "").trim(),
       ha_person: (values.ha_person ?? "").trim(),
       mobile_fallback: (values.mobile_fallback ?? "").trim(),
     };
@@ -685,77 +594,6 @@ function EditExtensionDialog({
                     />
                   )}
                 />
-              </FormGrid>
-            </FormSection>
-            <FormSection title="Türstation">
-              <FormGrid>
-                <FormField
-                  control={form.control}
-                  name="is_door"
-                  render={({ field }) => (
-                    <ToggleRow
-                      id={field.name}
-                      label="Türstation"
-                      description="Diese Nebenstelle ist eine Türklingel oder Türsprechstelle (Akuvox, 2N, DoorBird, Fanvil …). Nur Türstationen erscheinen im Klingel-Verlauf, klingeln in der App als Tür und bekommen Tür öffnen, Klingelbild und Aktionen."
-                      checked={field.value}
-                      onToggle={field.onChange}
-                    />
-                  )}
-                />
-                {isDoor && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="door_open_code"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tür-Öffnen-Code (DTMF)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="z.B. *1" {...field} />
-                          </FormControl>
-                          <p className="text-xs text-muted-foreground">
-                            Die HA-Phone App zeigt beim Klingeln und im Gespräch die Taste „Tür öffnen" und sendet diese Tasten.
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="door_open_webhook"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tür-Öffnen-Webhook</FormLabel>
-                          <FormControl>
-                            <Input placeholder="z.B. http://homeassistant.local:8123/api/webhook/haustuer" className="font-mono" {...field} />
-                          </FormControl>
-                          <p className="text-xs text-muted-foreground">
-                            Der Schieberegler „Zum Öffnen schieben“ in der HA-Phone App ruft diese Adresse auf (POST mit JSON), auch schon während es klingelt. Die App sieht die Adresse nie. Leer = die App sendet im Gespräch den Tür-Öffnen-Code.
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="doorbell_camera"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Klingelbild-Quelle</FormLabel>
-                          <FormControl>
-                            <Input placeholder="camera.haustuer oder http://tuer.local/snapshot.jpg" className="font-mono" {...field} />
-                          </FormControl>
-                          <p className="text-xs text-muted-foreground">
-                            Bei jedem Klingeln holt die Anlage hier ein Foto für den Klingel-Verlauf und die App. Eine Home-Assistant-Kamera (<code>camera.…</code>) oder die Snapshot-Adresse der Türstation, Zugangsdaten als <code>http://benutzer:passwort@…</code>. Leer = Klingeln ohne Foto.
-                          </p>
-                          <SnapshotTestButton source={field.value ?? ""} />
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormSpan><DoorActionsEditor value={doorActions} onChange={setDoorActions} /></FormSpan>
-                  </>
-                )}
               </FormGrid>
             </FormSection>
             <FormSection title="Handy und Erreichbarkeit">

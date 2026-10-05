@@ -9,7 +9,8 @@ import Groups from "./pages/calls/Groups";
 import Ivr from "./pages/calls/Ivr";
 import Schedules from "./pages/calls/Schedules";
 import Voicemail from "./pages/calls/Voicemail";
-import Doorbell from "./pages/Doorbell";
+import Doorbell from "./pages/doorbell/Doorbell";
+import Cameras from "./pages/doorbell/Cameras";
 import Trunk from "./pages/Trunk";
 import Tailscale from "./pages/Tailscale";
 import PublicIP from "./pages/PublicIP";
@@ -32,7 +33,7 @@ export default function AppRoutes() {
       <Route path="/calls/schedules" element={<Schedules />} />
       <Route path="/calls/voicemail" element={<Voicemail />} />
       <Route path="/doorbell" element={<Doorbell />} />
-      <Route path="/doorbell/cameras" element={<Doorbell />} />
+      <Route path="/doorbell/cameras" element={<Cameras />} />
       <Route path="/connection/provider" element={<Trunk />} />
       <Route path="/connection/remote" element={<Tailscale />} />
       <Route path="/connection/network" element={<PublicIP />} />

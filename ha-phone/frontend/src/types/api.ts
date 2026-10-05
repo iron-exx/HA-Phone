@@ -25,6 +25,17 @@ export interface Extension {
   // sip_password is never returned by the API
 }
 
+export interface DoorbellEvent {
+  id: number;
+  door_number: number;
+  door_name: string;
+  started_at: string;
+  ended_at: string | null;
+  answered_by: string;
+  door_opened: boolean;
+  has_image: boolean;
+}
+
 export interface PresenceForwardingRule {
   id: number;
   extension_id: number;
