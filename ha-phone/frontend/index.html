@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de" class="dark">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,6 +7,22 @@
     <!-- INGRESS_PATH: FastAPI replaces the marker below with the real ingress path.
          The marker comment is the stable injection anchor (Vite never minifies it). -->
     <!--INGRESS_PATH-->
+    <script>
+      // Erstes Bild im richtigen Farbschema (gleiche Logik wie lib/theme.ts, sonst blitzt es dunkel).
+      (function () {
+        var dark = false;
+        try {
+          var stored = window.localStorage.getItem("haphone.theme");
+          dark = stored === "dark" || (stored !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        } catch (e) {
+          try { dark = window.matchMedia("(prefers-color-scheme: dark)").matches; } catch (e2) {}
+        }
+        var root = document.documentElement;
+        root.classList.toggle("dark", dark);
+        root.dataset.theme = dark ? "dark" : "light";
+        root.style.colorScheme = dark ? "dark" : "light";
+      })();
+    </script>
     <script>
       window.__INGRESS_PATH__ = window.__INGRESS_PATH__ || "";
     </script>
