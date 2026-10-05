@@ -14,11 +14,11 @@
 
 ---
 
-HA-Phone turns your Home Assistant into a complete telephone system: connect a SIP trunk from your provider, register desk phones, DECT bases, door stations and the **HA-Phone App** on your mobile, and route calls — all from a clean dark-mode dashboard.
+HA-Phone turns your Home Assistant into a complete telephone system: connect a SIP trunk from your provider, register desk phones, DECT bases, door stations and the **HA-Phone App** on your mobile, and route calls — all from a clear web UI with a task-based sidebar (*Telefone & Personen*, *Anrufe*, *Türklingel*, *Anschluss*, *System*) that follows your Home Assistant light or dark theme.
 
 ![HA-Phone dashboard](docs/screenshots/dashboard.png)
 
-> All screenshots show example data.
+> The UI is in German. All screenshots show example data (admin UI of version 0.7.158).
 
 ## Features
 
@@ -31,17 +31,24 @@ HA-Phone turns your Home Assistant into a complete telephone system: connect a S
 - **📟 Auto-provisioning** — configure IP phones, DECT bases and door stations by MAC address, like 3CX/Yeastar. Ships with **editable templates** for Yealink, Grandstream, Fanvil and Gigaset.
 - **📬 Voicemail** — per-extension mailboxes with **voicemail-to-email** via your own SMTP server.
 - **📒 Phonebook** — shared contacts, served to desk phones via LDAP and to the app.
-- **📊 Live dashboard and diagnostics** — active calls, registrations with IP, latency and device type, trunk status, one-click network trace (PCAP) for Wireshark.
+- **📊 Overview and diagnostics** — an overview page (*Übersicht*) with trunk status, registered extensions, active calls, the latest door rings and a list of what needs attention; diagnostics with registrations (IP, latency, device type), active channels and a one-click network trace (PCAP) for Wireshark.
 - **🔒 Secure by default** — SIP over TLS, the app API over HTTPS with certificate pinning (fingerprint in the pairing QR), per-device tokens stored as hashes, admin login throttling.
 - **⬆️ Updates and backup** — update from the UI via the Home Assistant Supervisor, download and restore a backup of the whole configuration.
 
 <p>
-  <img src="docs/screenshots/nebenstellen.png" width="49%" alt="Extensions with status, ring groups and devices">
-  <img src="docs/screenshots/nebenstelle-tuer.png" width="49%" alt="Editing a door station: door-open webhook, snapshot source and Home Assistant actions">
+  <img src="docs/screenshots/nebenstellen.png" width="49%" alt="Extensions with status, devices and functions">
+  <img src="docs/screenshots/nebenstelle-tuer.png" width="49%" alt="Door station settings: door-open webhook, snapshot source and Home Assistant actions">
 </p>
 <p>
-  <img src="docs/screenshots/tuerklingel.png" width="49%" alt="Doorbell history with a photo of every ring">
+  <img src="docs/screenshots/tuerklingel.png" width="49%" alt="Door stations and doorbell history with a photo of every ring">
   <img src="docs/screenshots/diagnose.png" width="49%" alt="Diagnostics with live registrations">
+</p>
+
+The UI follows the theme of your system or Home Assistant, so there is a light variant too:
+
+<p>
+  <img src="docs/screenshots/dashboard-hell.png" width="49%" alt="Overview in the light theme">
+  <img src="docs/screenshots/tuerklingel-hell.png" width="49%" alt="Doorbell history in the light theme">
 </p>
 
 ## Installation
@@ -51,19 +58,19 @@ HA-Phone turns your Home Assistant into a complete telephone system: connect a S
    https://github.com/iron-exx/HA-Phone
    ```
 2. Install **HA-Phone** and start it.
-3. Open the UI from the sidebar. Default password: `changeme` (you'll be asked to change it on first login).
+3. Open the UI from the Home Assistant sidebar. Default password: `changeme` (you'll be asked to change it on first login).
 
 ## First steps
 
-1. **Trunk** — enter your provider's SIP credentials (login name, password, phone number). See the notes below for Deutsche Glasfaser / outbox.
-2. **Extensions** — add one extension per phone. The SIP password is auto-generated.
-3. **Devices** — pair a mobile with the HA-Phone App (**Nebenstellen → ⋯ → HA-Phone App QR**), set up desk phones with **Auto-Provisioning**, or register any SIP device by hand (server = the Home Assistant host IP, user = extension number, password = the extension's SIP password).
-4. **Routing** — outbound rules come pre-filled with sensible defaults; add an inbound route (your number → an extension or ring group).
+1. **Trunk** (*Anschluss → Telefonanbieter*) — enter your provider's SIP credentials (login name, password, phone number). See the notes below for Deutsche Glasfaser / outbox.
+2. **Extensions** (*Telefone & Personen → Nebenstellen*) — add one extension per phone. The SIP password is auto-generated.
+3. **Devices** — pair a mobile with the HA-Phone App (**Übersicht → Handy koppeln**, or **Nebenstellen → ⋯ → HA-Phone App QR**), set up desk phones with **Auto-Provisioning** (*Tischtelefone*), or register any SIP device by hand (server = the Home Assistant host IP, user = extension number, password = the extension's SIP password).
+4. **Routing** (*Anrufe*) — outbound rules (*Ausgehend*) come pre-filled with sensible defaults; add an inbound route (*Eingehend*: your number → an extension or ring group).
 
 ## Door stations
 
 1. Add an extension for the door station and register the door station against it (or use Auto-Provisioning).
-2. Edit the extension (**Nebenstellen → ⋯ → Bearbeiten**) and switch on **Door station** (*Türstation*). Then fill in what you need (the UI is in German):
+2. Open **Türklingel → Türstationen & Verlauf**, pick the extension under *Weitere Nebenstelle als Türstation einrichten* and click **Einrichten** (later, **Einstellungen** reopens the dialog). Switch on **Door station** (*Türstation*) and fill in what you need:
    - **Door-open webhook** (*Tür-Öffnen-Webhook*) — HA-Phone calls this URL (POST with JSON) when someone swipes "slide to open" in the app, even while it is still ringing. Typically a Home Assistant automation with a webhook trigger that switches your door opener. The app never sees the URL.
    - **Door-open code** (*Tür-Öffnen-Code (DTMF)*) — alternative for door stations that open with a key code during a call.
    - **Snapshot source** (*Klingelbild-Quelle*) — a Home Assistant camera (`camera.…`) or the door station's snapshot URL. HA-Phone takes a picture on every ring for the doorbell history and the app. Use *Testbild holen* to check it.
@@ -77,7 +84,7 @@ Tip for phones that are away: set **Belongs to** (*Gehört zu (Home-Assistant-Pe
 
 ## Remote access
 
-**With the HA-Phone App (recommended):** install the **Tailscale** add-on on your Home Assistant host and join it to your tailnet (userspace networking off). HA-Phone detects it on the **Tailscale** page. From then on, pairing a phone also sets up its tailnet access, either by signing in once on the phone or fully automatic with an OAuth client. On mobile data the app connects through the tailnet, at home it takes the direct path. No ports are opened to the internet.
+**With the HA-Phone App (recommended):** install the **Tailscale** add-on on your Home Assistant host and join it to your tailnet (userspace networking off). HA-Phone detects it on the **Fernzugriff** page (*Anschluss → Fernzugriff*). From then on, pairing a phone also sets up its tailnet access, either by signing in once on the phone or fully automatic with an OAuth client. On mobile data the app connects through the tailnet, at home it takes the direct path. No ports are opened to the internet.
 
 **With other SIP softphones** (Linphone, Zoiper, …): connect the phone to your tailnet or another VPN and use the Tailscale IP of the Home Assistant host as the SIP server. VPN peers count as local, so audio and video flow through the tunnel. Do not use the Home Assistant ingress URL, Cloudflare tunnels or reverse proxies for SIP.
 

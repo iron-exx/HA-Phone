@@ -9,7 +9,7 @@
 - **Door stations** — Akuvox, 2N, DoorBird, Fanvil and other SIP intercoms: doorbell history with a photo of every ring, door-open webhook, Home Assistant action buttons
 - **IP phones & softphones** — desk phones and DECT bases (Yealink, Grandstream, Fanvil, Gigaset, Snom) with auto-provisioning, any SIP softphone
 - **Remote access via Tailscale** — no port forwarding; the app joins your tailnet during pairing
-- **Web admin UI** — dark-theme dashboard with live status, no SSH or config files needed
+- **Web admin UI** — task-based navigation, light and dark theme, live status, no SSH or config files needed
 - **Call routing** — inbound routes, ring groups, IVR menus, time conditions, voicemail with email
 - **In-app updates and backup** — via the Home Assistant Supervisor
 
