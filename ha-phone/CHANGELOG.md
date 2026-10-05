@@ -15,10 +15,6 @@
 **Sicherheit - Passwortwechsel verlangt das aktuelle Passwort**
 - Ein freiwilliger Passwortwechsel funktioniert nur noch mit dem aktuellen Passwort (sonst „Aktuelles Passwort ist falsch.“). Der erzwungene Wechsel beim ersten Start bzw. mit dem Standardpasswort geht weiterhin ohne.
 
-**Fehlerbehebung - Oberfläche**
-- Farben kommen durchgehend aus festen Farbwerten des Designs, keine festen Farben mehr in den Seiten. Der Farbwert „end“ kollidierte mit der Textausrichtung und heißt jetzt „ended“. Deaktivierte Knöpfe leuchten nicht mehr.
-- Übersicht: Kopfzeile mit Schimmer wiederhergestellt, der Update-Hinweis lädt die Seite nicht mehr grundlos neu.
-
 ## 0.7.157
 
 **Diagnose - Klingel-Protokoll mit der echten Zeit von Asterisk**

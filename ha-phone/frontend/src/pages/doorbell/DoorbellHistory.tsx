@@ -48,7 +48,7 @@ export function DoorbellHistory() {
       {events === null ? (
         <Skeleton className="h-40" />
       ) : events.length === 0 ? (
-        <p className="py-4 text-sm text-muted-foreground">Noch hat niemand geklingelt.</p>
+        <p className="py-4 text-sm text-muted-foreground">In den letzten 30 Tagen hat niemand geklingelt.</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((ev) => (

@@ -67,7 +67,7 @@ export function EditGeneralTab({
             <ToggleRow
               id={field.name}
               label="Nur intern"
-              description="Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle)."
+              description="Kann nur intern telefonieren — kein Anruf nach außen (z. B. Türsprechstelle)."
               checked={field.value}
               onToggle={field.onChange}
             />
@@ -80,7 +80,7 @@ export function EditGeneralTab({
             <ToggleRow
               id={field.name}
               label="Altgeräte-Modus"
-              description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.'}
+              description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z. B. Android nativ), die Namen als "Anonym" anzeigen.'}
               checked={field.value}
               onToggle={field.onChange}
             />

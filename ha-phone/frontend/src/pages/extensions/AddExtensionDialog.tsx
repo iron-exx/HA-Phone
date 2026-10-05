@@ -90,7 +90,7 @@ export function AddExtensionDialog({
                     <FormItem>
                       <FormLabel>Durchwahl (Nummer)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="z.B. 10" className="font-mono" {...field} />
+                        <Input type="number" placeholder="z. B. 10" className="font-mono" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -103,7 +103,7 @@ export function AddExtensionDialog({
                     <FormItem>
                       <FormLabel>Anzeigename</FormLabel>
                       <FormControl>
-                        <Input placeholder="z.B. Büro" {...field} />
+                        <Input placeholder="z. B. Büro" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -135,7 +135,7 @@ export function AddExtensionDialog({
                     <ToggleRow
                       id={field.name}
                       label="Video-fähig"
-                      description="Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
+                      description="Erlaubt Videotelefonie (H.264) — z. B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
                       checked={field.value}
                       onToggle={field.onChange}
                     />
@@ -148,7 +148,7 @@ export function AddExtensionDialog({
                     <ToggleRow
                       id={field.name}
                       label="Nur intern"
-                      description="Kann nur intern telefonieren — kein Anruf nach außen (z.B. Türsprechstelle)."
+                      description="Kann nur intern telefonieren — kein Anruf nach außen (z. B. Türsprechstelle)."
                       checked={field.value}
                       onToggle={field.onChange}
                     />
@@ -161,7 +161,7 @@ export function AddExtensionDialog({
                     <ToggleRow
                       id={field.name}
                       label="Altgeräte-Modus"
-                      description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z.B. Android nativ), die Namen als "Anonym" anzeigen.'}
+                      description={'Anrufe an dieses Gerät senden nur die Nummer als Anrufername. Für alte SIP-Clients (z. B. Android nativ), die Namen als "Anonym" anzeigen.'}
                       checked={field.value}
                       onToggle={field.onChange}
                     />

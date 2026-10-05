@@ -110,14 +110,14 @@ export function AddIvrDialog({
               <FormField control={form.control} name="number" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Durchwahl</FormLabel>
-                  <FormControl><Input type="number" min={10} max={99} placeholder="z.B. 50" {...field} /></FormControl>
+                  <FormControl><Input type="number" min={10} max={99} placeholder="z. B. 50" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Name</FormLabel>
-                  <FormControl><Input placeholder="z.B. Hauptmenu" {...field} /></FormControl>
+                  <FormControl><Input placeholder="z. B. Hauptmenu" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -173,7 +173,7 @@ export function AddIvrDialog({
               ) : (
                 <div className="space-y-2">
                   {options.map((opt, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 rounded-md border border-hair bg-raised p-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div key={idx} className="flex flex-col gap-2 rounded-ctl border border-hair bg-raised p-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">Taste:</span>
                         <Input

@@ -22,7 +22,7 @@ export function EditAppTab({ form, extension }: { form: UseFormReturn<EditFormVa
             <ToggleRow
               id={field.name}
               label="Video-fähig"
-              description="Erlaubt Videotelefonie (H.264) — z.B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
+              description="Erlaubt Videotelefonie (H.264) — z. B. Video-Türsprechstelle oder Linphone. Beide Gesprächsseiten müssen video-fähig sein."
               checked={field.value}
               onToggle={field.onChange}
             />

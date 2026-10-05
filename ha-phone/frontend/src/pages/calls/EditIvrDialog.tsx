@@ -191,7 +191,7 @@ export function EditIvrDialog({
               ) : (
                 <div className="space-y-2">
                   {options.map((opt, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 rounded-md border border-hair bg-raised p-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div key={idx} className="flex flex-col gap-2 rounded-ctl border border-hair bg-raised p-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">Taste:</span>
                         <Input

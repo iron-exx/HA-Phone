@@ -15,7 +15,7 @@ export function RecentDoorCard({ events, now }: { events: DoorbellEvent[]; now: 
       actions={<Link to="/doorbell" className="text-sm font-bold text-blue hover:underline">Alle anzeigen</Link>}
     >
       {events.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Heute und gestern hat niemand geklingelt.</p>
+        <p className="text-sm text-muted-foreground">Zuletzt hat niemand geklingelt.</p>
       ) : (
         <ul className="grid">
           {events.map((ev) => (

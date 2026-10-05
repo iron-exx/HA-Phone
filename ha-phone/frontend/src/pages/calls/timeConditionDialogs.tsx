@@ -73,7 +73,7 @@ function WeekdayPicker({ value, onChange }: { value: string; onChange: (value: s
             type="button"
             onClick={() => toggle(day)}
             aria-pressed={active}
-            className={`h-9 flex-1 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
+            className={`h-9 flex-1 rounded-ctl border text-xs font-medium transition-colors cursor-pointer ${
               active
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-input bg-card text-muted-foreground hover:text-foreground"

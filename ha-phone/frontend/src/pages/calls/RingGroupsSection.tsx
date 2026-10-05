@@ -216,7 +216,7 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                               type="button"
                               onClick={() => toggleEditExtension(extension.number)}
                               className={[
-                                "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                                "rounded-ctl border px-2.5 py-1.5 text-xs font-medium transition-colors",
                                 selected
                                   ? "border-violet bg-violet-soft text-violet"
                                   : "border-hair bg-raised text-muted-foreground hover:text-foreground",
@@ -237,7 +237,7 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                                 type="button"
                                 onClick={() => toggleEditExtGroup(eg.id)}
                                 className={[
-                                  "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                                  "rounded-ctl border px-2.5 py-1.5 text-xs font-medium transition-colors",
                                   selected
                                     ? "border-blue bg-blue-soft text-blue"
                                     : "border-hair bg-raised text-muted-foreground hover:text-foreground",
@@ -296,7 +296,7 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
             ))}
             <TableRow>
               <TableCell><Input value={number} onChange={(e) => setNumber(e.target.value)} type="number" min={10} max={99} placeholder="10" className="h-9 w-20 font-mono" /></TableCell>
-              <TableCell><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Zentrale" className="h-9" /></TableCell>
+              <TableCell><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Zentrale" className="h-9" /></TableCell>
               <TableCell>
                 {extensions.length === 0 ? (
                   <span className="text-sm text-muted-foreground">Erst Nebenstellen anlegen</span>
@@ -310,7 +310,7 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                           type="button"
                           onClick={() => toggleExtension(extension.number)}
                           className={[
-                            "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                            "rounded-ctl border px-2.5 py-1.5 text-xs font-medium transition-colors",
                             selected
                               ? "border-violet bg-violet-soft text-violet"
                               : "border-hair bg-raised text-muted-foreground hover:text-foreground",
@@ -332,7 +332,7 @@ export function RingGroupsSection({ onChanged }: { onChanged?: () => void }) {
                           type="button"
                           onClick={() => toggleExtGroup(eg.id)}
                           className={[
-                            "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                            "rounded-ctl border px-2.5 py-1.5 text-xs font-medium transition-colors",
                             selected
                               ? "border-blue bg-blue-soft text-blue"
                               : "border-hair bg-raised text-muted-foreground hover:text-foreground",

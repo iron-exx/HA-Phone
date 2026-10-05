@@ -133,7 +133,7 @@ export function ExtensionGroupsSection({ onChanged }: { onChanged?: () => void }
               type="button"
               onClick={() => onToggle(extension.number)}
               className={[
-                "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                "rounded-ctl border px-2.5 py-1.5 text-xs font-medium transition-colors",
                 on
                   ? "border-violet bg-violet-soft text-violet"
                   : "border-hair bg-raised text-muted-foreground hover:text-foreground",
@@ -156,7 +156,7 @@ export function ExtensionGroupsSection({ onChanged }: { onChanged?: () => void }
         <div>
           <span className="text-sm font-semibold text-foreground">Nebenstellen-Gruppen</span>
           <p className="mt-1 text-xs text-muted-foreground">
-            Benannte Gruppen von Nebenstellen (z.B. "Support-Team"), die als ein Mitglied innerhalb
+            Benannte Gruppen von Nebenstellen (z. B. "Support-Team"), die als ein Mitglied innerhalb
             von Rufgruppen ausgewählt werden können - zusätzlich zu einzelnen Nebenstellen.
           </p>
         </div>
@@ -218,7 +218,7 @@ export function ExtensionGroupsSection({ onChanged }: { onChanged?: () => void }
               </TableRow>
             ))}
             <TableRow>
-              <TableCell><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Support-Team" className="h-9" /></TableCell>
+              <TableCell><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Support-Team" className="h-9" /></TableCell>
               <TableCell><ExtensionToggles selected={selectedNumbers} onToggle={toggle} /></TableCell>
               <TableCell className="text-right">
                 <Button size="sm" onClick={addGroup} disabled={saving}>{saving ? "…" : "Hinzufügen"}</Button>

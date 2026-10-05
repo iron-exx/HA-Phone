@@ -29,12 +29,12 @@ export const editSchema = extensionSchema.extend({
   recording_allowed: z.boolean().default(false),
   ha_person: z
     .string()
-    .max(128, "Max 128 Zeichen")
+    .max(128, "Max. 128 Zeichen")
     .regex(/^(person\.[a-z0-9_]+)?$/, "z. B. person.anna")
     .default(""),
   mobile_fallback: z
     .string()
-    .max(32, "Max 32 Zeichen")
+    .max(32, "Max. 32 Zeichen")
     .regex(/^(\+?[0-9][0-9 /()-]{4,22})?$/, "Telefonnummer, z. B. 0171 5551234")
     .default(""),
 });

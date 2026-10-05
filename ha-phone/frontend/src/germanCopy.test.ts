@@ -16,6 +16,8 @@ const FORBIDDEN: RegExp[] = [
   /\b(Edit|Delete|Actions for) (Route|Time)/,
   /Max \d+ chars/,
   /Min \d+ characters/,
+  /Max \d+ Zeichen/,
+  /z\.B\./,
   /\be\.g\./,
   /Check that the PBX/,
   /(>|")\s*(Bitte ein |Neues )?Templates?( auswählen…?)?\s*(<|"|\.)|Neues Template|Template-Name|Template (gespeichert|gelöscht)|des Templates/,

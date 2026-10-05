@@ -121,7 +121,7 @@ export function HolidaysSection() {
             An diesen Tagen gilt für <strong>alle</strong> Zeitbedingungen automatisch "geschlossen",
             unabhängig von den eingestellten Öffnungszeiten. Feiertage sind{" "}
             <strong>einmalige Termine</strong> (Jahr + Monat + Tag) und wiederholen sich{" "}
-            <strong>nicht</strong> automatisch, da sich viele Feiertagsdaten (z.B. Ostern und alle
+            <strong>nicht</strong> automatisch, da sich viele Feiertagsdaten (z. B. Ostern und alle
             davon abhängigen) jedes Jahr verschieben. Für's nächste Jahr die Termine neu eintragen
             oder per CSV importieren.
           </p>
@@ -186,18 +186,18 @@ export function HolidaysSection() {
             <TableRow>
               <TableCell>
                 <Input value={name} onChange={(e) => setName(e.target.value)}
-                  placeholder="z.B. Ostermontag" className="h-10 text-base" />
+                  placeholder="z. B. Ostermontag" className="h-10 text-base" />
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1.5">
                   <select value={day} onChange={(e) => setDay(e.target.value)}
-                    className="h-10 w-20 rounded-md border border-input bg-card px-2 text-base text-foreground">
+                    className="h-10 w-20 rounded-ctl border border-input bg-card px-2 text-base text-foreground">
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
                   <select value={month} onChange={(e) => setMonth(e.target.value)}
-                    className="h-10 min-w-[9rem] flex-1 rounded-md border border-input bg-card px-2 text-base text-foreground">
+                    className="h-10 min-w-[9rem] flex-1 rounded-ctl border border-input bg-card px-2 text-base text-foreground">
                     {MONTH_NAMES.map((m, i) => (
                       <option key={m} value={i + 1}>{m}</option>
                     ))}

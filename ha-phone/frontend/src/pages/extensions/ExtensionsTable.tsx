@@ -23,7 +23,7 @@ function contactHost(uri: string): string {
 }
 
 function Mini({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-center gap-1 rounded-[8px] bg-raised px-2 py-0.5 text-xs font-bold text-muted-foreground [&_svg]:size-[13px]">{children}</span>;
+  return <span className="inline-flex items-center gap-1 rounded-full bg-raised px-2 py-0.5 text-xs font-bold text-muted-foreground [&_svg]:size-[13px]">{children}</span>;
 }
 
 export function ExtensionsTable({

@@ -51,7 +51,7 @@ export function OutboundRulesSection() {
 
   async function addRule() {
     if (!pattern.trim()) {
-      toast.error("Muster ist erforderlich (z.B. 0.).");
+      toast.error("Muster ist erforderlich (z. B. 0.).");
       return;
     }
     setSaving(true);
@@ -186,7 +186,7 @@ export function OutboundRulesSection() {
             <TableRow>
               <TableCell>
                 <Input value={pattern} onChange={(e) => setPattern(e.target.value)}
-                  placeholder="z.B. 0." className="h-9 font-mono" />
+                  placeholder="z. B. 0." className="h-9 font-mono" />
               </TableCell>
               <TableCell>
                 <Input value={strip} onChange={(e) => setStrip(e.target.value)}
@@ -194,7 +194,7 @@ export function OutboundRulesSection() {
               </TableCell>
               <TableCell>
                 <Input value={prepend} onChange={(e) => setPrepend(e.target.value)}
-                  placeholder="z.B. +49" className="h-9 font-mono" />
+                  placeholder="z. B. +49" className="h-9 font-mono" />
               </TableCell>
               <TableCell>
                 <CidSelect value={newRuleCid} onChange={setNewRuleCid} />

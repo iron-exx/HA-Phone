@@ -28,6 +28,6 @@ describe("Türstationen & Verlauf", () => {
   it("zeigt den Klingel-Verlauf", async () => {
     mockFetch({ "/api/extensions": [], "/api/doorbell": [] });
     renderAt(<Doorbell />, { route: "/doorbell" });
-    expect(await screen.findByText("Noch hat niemand geklingelt.")).toBeInTheDocument();
+    expect(await screen.findByText("In den letzten 30 Tagen hat niemand geklingelt.")).toBeInTheDocument();
   });
 });
