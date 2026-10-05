@@ -267,7 +267,7 @@ export default function Remote() {
           ) : (
             <>
               <p className="flex items-start gap-2">
-                <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-end" />
+                <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-ended" />
                 <span>Noch nicht gefunden. So geht's:</span>
               </p>
               <ol className="list-decimal pl-10 space-y-1">
@@ -335,7 +335,7 @@ export default function Remote() {
               </div>
               <CheckList result={check} />
               {confirmDisconnect && (
-                <div className="rounded border border-end/40 p-3 space-y-2">
+                <div className="rounded border border-ended/40 p-3 space-y-2">
                   <p>Neue Handys müssen sich dann selbst bei Tailscale anmelden. Sollen die bisherigen Handys
                     außerdem aus dem Tailnet entfernt werden?</p>
                   <div className="flex flex-wrap gap-2">
@@ -375,7 +375,7 @@ export default function Remote() {
             {phones === null ? (
               <Skeleton className="h-16" />
             ) : phonesError ? (
-              <p className="text-end">{phonesError}</p>
+              <p className="text-ended">{phonesError}</p>
             ) : phones.length === 0 ? (
               <p className="text-muted-foreground">
                 Noch keine. Koppel ein Handy per QR-Code (Provisioning), es tritt dann dem Tailnet bei.

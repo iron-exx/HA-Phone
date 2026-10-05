@@ -9,7 +9,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-brand text-brand-ink shadow-glow hover:brightness-105 active:brightness-95",
+        default: "bg-brand text-brand-ink shadow-glow hover:brightness-105 active:brightness-95 disabled:shadow-none",
         destructive: "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/30",
         outline: "border border-stroke bg-card text-foreground hover:bg-raised",
         secondary: "bg-raised text-foreground hover:bg-high",

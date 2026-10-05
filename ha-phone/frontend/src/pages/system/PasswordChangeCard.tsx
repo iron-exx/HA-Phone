@@ -28,7 +28,7 @@ type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p role="alert" className="rounded-ctl bg-end-soft px-3 py-2 text-sm font-semibold text-end">{message}</p>;
+  return <p role="alert" className="rounded-ctl bg-ended-soft px-3 py-2 text-sm font-semibold text-ended">{message}</p>;
 }
 
 export function PasswordChangeCard() {

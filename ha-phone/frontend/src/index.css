@@ -97,8 +97,8 @@
   --color-blue-soft: var(--blue-soft);
   --color-answer: var(--answer);
   --color-answer-soft: var(--answer-soft);
-  --color-end: var(--end);
-  --color-end-soft: var(--end-soft);
+  --color-ended: var(--end);
+  --color-ended-soft: var(--end-soft);
   --color-door: var(--door);
   --color-door-soft: var(--door-soft);
   --color-violet: var(--violet);

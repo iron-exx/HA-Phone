@@ -8,7 +8,7 @@ const TONE_CLASSES: Record<Tone, string> = {
   answer: "bg-answer-soft text-answer",
   door: "bg-door-soft text-door",
   violet: "bg-violet-soft text-violet",
-  end: "bg-end-soft text-end",
+  end: "bg-ended-soft text-ended",
 };
 
 export function IconTile({ icon: Icon, tone = "blue", size = "md" }: { icon: LucideIcon; tone?: Tone; size?: "sm" | "md" }) {

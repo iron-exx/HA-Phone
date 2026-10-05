@@ -8,7 +8,7 @@ import type { AttentionItem } from "./overviewLogic";
 export type UpdateState = "idle" | "running" | "done";
 
 const ROW_TONE: Record<AttentionItem["tone"], string> = {
-  error: "bg-end-soft [&_svg]:text-end",
+  error: "bg-ended-soft [&_svg]:text-ended",
   warn: "bg-door-soft [&_svg]:text-door",
   info: "bg-blue-soft [&_svg]:text-blue",
 };

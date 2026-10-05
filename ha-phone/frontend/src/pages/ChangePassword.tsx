@@ -38,7 +38,7 @@ export default function ChangePassword() {
 
   const strength =
     pw.length < 12
-      ? { bar: "bg-end", text: "text-end", label: "Zu kurz" }
+      ? { bar: "bg-ended", text: "text-ended", label: "Zu kurz" }
       : pw.length < 16
         ? { bar: "bg-door", text: "text-door", label: "Gut" }
         : { bar: "bg-answer", text: "text-answer", label: "Stark" };
@@ -100,7 +100,7 @@ export default function ChangePassword() {
           )}
 
           {error && (
-            <div className="rounded-ctl bg-end-soft px-3 py-2 text-sm font-semibold text-end">
+            <div className="rounded-ctl bg-ended-soft px-3 py-2 text-sm font-semibold text-ended">
               {error}
             </div>
           )}

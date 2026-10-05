@@ -17,8 +17,15 @@ const FORBIDDEN: RegExp[] = [
   /text-(emerald|amber|red|green)-\d/,
 ];
 
+// `text-end` ist in Tailwind `text-align: end` (kein Farb-Token); das Farb-Token heißt `ended`.
+const CLASHING_TOKEN = /(?<![\w-])(text|bg|border)-end(?![\w-])/;
+
 describe("Keine festverdrahteten Farben", () => {
   it.each(Object.entries(SOURCES))("%s nutzt nur Tokens", (_file, source) => {
     for (const pattern of FORBIDDEN) expect(source).not.toMatch(pattern);
+  });
+
+  it.each(Object.entries(SOURCES))("%s nutzt kein kollidierendes Token (text-end)", (_file, source) => {
+    expect(source).not.toMatch(CLASHING_TOKEN);
   });
 });

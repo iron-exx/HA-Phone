@@ -7,7 +7,7 @@ const CHIP_CLASSES: Record<ChipTone, string> = {
   ok: "bg-answer-soft text-answer",
   off: "bg-raised text-faint",
   door: "bg-door-soft text-door",
-  error: "bg-end-soft text-end",
+  error: "bg-ended-soft text-ended",
   info: "bg-blue-soft text-blue",
 };
 

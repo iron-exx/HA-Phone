@@ -71,7 +71,7 @@ export function DoorbellHistory() {
                   <span className="text-muted-foreground">{dateFmt.format(new Date(ev.started_at))}</span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className={ev.answered_by ? "" : "font-bold text-end"}>
+                  <span className={ev.answered_by ? "" : "font-bold text-ended"}>
                     {ev.answered_by ? `angenommen von ${ev.answered_by}` : "verpasst"}
                     {ev.door_opened && (
                       <span className="ml-2 inline-flex items-center gap-1 text-answer"><DoorOpen className="size-3.5" />geöffnet</span>

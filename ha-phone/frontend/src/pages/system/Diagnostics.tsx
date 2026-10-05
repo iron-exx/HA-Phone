@@ -314,10 +314,10 @@ export default function Diagnostics() {
                 <>
                   {/* Pulsing red dot */}
                   <span className="relative flex h-3 w-3">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-end opacity-75" />
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-end" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ended opacity-75" />
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-ended" />
                   </span>
-                  <span className="font-mono text-sm font-semibold text-end">AUFZEICHNUNG</span>
+                  <span className="font-mono text-sm font-semibold text-ended">AUFZEICHNUNG</span>
                   <span className="font-mono text-sm text-muted-foreground">{formatDuration(elapsed)}</span>
                 </>
               ) : status.file_ready ? (
@@ -345,7 +345,7 @@ export default function Diagnostics() {
                 onClick={handleStop}
                 disabled={loading}
                 variant="secondary"
-                className="cursor-pointer gap-2 bg-end-soft text-end hover:bg-end-soft"
+                className="cursor-pointer gap-2 bg-ended-soft text-ended hover:bg-ended-soft"
               >
                 <Square className="h-3.5 w-3.5 fill-current" />
                 Stoppen
@@ -356,7 +356,7 @@ export default function Diagnostics() {
                 disabled={loading}
                 className="cursor-pointer gap-2"
               >
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-end" />
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-ended" />
                 Aufzeichnen
               </Button>
             )}
@@ -377,7 +377,7 @@ export default function Diagnostics() {
                   variant="outline"
                   size="sm"
                   onClick={handleDiscard}
-                  className="cursor-pointer gap-1.5 text-muted-foreground hover:text-end"
+                  className="cursor-pointer gap-1.5 text-muted-foreground hover:text-ended"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Verwerfen

@@ -38,7 +38,7 @@ export interface TailnetPhone {
 }
 
 export function StepIcon({ step }: { step: CheckStep }) {
-  if (!step.ok) return <XCircle className="h-4 w-4 shrink-0 text-end" />;
+  if (!step.ok) return <XCircle className="h-4 w-4 shrink-0 text-ended" />;
   if (step.warning) return <AlertTriangle className="h-4 w-4 shrink-0 text-door" />;
   return <CheckCircle2 className="h-4 w-4 shrink-0 text-answer" />;
 }
