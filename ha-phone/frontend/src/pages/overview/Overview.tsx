@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { BellRing, Phone, Plug, Smartphone, UserRound } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,19 @@ export default function Overview() {
   });
   const trunkTone = data.trunkStatus === "Registered" ? "answer" : data.trunkStatus === "UNKNOWN" ? "blue" : "end";
 
+  function failUpdate() {
+    setUpdateState("idle");
+    toast.error("Update konnte nicht gestartet werden.");
+  }
+
   function startUpdate() {
     setUpdateState("running");
     fetch("/api/update/start", { method: "POST" })
-      .then((r) => setUpdateState(r.ok ? "done" : "idle"))
-      .catch(() => setUpdateState("idle"));
+      .then((r) => {
+        if (r.ok) setUpdateState("done");
+        else failUpdate();
+      })
+      .catch(failUpdate);
   }
 
   return (

@@ -64,7 +64,7 @@ export function PasswordChangeCard() {
   }
 
   return (
-    <SectionCard icon={KeyRound} title="Admin-Passwort ändern" description="Freiwillig – zum Beispiel, wenn jemand anderes das Passwort kennt. Mindestens 12 Zeichen.">
+    <SectionCard icon={KeyRound} title="Admin-Passwort ändern" description="Mindestens 12 Zeichen. Andere angemeldete Browser werden dabei nicht abgemeldet.">
       <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} className="grid max-w-md gap-3" noValidate>
         <div className="grid gap-1.5">
           <Label htmlFor="current-password">Aktuelles Passwort</Label>

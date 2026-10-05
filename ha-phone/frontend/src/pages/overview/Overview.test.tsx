@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import Overview from "./Overview";
-import { mockFetch } from "@/test/mockFetch";
+import { mockFetch, withStatus } from "@/test/mockFetch";
 import { renderAt } from "@/test/render";
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 const today = new Date();
 const door = (h: number, answered: string) => ({
@@ -27,5 +30,22 @@ describe("Übersicht", () => {
     expect(screen.getByRole("region", { name: "Zuletzt an der Tür" })).toBeInTheDocument();
     expect(screen.getByText("verpasst")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Handy koppeln" })).toHaveAttribute("href", "/extensions");
+  });
+
+  it("meldet einen fehlgeschlagenen Update-Start per Hinweis und lässt den Knopf wieder zu", async () => {
+    mockFetch({
+      "/api/trunk/status": { status: "Registered" },
+      "/api/extensions": [],
+      "/api/extensions/status": [],
+      "/api/status/active-calls": { count: 0 },
+      "/api/doorbell": [],
+      "/api/update/info": { version: "0.7.158", version_latest: "0.7.159", update_available: true },
+      "/api/diagnostics/config-regeneration": { ok: true, source: null, last_run_at: null, last_failure_at: null, steps: [] },
+      "POST /api/update/start": withStatus(500, { detail: "boom" }),
+    });
+    renderAt(<Overview />, { route: "/" });
+    fireEvent.click(await screen.findByRole("button", { name: "Jetzt aktualisieren" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Update konnte nicht gestartet werden."));
+    expect(await screen.findByRole("button", { name: "Jetzt aktualisieren" })).toBeEnabled();
   });
 });
