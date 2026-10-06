@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.159
+
+**Dokumentation - Installation vereinfacht, Begriffe an Home Assistant angepasst**
+- Das README hat jetzt einen „My Link“-Knopf: Ein Klick fügt das HA-Phone-Repository in Home Assistant hinzu.
+- Home Assistant nennt Add-ons jetzt „Apps“. Die Anlage heißt in der Doku „HA-Phone App“ (Home Assistant), die Handy-App „HA-Phone mobile app“ (Android), damit beides nicht mehr verwechselt wird.
+- Installationspfad in README, `ha-phone/README.md` und DOCS auf „Einstellungen → Apps“ umgestellt. Am Programm selbst ändert sich nichts.
+
 ## 0.7.158
 
 **Neu - Aufgeräumte Oberfläche im Look der App („Nachtwache“)**

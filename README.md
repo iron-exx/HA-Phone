@@ -25,8 +25,8 @@ HA-Phone turns your Home Assistant into a complete telephone system: connect a S
 - **📞 Any SIP trunk** — works with all standard providers (Telekom, Vodafone, 1&1, Sipgate, Deutsche Glasfaser / outbox, and many more). Registration, CLIP (outbound caller ID), and a selectable codec list.
 - **☎️ Extensions** — internal SIP accounts with auto-generated passwords, presence status (available, away, do not disturb, off work) with per-status forwarding, optional **internal-only** mode and a **fallback to a mobile number** when no device of the extension is reachable.
 - **🚪 Door stations** — mark any extension as a **door station** (Akuvox, 2N, DoorBird, Fanvil, …) and get a **doorbell history with a photo of every ring** (who answered, whether the door was opened), a **door-open webhook** (e.g. a Home Assistant automation), a DTMF door code and **Home Assistant action buttons** in the app. Door calls can skip the phones of people who are away while someone is at home.
-- **📱 HA-Phone App** — the companion app for Android ([iron-exx/ha-phone-app](https://github.com/iron-exx/ha-phone-app)): pairs by QR code, rings like a normal phone call even when locked, shows the door camera **before you answer** and opens the door with a swipe.
-- **🌍 Remote access without port forwarding** — with the Tailscale add-on on your Home Assistant host, the app reaches HA-Phone through your tailnet on mobile data. Pairing can even join the phone to the tailnet automatically.
+- **📱 HA-Phone mobile app** — the companion app for Android ([iron-exx/ha-phone-app](https://github.com/iron-exx/ha-phone-app)): pairs by QR code, rings like a normal phone call even when locked, shows the door camera **before you answer** and opens the door with a swipe.
+- **🌍 Remote access without port forwarding** — with the Tailscale app on your Home Assistant host, the HA-Phone mobile app reaches HA-Phone through your tailnet on mobile data. Pairing can even join the phone to the tailnet automatically.
 - **🔀 Call routing** — editable **outbound dial rules** (pattern / strip / prepend), **inbound routes** (DID → extension, ring group or IVR, format-tolerant matching), **ring groups**, **IVR menus** with uploaded greetings, time conditions and holidays.
 - **📟 Auto-provisioning** — configure IP phones, DECT bases and door stations by MAC address, like 3CX/Yeastar. Ships with **editable templates** for Yealink, Grandstream, Fanvil and Gigaset.
 - **📬 Voicemail** — per-extension mailboxes with **voicemail-to-email** via your own SMTP server.
@@ -53,7 +53,13 @@ The UI follows the theme of your system or Home Assistant, so there is a light v
 
 ## Installation
 
-1. In Home Assistant: **Settings → Add-ons → Add-on Store → ⋮ → Repositories**, add:
+> **Naming:** *HA-Phone* is a Home Assistant **app** (called *add-on* in older Home Assistant versions) that runs the phone system. The Android companion is the **HA-Phone mobile app**.
+
+[![Add the HA-Phone repository to your Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Firon-exx%2FHA-Phone)
+
+One click adds the repository to your Home Assistant. Or add it by hand: **Settings → Apps** (*Add-ons* in older versions) **→ app store → ⋮ → Repositories**:
+
+1. Add this repository:
    ```
    https://github.com/iron-exx/HA-Phone
    ```
@@ -84,13 +90,13 @@ Tip for phones that are away: set **Belongs to** (*Gehört zu (Home-Assistant-Pe
 
 ## Remote access
 
-**With the HA-Phone App (recommended):** install the **Tailscale** add-on on your Home Assistant host and join it to your tailnet (userspace networking off). HA-Phone detects it on the **Fernzugriff** page (*Anschluss → Fernzugriff*). From then on, pairing a phone also sets up its tailnet access, either by signing in once on the phone or fully automatic with an OAuth client. On mobile data the app connects through the tailnet, at home it takes the direct path. No ports are opened to the internet.
+**With the HA-Phone mobile app (recommended):** install the **Tailscale** app on your Home Assistant host and join it to your tailnet (userspace networking off). HA-Phone detects it on the **Fernzugriff** page (*Anschluss → Fernzugriff*). From then on, pairing a phone also sets up its tailnet access, either by signing in once on the phone or fully automatic with an OAuth client. On mobile data the app connects through the tailnet, at home it takes the direct path. No ports are opened to the internet.
 
 **With other SIP softphones** (Linphone, Zoiper, …): connect the phone to your tailnet or another VPN and use the Tailscale IP of the Home Assistant host as the SIP server. VPN peers count as local, so audio and video flow through the tunnel. Do not use the Home Assistant ingress URL, Cloudflare tunnels or reverse proxies for SIP.
 
 ## Network
 
-HA-Phone uses the host network (RTP needs UDP port ranges the add-on network does not support).
+HA-Phone uses the host network (RTP needs UDP port ranges the Home Assistant app network does not support).
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
@@ -112,7 +118,7 @@ DG resells the outbox / aarenet platform. Two things differ from a "typical" tru
 - **Login name ≠ phone number.** Authentication uses the **SIP account** from the provider letter; the registration/AOR identity is the **phone number** (national format with leading 0, e.g. `0301234567`). Enter the SIP account under *Login name* and the number under *Phone number*.
 - **SRV / DNS.** The registrar `dg.voip.dg-w.de` uses SRV records — HA-Phone resolves them correctly (no manual proxy needed).
 
-More: [Fritz!Box as a trunk](docs/FRITZBOX.md), add-on documentation in [ha-phone/DOCS.md](ha-phone/DOCS.md), changes in [ha-phone/CHANGELOG.md](ha-phone/CHANGELOG.md).
+More: [Fritz!Box as a trunk](docs/FRITZBOX.md), app documentation in [ha-phone/DOCS.md](ha-phone/DOCS.md), changes in [ha-phone/CHANGELOG.md](ha-phone/CHANGELOG.md).
 
 ## Support
 

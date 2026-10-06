@@ -10,12 +10,12 @@
 
 ## Installation
 
-1. **Add repository** — HA → Settings → Add-ons → Add-on Store → ⋮ → Repositories:
+1. **Add repository** — HA → Settings → Apps (*Add-ons* in older versions) → app store → ⋮ → Repositories:
    ```
    https://github.com/iron-exx/HA-Phone
    ```
 2. **Install** HA-Phone and click **Start**.
-3. **Open the UI** via the HA sidebar — the first login uses the password from the add-on configuration (default: `changeme`). You are asked to change it immediately.
+3. **Open the UI** via the HA sidebar — the first login uses the password from the app configuration (default: `changeme`). You are asked to change it immediately.
 
 The web UI is in German.
 
@@ -23,7 +23,7 @@ The web UI is in German.
 
 ## Network
 
-This add-on uses `host_network: true` because the HA add-on network does not support
+This app uses `host_network: true` because the Home Assistant app network does not support
 the UDP port ranges required for RTP.
 
 | Port | Protocol | Purpose |
@@ -105,7 +105,7 @@ For the camera preview before answering, switch on *Video-fähig* for the door s
 
 The HA-Phone App for Android pairs by QR code, keeps a TLS registration, rings over the lock screen and shows the door video before you answer. See [iron-exx/ha-phone-app](https://github.com/iron-exx/ha-phone-app).
 
-For use on mobile data, install the **Tailscale** add-on on the Home Assistant host and join it to your tailnet (keep *userspace networking* off). The page **Anschluss → Fernzugriff** in HA-Phone checks the setup. After that, pairing also gives the phone tailnet access: either the user signs in once on the phone, or HA-Phone creates a one-time key via an OAuth client (*Vollautomatisch*). No ports need to be opened to the internet.
+For use on mobile data, install the **Tailscale** app on the Home Assistant host and join it to your tailnet (keep *userspace networking* off). The page **Anschluss → Fernzugriff** in HA-Phone checks the setup. After that, pairing also gives the phone tailnet access: either the user signs in once on the phone, or HA-Phone creates a one-time key via an OAuth client (*Vollautomatisch*). No ports need to be opened to the internet.
 
 Other SIP softphones (Linphone, Zoiper, …) work too: connect the phone to your tailnet or another VPN and use the Tailscale IP of the Home Assistant host as the SIP server.
 

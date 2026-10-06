@@ -15,7 +15,7 @@
 
 ## Installation
 
-1. Add this repository in HA → Add-on Store → Repositories:
+1. Add this repository in HA → Settings → Apps (*Add-ons* in older versions) → app store → ⋮ → Repositories, or use the one-click link in the [main README](../README.md#installation):
    ```
    https://github.com/iron-exx/HA-Phone
    ```
@@ -33,7 +33,7 @@ See [DOCS.md](DOCS.md) for network, trunk, extensions, door stations and remote 
 ## License
 
 Copyright (C) 2026 Sandro Ahrens. All Rights Reserved. HA-Phone's own code
-(backend, frontend, add-on config, templates) is source-available for viewing
+(backend, frontend, app config, templates) is source-available for viewing
 only — no license to use, copy, modify, or distribute it, commercially or
 otherwise, is granted. See [LICENSE](LICENSE) for details.
 
